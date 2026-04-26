@@ -4,20 +4,27 @@
 #include "raylib.h"
 
 int main() {
-    const int width = 800;
-    const int height = 800;
+    SimulationConfig config;
+    config.width = 800.0f;
+    config.height = 800.0f;
+    config.maxParticleCount = 1000;
 
-    InitWindow(width, height, "particles_cpu");
+    InitWindow(
+        static_cast<int>(config.width),
+        static_cast<int>(config.height),
+        "particles_cpu"
+    );
+
     SetTargetFPS(60);
 
-    Simulation sim{1000};
+    Simulation sim{config};
     sim.reset();
 
     while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
+        const float dt = GetFrameTime();
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            auto mouse = GetMousePosition();
+            const auto mouse = GetMousePosition();
             sim.spawn(Vec2{mouse.x, mouse.y});
         }
 
@@ -35,7 +42,12 @@ int main() {
         ClearBackground(BLACK);
 
         for (const auto& p : sim.getParticles()) {
-            DrawCircle(static_cast<int>(p.position.x), static_cast<int>(p.position.y), 4, WHITE);
+            DrawCircle(
+                static_cast<int>(p.position.x),
+                static_cast<int>(p.position.y),
+                p.radius,
+                WHITE
+            );
         }
 
         const auto stats = sim.getStats();
