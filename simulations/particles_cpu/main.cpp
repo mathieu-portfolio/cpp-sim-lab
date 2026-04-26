@@ -1,26 +1,7 @@
-#include "Particle.hpp"
+#include "Simulation.hpp"
 
 #include <math/Vec2.hpp>
-#include <random/Random.hpp>
-#include <time/FixedTimestep.hpp>
-
 #include "raylib.h"
-
-#include <vector>
-
-static void integrate(std::vector<Particle>& particles, float dt) {
-    const Vec2 gravity{0.0f, 200.0f}; // scaled for screen
-
-    for (auto& p : particles) {
-        p.velocity += gravity * dt;
-        p.position += p.velocity * dt;
-
-        if (p.position.y > 800) {
-            p.position.y = 800;
-            p.velocity.y *= -0.8f;
-        }
-    }
-}
 
 int main() {
     const int width = 800;
@@ -29,24 +10,27 @@ int main() {
     InitWindow(width, height, "particles_cpu");
     SetTargetFPS(60);
 
-    std::vector<Particle> particles;
-
-    for (int i = 0; i < 100; ++i) {
-        particles.push_back({
-            Vec2{Random::range(0, width), Random::range(0, height)},
-            Vec2{Random::range(-50, 50), Random::range(-50, 50)}
-        });
-    }
+    Simulation sim;
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
-        integrate(particles, dt);
+        // input
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            auto mouse = GetMousePosition();
+            sim.spawn(Vec2{mouse.x, mouse.y});
+        }
+
+        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            sim.clear();
+        }
+
+        sim.update(dt);
 
         BeginDrawing();
         ClearBackground(BLACK);
 
-        for (auto& p : particles) {
+        for (const auto& p : sim.getParticles()) {
             DrawCircle((int)p.position.x, (int)p.position.y, 4, WHITE);
         }
 

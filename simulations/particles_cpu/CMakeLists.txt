@@ -1,10 +1,12 @@
 add_executable(particles_cpu
     main.cpp
+    Simulation.cpp
 )
 
 target_include_directories(particles_cpu
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(particles_cpu
