@@ -8,13 +8,11 @@ void Simulation::update(float dt) {
         p.velocity += gravity * dt;
         p.position += p.velocity * dt;
 
-        // ground
         if (p.position.y > 800.0f) {
             p.position.y = 800.0f;
             p.velocity.y *= -0.8f;
         }
 
-        // walls
         if (p.position.x < 0.0f) {
             p.position.x = 0.0f;
             p.velocity.x *= -0.8f;
@@ -24,7 +22,6 @@ void Simulation::update(float dt) {
             p.velocity.x *= -0.8f;
         }
 
-        // damping
         p.velocity *= 0.999f;
     }
 }
@@ -43,4 +40,10 @@ void Simulation::spawn(const Vec2& pos) {
 
 void Simulation::clear() {
     m_particles.clear();
+}
+
+SimulationStats Simulation::getStats() const {
+    SimulationStats stats;
+    stats.particleCount = m_particles.size();
+    return stats;
 }

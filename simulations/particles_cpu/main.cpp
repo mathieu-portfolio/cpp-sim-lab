@@ -15,7 +15,6 @@ int main() {
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
-        // input
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             auto mouse = GetMousePosition();
             sim.spawn(Vec2{mouse.x, mouse.y});
@@ -33,6 +32,9 @@ int main() {
         for (const auto& p : sim.getParticles()) {
             DrawCircle((int)p.position.x, (int)p.position.y, 4, WHITE);
         }
+
+        auto stats = sim.getStats();
+        DrawText(TextFormat("Particles: %d", (int)stats.particleCount), 10, 10, 20, GREEN);
 
         EndDrawing();
     }
