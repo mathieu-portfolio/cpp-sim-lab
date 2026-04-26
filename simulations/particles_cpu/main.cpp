@@ -10,7 +10,7 @@ int main() {
     InitWindow(width, height, "particles_cpu");
     SetTargetFPS(60);
 
-    Simulation sim{5000};
+    Simulation sim{1000};
     sim.reset();
 
     while (!WindowShouldClose()) {
@@ -38,7 +38,7 @@ int main() {
             DrawCircle(static_cast<int>(p.position.x), static_cast<int>(p.position.y), 4, WHITE);
         }
 
-        auto stats = sim.getStats();
+        const auto stats = sim.getStats();
 
         DrawText(
             TextFormat("Particles: %d / %d",
@@ -50,9 +50,25 @@ int main() {
             GREEN
         );
 
-        DrawText("Left mouse: spawn", 10, 40, 18, GRAY);
-        DrawText("Right mouse: clear", 10, 62, 18, GRAY);
-        DrawText("R: reset", 10, 84, 18, GRAY);
+        DrawText(
+            TextFormat("Collision checks: %d", static_cast<int>(stats.collisionChecks)),
+            10,
+            34,
+            18,
+            GRAY
+        );
+
+        DrawText(
+            TextFormat("Collisions resolved: %d", static_cast<int>(stats.collisionsResolved)),
+            10,
+            56,
+            18,
+            GRAY
+        );
+
+        DrawText("Left mouse: spawn", 10, 90, 18, GRAY);
+        DrawText("Right mouse: clear", 10, 112, 18, GRAY);
+        DrawText("R: reset", 10, 134, 18, GRAY);
 
         EndDrawing();
     }

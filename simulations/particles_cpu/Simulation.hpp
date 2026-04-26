@@ -8,6 +8,8 @@
 struct SimulationStats {
     std::size_t particleCount = 0;
     std::size_t maxParticleCount = 0;
+    std::size_t collisionChecks = 0;
+    std::size_t collisionsResolved = 0;
 };
 
 class Simulation {
@@ -25,4 +27,5 @@ public:
 private:
     std::vector<Particle> m_particles;
     std::size_t m_maxParticleCount;
+    SimulationStats m_stats;
 };
