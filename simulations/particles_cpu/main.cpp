@@ -10,7 +10,7 @@ int main() {
     InitWindow(width, height, "particles_cpu");
     SetTargetFPS(60);
 
-    Simulation sim;
+    Simulation sim{5000};
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -30,11 +30,19 @@ int main() {
         ClearBackground(BLACK);
 
         for (const auto& p : sim.getParticles()) {
-            DrawCircle((int)p.position.x, (int)p.position.y, 4, WHITE);
+            DrawCircle(static_cast<int>(p.position.x), static_cast<int>(p.position.y), 4, WHITE);
         }
 
         auto stats = sim.getStats();
-        DrawText(TextFormat("Particles: %d", (int)stats.particleCount), 10, 10, 20, GREEN);
+        DrawText(
+            TextFormat("Particles: %d / %d",
+                static_cast<int>(stats.particleCount),
+                static_cast<int>(stats.maxParticleCount)),
+            10,
+            10,
+            20,
+            GREEN
+        );
 
         EndDrawing();
     }

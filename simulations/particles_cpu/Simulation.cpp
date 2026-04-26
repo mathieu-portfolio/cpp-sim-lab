@@ -1,5 +1,11 @@
 #include "Simulation.hpp"
+
 #include <random/Random.hpp>
+
+Simulation::Simulation(std::size_t maxParticleCount)
+    : m_maxParticleCount(maxParticleCount) {
+    m_particles.reserve(m_maxParticleCount);
+}
 
 void Simulation::update(float dt) {
     const Vec2 gravity{0.0f, 200.0f};
@@ -17,6 +23,7 @@ void Simulation::update(float dt) {
             p.position.x = 0.0f;
             p.velocity.x *= -0.8f;
         }
+
         if (p.position.x > 800.0f) {
             p.position.x = 800.0f;
             p.velocity.x *= -0.8f;
@@ -27,7 +34,9 @@ void Simulation::update(float dt) {
 }
 
 void Simulation::spawn(const Vec2& pos) {
-    for (int i = 0; i < 10; ++i) {
+    constexpr int spawnCount = 10;
+
+    for (int i = 0; i < spawnCount && m_particles.size() < m_maxParticleCount; ++i) {
         m_particles.push_back({
             pos,
             Vec2{
@@ -43,7 +52,8 @@ void Simulation::clear() {
 }
 
 SimulationStats Simulation::getStats() const {
-    SimulationStats stats;
-    stats.particleCount = m_particles.size();
-    return stats;
+    return SimulationStats{
+        m_particles.size(),
+        m_maxParticleCount
+    };
 }
