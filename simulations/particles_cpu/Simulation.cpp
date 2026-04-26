@@ -14,23 +14,40 @@ void Simulation::update(float dt) {
         p.velocity += gravity * dt;
         p.position += p.velocity * dt;
 
+        // ground
         if (p.position.y > 800.0f) {
             p.position.y = 800.0f;
             p.velocity.y *= -0.8f;
         }
 
+        // walls
         if (p.position.x < 0.0f) {
             p.position.x = 0.0f;
             p.velocity.x *= -0.8f;
         }
-
         if (p.position.x > 800.0f) {
             p.position.x = 800.0f;
             p.velocity.x *= -0.8f;
         }
 
+        // damping
         p.velocity *= 0.999f;
     }
+
+    // lifecycle: remove "dead" particles
+    constexpr float sleepVelocityThreshold = 5.0f;
+
+    m_particles.erase(
+        std::remove_if(
+            m_particles.begin(),
+            m_particles.end(),
+            [](const Particle& p) {
+                return std::abs(p.velocity.y) < sleepVelocityThreshold &&
+                       p.position.y >= 799.0f; // resting on ground
+            }
+        ),
+        m_particles.end()
+    );
 }
 
 void Simulation::spawn(const Vec2& pos) {
