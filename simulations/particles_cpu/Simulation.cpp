@@ -15,56 +15,45 @@ constexpr float Epsilon = 0.0001f;
 void solveBounds(Particle& p) {
     if (p.position.x - p.radius < 0.0f) {
         p.position.x = p.radius;
-        if (p.velocity.x < 0.0f) {
-            p.velocity.x *= Bounce;
-        }
+        if (p.velocity.x < 0.0f) p.velocity.x *= Bounce;
     }
-
     if (p.position.x + p.radius > Width) {
         p.position.x = Width - p.radius;
-        if (p.velocity.x > 0.0f) {
-            p.velocity.x *= Bounce;
-        }
+        if (p.velocity.x > 0.0f) p.velocity.x *= Bounce;
     }
-
     if (p.position.y + p.radius > Height) {
         p.position.y = Height - p.radius;
-        if (p.velocity.y > 0.0f) {
-            p.velocity.y *= Bounce;
-        }
-    }
-
-    if (p.position.y - p.radius < 0.0f) {
-        p.position.y = p.radius;
-        if (p.velocity.y < 0.0f) {
-            p.velocity.y *= Bounce;
-        }
+        if (p.velocity.y > 0.0f) p.velocity.y *= Bounce;
     }
 }
 
-void resolveCollisions(std::vector<Particle>& particles, SimulationStats& stats) {
-    const std::size_t count = particles.size();
+void resolveCollisionsGrid(std::vector<Particle>& particles,
+                           SpatialGrid& grid,
+                           SimulationStats& stats) {
+    std::vector<int> candidates;
 
-    for (std::size_t i = 0; i < count; ++i) {
-        for (std::size_t j = i + 1; j < count; ++j) {
+    for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+        Particle& a = particles[i];
+
+        candidates.clear();
+        grid.queryNeighbors(a.position, candidates);
+
+        for (int j : candidates) {
+            if (j <= i) continue;
+
             ++stats.collisionChecks;
 
-            Particle& a = particles[i];
             Particle& b = particles[j];
 
             Vec2 delta = b.position - a.position;
             float dist = delta.length();
+            float minDist = a.radius + b.radius;
 
-            const float minDist = a.radius + b.radius;
-
-            if (dist >= minDist) {
-                continue;
-            }
+            if (dist >= minDist) continue;
 
             ++stats.collisionsResolved;
 
             Vec2 normal;
-
             if (dist < Epsilon) {
                 normal = Vec2{1.0f, 0.0f};
                 dist = Epsilon;
@@ -72,21 +61,20 @@ void resolveCollisions(std::vector<Particle>& particles, SimulationStats& stats)
                 normal = delta * (1.0f / dist);
             }
 
-            const float penetration = minDist - dist;
-            const Vec2 correction = normal * (penetration * 0.5f);
+            float penetration = minDist - dist;
+            Vec2 correction = normal * (penetration * 0.5f);
 
             a.position -= correction;
             b.position += correction;
 
-            const Vec2 relativeVelocity = b.velocity - a.velocity;
-            const float velocityAlongNormal = Vec2::dot(relativeVelocity, normal);
+            Vec2 relVel = b.velocity - a.velocity;
+            float velAlongNormal = Vec2::dot(relVel, normal);
 
-            if (velocityAlongNormal < 0.0f) {
-                const float impulseMagnitude =
-                    -(1.0f + Restitution) * velocityAlongNormal * 0.5f;
+            if (velAlongNormal < 0.0f) {
+                float impulseMag =
+                    -(1.0f + Restitution) * velAlongNormal * 0.5f;
 
-                const Vec2 impulse = normal * impulseMagnitude;
-
+                Vec2 impulse = normal * impulseMag;
                 a.velocity -= impulse;
                 b.velocity += impulse;
             }
@@ -99,7 +87,8 @@ void resolveCollisions(std::vector<Particle>& particles, SimulationStats& stats)
 }
 
 Simulation::Simulation(std::size_t maxParticleCount)
-    : m_maxParticleCount(maxParticleCount) {
+    : m_maxParticleCount(maxParticleCount),
+      m_grid(16.0f) {
     m_particles.reserve(m_maxParticleCount);
 }
 
@@ -119,40 +108,17 @@ void Simulation::update(float dt) {
         solveBounds(p);
     }
 
-    resolveCollisions(m_particles, m_stats);
+    m_grid.build(m_particles);
 
-    for (auto& p : m_particles) {
-        solveBounds(p);
-    }
-
-    constexpr float sleepVelocityThreshold = 5.0f;
-
-    m_particles.erase(
-        std::remove_if(
-            m_particles.begin(),
-            m_particles.end(),
-            [](const Particle& p) {
-                return std::abs(p.velocity.y) < sleepVelocityThreshold &&
-                       p.position.y + p.radius >= Height - 1.0f;
-            }
-        ),
-        m_particles.end()
-    );
+    resolveCollisionsGrid(m_particles, m_grid, m_stats);
 
     m_stats.particleCount = m_particles.size();
 }
 
 void Simulation::spawn(const Vec2& pos) {
-    constexpr int spawnCount = 2;
-
-    for (int i = 0; i < spawnCount && m_particles.size() < m_maxParticleCount; ++i) {
-        const Vec2 spawnOffset{
-            Random::range(-20.0f, 20.0f),
-            Random::range(-20.0f, 20.0f)
-        };
-
+    for (int i = 0; i < 2 && m_particles.size() < m_maxParticleCount; ++i) {
         m_particles.push_back({
-            pos + spawnOffset,
+            pos,
             Vec2{
                 Random::range(-80.0f, 80.0f),
                 Random::range(-120.0f, -40.0f)
@@ -164,30 +130,10 @@ void Simulation::spawn(const Vec2& pos) {
 
 void Simulation::clear() {
     m_particles.clear();
-    m_stats = {};
-    m_stats.maxParticleCount = m_maxParticleCount;
 }
 
 void Simulation::reset() {
     clear();
-
-    constexpr int initialParticleCount = 50;
-
-    for (int i = 0; i < initialParticleCount && m_particles.size() < m_maxParticleCount; ++i) {
-        m_particles.push_back({
-            Vec2{
-                Random::range(100.0f, 700.0f),
-                Random::range(100.0f, 300.0f)
-            },
-            Vec2{
-                Random::range(-60.0f, 60.0f),
-                Random::range(-100.0f, 20.0f)
-            },
-            4.0f
-        });
-    }
-
-    m_stats.particleCount = m_particles.size();
 }
 
 SimulationStats Simulation::getStats() const {

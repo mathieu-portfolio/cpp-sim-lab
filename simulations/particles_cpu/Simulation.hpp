@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Particle.hpp"
+#include "SpatialGrid.hpp"
 
 #include <cstddef>
 #include <vector>
@@ -28,4 +29,6 @@ private:
     std::vector<Particle> m_particles;
     std::size_t m_maxParticleCount;
     SimulationStats m_stats;
+
+    SpatialGrid m_grid{16.0f};
 };
