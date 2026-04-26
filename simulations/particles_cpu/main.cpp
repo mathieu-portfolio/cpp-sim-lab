@@ -11,6 +11,7 @@ int main() {
     SetTargetFPS(60);
 
     Simulation sim{5000};
+    sim.reset();
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -24,6 +25,10 @@ int main() {
             sim.clear();
         }
 
+        if (IsKeyPressed(KEY_R)) {
+            sim.reset();
+        }
+
         sim.update(dt);
 
         BeginDrawing();
@@ -34,6 +39,7 @@ int main() {
         }
 
         auto stats = sim.getStats();
+
         DrawText(
             TextFormat("Particles: %d / %d",
                 static_cast<int>(stats.particleCount),
@@ -43,6 +49,10 @@ int main() {
             20,
             GREEN
         );
+
+        DrawText("Left mouse: spawn", 10, 40, 18, GRAY);
+        DrawText("Right mouse: clear", 10, 62, 18, GRAY);
+        DrawText("R: reset", 10, 84, 18, GRAY);
 
         EndDrawing();
     }

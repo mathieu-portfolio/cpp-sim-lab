@@ -51,6 +51,25 @@ void Simulation::clear() {
     m_particles.clear();
 }
 
+void Simulation::reset() {
+    clear();
+
+    constexpr int initialParticleCount = 100;
+
+    for (int i = 0; i < initialParticleCount && m_particles.size() < m_maxParticleCount; ++i) {
+        m_particles.push_back({
+            Vec2{
+                Random::range(100.0f, 700.0f),
+                Random::range(100.0f, 300.0f)
+            },
+            Vec2{
+                Random::range(-80.0f, 80.0f),
+                Random::range(-120.0f, 20.0f)
+            }
+        });
+    }
+}
+
 SimulationStats Simulation::getStats() const {
     return SimulationStats{
         m_particles.size(),

@@ -17,6 +17,7 @@ public:
     void update(float dt);
     void spawn(const Vec2& pos);
     void clear();
+    void reset();
 
     const std::vector<Particle>& getParticles() const { return m_particles; }
     SimulationStats getStats() const;
