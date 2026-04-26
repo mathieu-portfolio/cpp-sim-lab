@@ -1,25 +1,54 @@
 #pragma once
+
 #include <cmath>
 
 struct Vec2 {
     float x = 0.0f;
     float y = 0.0f;
 
-    Vec2() = default;
-    Vec2(float x_, float y_) : x(x_), y(y_) {}
+    constexpr Vec2() = default;
+    constexpr Vec2(float x_, float y_) : x(x_), y(y_) {}
 
-    Vec2 operator+(const Vec2& o) const { return {x + o.x, y + o.y}; }
-    Vec2 operator-(const Vec2& o) const { return {x - o.x, y - o.y}; }
-    Vec2 operator*(float s) const { return {x * s, y * s}; }
-
-    float length() const { return std::sqrt(x*x + y*y); }
-
-    Vec2 normalized() const {
-        float l = length();
-        return l > 0 ? Vec2{x/l, y/l} : Vec2{0,0};
+    constexpr Vec2 operator+(const Vec2& other) const {
+        return {x + other.x, y + other.y};
     }
 
-    static float dot(const Vec2& a, const Vec2& b) {
-        return a.x*b.x + a.y*b.y;
+    constexpr Vec2 operator-(const Vec2& other) const {
+        return {x - other.x, y - other.y};
+    }
+
+    constexpr Vec2 operator*(float scalar) const {
+        return {x * scalar, y * scalar};
+    }
+
+    constexpr Vec2& operator+=(const Vec2& other) {
+        x += other.x;
+        y += other.y;
+        return *this;
+    }
+
+    constexpr Vec2& operator-=(const Vec2& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+
+    constexpr Vec2& operator*=(float scalar) {
+        x *= scalar;
+        y *= scalar;
+        return *this;
+    }
+
+    float length() const {
+        return std::sqrt(x * x + y * y);
+    }
+
+    Vec2 normalized() const {
+        float len = length();
+        return len > 0.0f ? Vec2{x / len, y / len} : Vec2{};
+    }
+
+    static constexpr float dot(const Vec2& a, const Vec2& b) {
+        return a.x * b.x + a.y * b.y;
     }
 };
