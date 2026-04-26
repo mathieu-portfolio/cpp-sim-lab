@@ -1,7 +1,8 @@
 #include "Simulation.hpp"
 
-#include <random/Random.hpp>
+#include <algorithm>
 #include <cmath>
+#include <random/Random.hpp>
 
 Simulation::Simulation(std::size_t maxParticleCount)
     : m_maxParticleCount(maxParticleCount) {
@@ -9,7 +10,8 @@ Simulation::Simulation(std::size_t maxParticleCount)
 }
 
 static void resolveCollisions(std::vector<Particle>& particles) {
-    const float restitution = 0.8f;
+    constexpr float restitution = 0.35f;
+    constexpr float epsilon = 0.0001f;
 
     const std::size_t count = particles.size();
 
@@ -21,30 +23,36 @@ static void resolveCollisions(std::vector<Particle>& particles) {
             Vec2 delta = b.position - a.position;
             float dist = delta.length();
 
-            float minDist = a.radius + b.radius;
+            const float minDist = a.radius + b.radius;
 
-            if (dist == 0.0f || dist >= minDist)
+            if (dist >= minDist) {
                 continue;
+            }
 
-            Vec2 normal = delta * (1.0f / dist);
+            Vec2 normal;
 
-            float penetration = minDist - dist;
+            if (dist < epsilon) {
+                normal = Vec2{1.0f, 0.0f};
+                dist = minDist;
+            } else {
+                normal = delta * (1.0f / dist);
+            }
 
-            // position correction
-            Vec2 correction = normal * (penetration * 0.5f);
+            const float penetration = minDist - dist;
+            const Vec2 correction = normal * (penetration * 0.5f);
+
             a.position -= correction;
             b.position += correction;
 
-            // relative velocity
-            Vec2 relVel = b.velocity - a.velocity;
-            float velAlongNormal = Vec2::dot(relVel, normal);
+            const Vec2 relativeVelocity = b.velocity - a.velocity;
+            const float velocityAlongNormal = Vec2::dot(relativeVelocity, normal);
 
-            if (velAlongNormal > 0.0f)
+            if (velocityAlongNormal > 0.0f) {
                 continue;
+            }
 
-            float impulseMag = -(1.0f + restitution) * velAlongNormal * 0.5f;
-
-            Vec2 impulse = normal * impulseMag;
+            const float impulseMagnitude = -(1.0f + restitution) * velocityAlongNormal * 0.5f;
+            const Vec2 impulse = normal * impulseMagnitude;
 
             a.velocity -= impulse;
             b.velocity += impulse;
@@ -53,34 +61,37 @@ static void resolveCollisions(std::vector<Particle>& particles) {
 }
 
 void Simulation::update(float dt) {
+    constexpr float width = 800.0f;
+    constexpr float height = 800.0f;
+    constexpr float bounce = -0.65f;
+    constexpr float damping = 0.995f;
+
     const Vec2 gravity{0.0f, 200.0f};
 
     for (auto& p : m_particles) {
         p.velocity += gravity * dt;
         p.position += p.velocity * dt;
 
-        if (p.position.y > 800.0f) {
-            p.position.y = 800.0f;
-            p.velocity.y *= -0.8f;
+        if (p.position.y + p.radius > height) {
+            p.position.y = height - p.radius;
+            p.velocity.y *= bounce;
         }
 
-        if (p.position.x < 0.0f) {
-            p.position.x = 0.0f;
-            p.velocity.x *= -0.8f;
+        if (p.position.x - p.radius < 0.0f) {
+            p.position.x = p.radius;
+            p.velocity.x *= bounce;
         }
 
-        if (p.position.x > 800.0f) {
-            p.position.x = 800.0f;
-            p.velocity.x *= -0.8f;
+        if (p.position.x + p.radius > width) {
+            p.position.x = width - p.radius;
+            p.velocity.x *= bounce;
         }
 
-        p.velocity *= 0.999f;
+        p.velocity *= damping;
     }
 
-    // naive O(n^2) collisions
     resolveCollisions(m_particles);
 
-    // lifecycle
     constexpr float sleepVelocityThreshold = 5.0f;
 
     m_particles.erase(
@@ -89,7 +100,7 @@ void Simulation::update(float dt) {
             m_particles.end(),
             [](const Particle& p) {
                 return std::abs(p.velocity.y) < sleepVelocityThreshold &&
-                       p.position.y >= 799.0f;
+                       p.position.y >= 796.0f;
             }
         ),
         m_particles.end()
@@ -97,11 +108,16 @@ void Simulation::update(float dt) {
 }
 
 void Simulation::spawn(const Vec2& pos) {
-    constexpr int spawnCount = 10;
+    constexpr int spawnCount = 5;
 
     for (int i = 0; i < spawnCount && m_particles.size() < m_maxParticleCount; ++i) {
+        const Vec2 spawnOffset{
+            Random::range(-12.0f, 12.0f),
+            Random::range(-12.0f, 12.0f)
+        };
+
         m_particles.push_back({
-            pos,
+            pos + spawnOffset,
             Vec2{
                 Random::range(-100.0f, 100.0f),
                 Random::range(-150.0f, -50.0f)
