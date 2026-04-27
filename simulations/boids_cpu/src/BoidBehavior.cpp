@@ -29,7 +29,34 @@ Vec2 computeAlignment(
     return averageVelocity - boid.velocity;
 }
 
-Vec2 computeCohesion(const Boid&, const std::vector<Boid>&, float) { return {}; }
+Vec2 computeCohesion(
+    const Boid& boid,
+    const std::vector<Boid>& boids,
+    float radius
+) {
+    Vec2 center{};
+    int neighborCount = 0;
+
+    for (const Boid& other : boids) {
+        Vec2 offset = other.position - boid.position;
+        float distance = offset.length();
+
+        if (distance <= 0.0f || distance >= radius) {
+            continue;
+        }
+
+        center += other.position;
+        ++neighborCount;
+    }
+
+    if (neighborCount == 0) {
+        return {};
+    }
+
+    center *= 1.0f / static_cast<float>(neighborCount);
+
+    return center - boid.position;
+}
 
 Vec2 computeSeparation(
     const Boid& boid,
