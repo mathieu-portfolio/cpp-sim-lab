@@ -112,11 +112,18 @@ TODO
 EOF
 
 cat > "$TEST_DIR/CMakeLists.txt" << EOF
-# TODO: add tests for ${SIM_NAME}
-EOF
+add_executable(${SIM_NAME}_tests
+    # TODO: add tests here
+)
 
-cat > "$BENCH_DIR/CMakeLists.txt" << EOF
-# TODO: add benchmarks for ${SIM_NAME}
+target_link_libraries(${SIM_NAME}_tests
+    PRIVATE
+        ${SIM_NAME}_core
+        GTest::gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(${SIM_NAME}_tests)
 EOF
 
 echo "Created simulation: ${SIM_NAME}"
