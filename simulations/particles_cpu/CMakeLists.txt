@@ -2,6 +2,7 @@ add_executable(particles_cpu
     main.cpp
     Simulation.cpp
     SpatialGrid.cpp
+    ParticlePhysics.cpp
 )
 
 target_include_directories(particles_cpu

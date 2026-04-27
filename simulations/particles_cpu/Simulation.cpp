@@ -1,42 +1,10 @@
 #include "Simulation.hpp"
+#include "ParticlePhysics.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <random/Random.hpp>
 
 namespace {
-constexpr float Epsilon = 0.0001f;
-
-void solveBounds(Particle& p, const SimulationConfig& config) {
-    if (p.position.x - p.radius < 0.0f) {
-        p.position.x = p.radius;
-        if (p.velocity.x < 0.0f) {
-            p.velocity.x *= config.bounce;
-        }
-    }
-
-    if (p.position.x + p.radius > config.width) {
-        p.position.x = config.width - p.radius;
-        if (p.velocity.x > 0.0f) {
-            p.velocity.x *= config.bounce;
-        }
-    }
-
-    if (p.position.y + p.radius > config.height) {
-        p.position.y = config.height - p.radius;
-        if (p.velocity.y > 0.0f) {
-            p.velocity.y *= config.bounce;
-        }
-    }
-
-    if (p.position.y - p.radius < 0.0f) {
-        p.position.y = p.radius;
-        if (p.velocity.y < 0.0f) {
-            p.velocity.y *= config.bounce;
-        }
-    }
-}
-
 void resolveCollisionsGrid(
     std::vector<Particle>& particles,
     SpatialGrid& grid,
@@ -60,45 +28,12 @@ void resolveCollisionsGrid(
 
             Particle& b = particles[j];
 
-            Vec2 delta = b.position - a.position;
-            float dist = delta.length();
-            const float minDist = a.radius + b.radius;
+            if (resolveParticleCollision(a, b, config)) {
+                ++stats.collisionsResolved;
 
-            if (dist >= minDist) {
-                continue;
+                solveParticleBounds(a, config);
+                solveParticleBounds(b, config);
             }
-
-            ++stats.collisionsResolved;
-
-            Vec2 normal;
-            if (dist < Epsilon) {
-                normal = Vec2{1.0f, 0.0f};
-                dist = Epsilon;
-            } else {
-                normal = delta * (1.0f / dist);
-            }
-
-            const float penetration = minDist - dist;
-            const Vec2 correction = normal * (penetration * 0.5f);
-
-            a.position -= correction;
-            b.position += correction;
-
-            const Vec2 relativeVelocity = b.velocity - a.velocity;
-            const float velocityAlongNormal = Vec2::dot(relativeVelocity, normal);
-
-            if (velocityAlongNormal < 0.0f) {
-                const float impulseMagnitude =
-                    -(1.0f + config.restitution) * velocityAlongNormal * 0.5f;
-
-                const Vec2 impulse = normal * impulseMagnitude;
-
-                a.velocity -= impulse;
-                b.velocity += impulse;
-            }
-
-            solveBounds(a, config);
-            solveBounds(b, config);
         }
     }
 }
@@ -124,14 +59,14 @@ void Simulation::update(float dt) {
         p.position += p.velocity * dt;
         p.velocity *= m_config.damping;
 
-        solveBounds(p, m_config);
+        solveParticleBounds(p, m_config);
     }
 
     m_grid.build(m_particles);
     resolveCollisionsGrid(m_particles, m_grid, m_stats, m_config);
 
     for (auto& p : m_particles) {
-        solveBounds(p, m_config);
+        solveParticleBounds(p, m_config);
     }
 
     m_stats.particleCount = m_particles.size();
