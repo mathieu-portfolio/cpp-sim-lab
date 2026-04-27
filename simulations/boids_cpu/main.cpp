@@ -1,13 +1,55 @@
 #include "Simulation.hpp"
 
+#include <algorithm>
+#include <array>
 #include <raylib.h>
 
 namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;
 
+struct TunableParameter {
+    const char* name;
+    float* value;
+    float minValue;
+    float normalStep;
+    float fastStep;
+};
+
 Vector2 toRaylib(Vec2 v) {
     return Vector2{v.x, v.y};
+}
+
+float clampMin(float value, float minValue) {
+    return std::max(value, minValue);
+}
+
+void drawBoid(const Boid& b) {
+    DrawCircleV(toRaylib(b.position), 3.0f, WHITE);
+
+    Vec2 dir = b.velocity.length() > 0.001f
+        ? b.velocity.normalized()
+        : Vec2{1.0f, 0.0f};
+
+    Vec2 end = b.position + dir * 10.0f;
+
+    DrawLineV(toRaylib(b.position), toRaylib(end), GRAY);
+}
+
+void drawDebugRadii(const Boid& b, const SimulationConfig& config) {
+    DrawCircleLines(
+        static_cast<int>(b.position.x),
+        static_cast<int>(b.position.y),
+        config.perceptionRadius,
+        DARKGRAY
+    );
+
+    DrawCircleLines(
+        static_cast<int>(b.position.x),
+        static_cast<int>(b.position.y),
+        config.separationRadius,
+        GRAY
+    );
 }
 }
 
@@ -19,9 +61,20 @@ int main() {
 
     bool paused = false;
     bool showDebug = false;
+    std::size_t selectedParameter = 0;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
+
+        auto& config = sim.getConfig();
+
+        std::array<TunableParameter, 5> parameters{{
+            {"alignmentWeight", &config.alignmentWeight, 0.0f, 0.5f, 2.0f},
+            {"cohesionWeight", &config.cohesionWeight, 0.0f, 0.5f, 2.0f},
+            {"separationWeight", &config.separationWeight, 0.0f, 0.5f, 2.0f},
+            {"perceptionRadius", &config.perceptionRadius, 1.0f, 30.0f, 100.0f},
+            {"separationRadius", &config.separationRadius, 1.0f, 30.0f, 100.0f},
+        }};
 
         if (IsKeyPressed(KEY_SPACE)) {
             paused = !paused;
@@ -35,57 +88,88 @@ int main() {
             showDebug = !showDebug;
         }
 
-        const bool step = paused && IsKeyPressed(KEY_N);
+        if (IsKeyPressed(KEY_TAB)) {
+            selectedParameter = (selectedParameter + 1) % parameters.size();
+        }
 
-        if (!paused || step) {
+        const bool fastAdjust =
+            IsKeyDown(KEY_LEFT_SHIFT) ||
+            IsKeyDown(KEY_RIGHT_SHIFT);
+
+        TunableParameter& selected = parameters[selectedParameter];
+        const float step = (fastAdjust ? selected.fastStep : selected.normalStep) * dt;
+
+        if (IsKeyDown(KEY_LEFT)) {
+            *selected.value = clampMin(*selected.value - step, selected.minValue);
+        }
+
+        if (IsKeyDown(KEY_RIGHT)) {
+            *selected.value = clampMin(*selected.value + step, selected.minValue);
+        }
+
+        const bool stepFrame = paused && IsKeyPressed(KEY_N);
+
+        if (!paused || stepFrame) {
             sim.update(dt);
         }
 
         BeginDrawing();
         ClearBackground(BLACK);
 
-        const auto& config = sim.getConfig();
-
         for (const auto& b : sim.getBoids()) {
             if (showDebug) {
-                DrawCircleLines(
-                    static_cast<int>(b.position.x),
-                    static_cast<int>(b.position.y),
-                    config.perceptionRadius,
-                    DARKGRAY
-                );
-
-                DrawCircleLines(
-                    static_cast<int>(b.position.x),
-                    static_cast<int>(b.position.y),
-                    config.separationRadius,
-                    GRAY
-                );
+                drawDebugRadii(b, config);
             }
 
-            DrawCircleV({b.position.x, b.position.y}, 3.0f, WHITE);
+            drawBoid(b);
         }
 
         DrawText("boids_cpu", 10, 10, 20, RAYWHITE);
         DrawText(paused ? "State: paused" : "State: running", 10, 36, 16, LIGHTGRAY);
         DrawText("Space: pause | N: step | R: reset | D: debug", 10, 58, 16, LIGHTGRAY);
+        DrawText("Tab: select parameter | Left/Right: adjust | Shift: fast", 10, 80, 16, LIGHTGRAY);
 
         DrawText(
             TextFormat("Boids: %d", static_cast<int>(sim.getBoids().size())),
             10,
-            82,
+            110,
             16,
             LIGHTGRAY
         );
 
         DrawText(
             TextFormat(
-                "Perception: %.1f | Separation: %.1f",
+                "Selected: %s = %.2f",
+                selected.name,
+                *selected.value
+            ),
+            10,
+            132,
+            16,
+            YELLOW
+        );
+
+        DrawText(
+            TextFormat(
+                "Align %.2f | Cohesion %.2f | Separation %.2f",
+                config.alignmentWeight,
+                config.cohesionWeight,
+                config.separationWeight
+            ),
+            10,
+            154,
+            16,
+            LIGHTGRAY
+        );
+
+        DrawText(
+            TextFormat(
+                "Perception %.1f | Separation radius %.1f",
                 config.perceptionRadius,
                 config.separationRadius
             ),
             10,
-            104,
+            176,
             16,
             LIGHTGRAY
         );
