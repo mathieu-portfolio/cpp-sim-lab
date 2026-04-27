@@ -4,6 +4,7 @@
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
+#include <cstdint>
 #include <iostream>
 #include <vector>
 
@@ -36,6 +37,7 @@ int main() {
 
         SimulationConfig config;
         config.boidCount = boidCount;
+        config.entityCount = boidCount;
 
         Simulation sim(config);
 

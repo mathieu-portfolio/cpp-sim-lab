@@ -7,6 +7,8 @@
 #include <vector>
 
 struct SimulationConfig {
+    static constexpr std::size_t DefaultBoidCount = 200;
+
     float width = 800.0f;
     float height = 800.0f;
 
@@ -23,11 +25,19 @@ struct SimulationConfig {
     bool useSpatialGrid = false;
     float gridCellSize = 50.0f;
 
-    std::size_t entityCount = 200;
+    std::size_t boidCount = DefaultBoidCount;
+
+    // Compatibility alias for the attempted generic naming.
+    // Prefer boidCount in boids_cpu-specific code.
+    std::size_t entityCount = DefaultBoidCount;
 };
 
 struct SimulationStats {
+    std::size_t boidCount = 0;
+
+    // Compatibility alias for generic stats naming.
     std::size_t entityCount = 0;
+
     std::size_t neighborChecks = 0;
     std::size_t neighborCandidates = 0;
     std::size_t occupiedGridCells = 0;
@@ -39,6 +49,9 @@ public:
     void update(float dt);
     void reset();
 
+    const std::vector<Boid>& getBoids() const { return m_boids; }
+
+    // Compatibility alias for generic code.
     const std::vector<Boid>& getEntities() const { return m_boids; }
 
     SimulationConfig& getConfig() { return m_config; }
@@ -53,4 +66,7 @@ private:
     SimulationConfig m_config;
     SimulationStats m_stats;
     SpatialGrid m_grid;
+
+    void normalizeConfigCounts();
+    void updateStatsCount();
 };

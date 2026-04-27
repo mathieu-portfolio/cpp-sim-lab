@@ -42,7 +42,17 @@ void resolveCollisionsGrid(
 Simulation::Simulation(SimulationConfig config)
     : m_config(config),
       m_grid(config.gridCellSize) {
+    m_config.cellSize = m_config.gridCellSize;
+    m_config.entityCount = m_config.maxParticleCount;
+
     m_particles.reserve(m_config.maxParticleCount);
+    m_stats.maxParticleCount = m_config.maxParticleCount;
+    updateStatsCount();
+}
+
+void Simulation::updateStatsCount() {
+    m_stats.particleCount = m_particles.size();
+    m_stats.entityCount = m_particles.size();
     m_stats.maxParticleCount = m_config.maxParticleCount;
 }
 
@@ -62,14 +72,16 @@ void Simulation::update(float dt) {
         solveParticleBounds(p, m_config);
     }
 
-    m_grid.build(m_particles);
-    resolveCollisionsGrid(m_particles, m_grid, m_stats, m_config);
+    if (m_config.useSpatialGrid) {
+        m_grid.build(m_particles);
+        resolveCollisionsGrid(m_particles, m_grid, m_stats, m_config);
+    }
 
     for (auto& p : m_particles) {
         solveParticleBounds(p, m_config);
     }
 
-    m_stats.particleCount = m_particles.size();
+    updateStatsCount();
 }
 
 void Simulation::spawn(const Vec2& pos) {
@@ -89,6 +101,8 @@ void Simulation::spawn(const Vec2& pos) {
             m_config.particleRadius
         });
     }
+
+    updateStatsCount();
 }
 
 void Simulation::clear() {
@@ -96,6 +110,7 @@ void Simulation::clear() {
 
     m_stats = {};
     m_stats.maxParticleCount = m_config.maxParticleCount;
+    updateStatsCount();
 }
 
 void Simulation::reset() {
@@ -118,7 +133,7 @@ void Simulation::reset() {
         });
     }
 
-    m_stats.particleCount = m_particles.size();
+    updateStatsCount();
 }
 
 SimulationStats Simulation::getStats() const {

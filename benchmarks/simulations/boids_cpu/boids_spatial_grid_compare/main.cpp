@@ -86,6 +86,7 @@ int main() {
     for (std::size_t boidCount : boidCounts) {
         SimulationConfig baseConfig;
         baseConfig.boidCount = boidCount;
+        baseConfig.entityCount = boidCount;
         baseConfig.gridCellSize = baseConfig.perceptionRadius;
 
         SimulationConfig naiveConfig = baseConfig;
