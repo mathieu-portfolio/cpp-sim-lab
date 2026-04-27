@@ -1,16 +1,10 @@
 add_executable(particles_collision_tests
     main.cpp
-    ../../simulations/particles_cpu/ParticlePhysics.cpp
-)
-
-target_include_directories(particles_collision_tests
-    PRIVATE
-        ../../simulations/particles_cpu
 )
 
 target_link_libraries(particles_collision_tests
     PRIVATE
-        sim_framework
+        particles_cpu_core
         GTest::gtest_main
 )
 

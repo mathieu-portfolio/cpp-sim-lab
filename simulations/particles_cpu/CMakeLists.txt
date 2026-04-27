@@ -1,23 +1,30 @@
-add_executable(particles_cpu
-    main.cpp
+add_library(particles_cpu_core
     Simulation.cpp
     SpatialGrid.cpp
     ParticlePhysics.cpp
 )
 
-target_include_directories(particles_cpu
-    PRIVATE
+target_include_directories(particles_cpu_core
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(particles_cpu_core
+    PUBLIC
+        sim_framework
+)
+
+target_compile_features(particles_cpu_core
+    PUBLIC
+        cxx_std_20
+)
+
+add_executable(particles_cpu
+    main.cpp
 )
 
 target_link_libraries(particles_cpu
     PRIVATE
-        sim_framework
+        particles_cpu_core
         raylib
-)
-
-target_compile_features(particles_cpu
-    PRIVATE
-        cxx_std_20
 )
