@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Boid.hpp"
+#include <cstddef>
 #include <vector>
 
 struct SimulationConfig {
@@ -14,10 +15,15 @@ struct SimulationConfig {
     float maxForce = 80.0f;
 
     float alignmentWeight = 1.0f;
-    float cohesionWeight = 0.5f;
-    float separationWeight = 1.5f;
+    float cohesionWeight = 0.4f;
+    float separationWeight = 2.0f;
 
     std::size_t boidCount = 200;
+};
+
+struct SimulationStats {
+    std::size_t boidCount = 0;
+    std::size_t neighborChecks = 0;
 };
 
 class Simulation {
@@ -27,10 +33,14 @@ public:
     void reset();
 
     const std::vector<Boid>& getBoids() const { return m_boids; }
+
     SimulationConfig& getConfig() { return m_config; }
     const SimulationConfig& getConfig() const { return m_config; }
+
+    SimulationStats getStats() const { return m_stats; }
 
 private:
     std::vector<Boid> m_boids;
     SimulationConfig m_config;
+    SimulationStats m_stats;
 };

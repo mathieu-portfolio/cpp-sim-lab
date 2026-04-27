@@ -67,34 +67,80 @@ void drawCompactUi(
     const Simulation& sim,
     const TunableParameter& selected
 ) {
-    DrawText("boids_cpu", 10, 10, 20, RAYWHITE);
+    const SimulationStats stats = sim.getStats();
+
+    int y = 10;
+    const int lineHeight = 20;
+
+    DrawText("boids_cpu", 10, y, 20, RAYWHITE);
+    y += lineHeight + 6;
 
     DrawText(
-        TextFormat(
-            "%s | Boids: %d | F1: UI",
-            paused ? "Paused" : "Running",
-            static_cast<int>(sim.getBoids().size())
-        ),
+        paused ? "Paused" : "Running",
         10,
-        36,
+        y,
         16,
         LIGHTGRAY
     );
+    y += lineHeight;
+
+    DrawText(
+        TextFormat("Boids: %d", static_cast<int>(stats.boidCount)),
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        TextFormat("Neighbor checks: %d", static_cast<int>(stats.neighborChecks)),
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
 
     DrawText(
         TextFormat("Selected: %s = %.2f", selected.name, *selected.value),
         10,
-        58,
+        y,
         16,
         YELLOW
     );
+    y += lineHeight;
+
+    DrawText(
+        "F1: UI mode",
+        10,
+        y,
+        16,
+        DARKGRAY
+    );
 }
 
-void drawFullUi(
-    const SimulationConfig& config
-) {
-    DrawText("Space: pause | N: step | R: reset | D: debug", 10, 86, 16, LIGHTGRAY);
-    DrawText("Tab: select parameter | Left/Right: adjust | Shift: fast", 10, 108, 16, LIGHTGRAY);
+void drawFullUi(const SimulationConfig& config, int startY) {
+    int y = startY;
+    const int lineHeight = 20;
+
+    DrawText(
+        "Space: pause | N: step | R: reset | D: debug",
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        "Tab: select | Left/Right: adjust | Shift: fast",
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
 
     DrawText(
         TextFormat(
@@ -104,10 +150,11 @@ void drawFullUi(
             config.separationWeight
         ),
         10,
-        136,
+        y,
         16,
         LIGHTGRAY
     );
+    y += lineHeight;
 
     DrawText(
         TextFormat(
@@ -116,7 +163,7 @@ void drawFullUi(
             config.separationRadius
         ),
         10,
-        158,
+        y,
         16,
         LIGHTGRAY
     );
@@ -147,21 +194,10 @@ int main() {
             {"separationRadius", &config.separationRadius, 1.0f, 30.0f, 100.0f},
         }};
 
-        if (IsKeyPressed(KEY_SPACE)) {
-            paused = !paused;
-        }
-
-        if (IsKeyPressed(KEY_R)) {
-            sim.reset();
-        }
-
-        if (IsKeyPressed(KEY_D)) {
-            showDebug = !showDebug;
-        }
-
-        if (IsKeyPressed(KEY_F1)) {
-            uiMode = nextUiMode(uiMode);
-        }
+        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
+        if (IsKeyPressed(KEY_R)) sim.reset();
+        if (IsKeyPressed(KEY_D)) showDebug = !showDebug;
+        if (IsKeyPressed(KEY_F1)) uiMode = nextUiMode(uiMode);
 
         if (IsKeyPressed(KEY_TAB)) {
             selectedParameter = (selectedParameter + 1) % parameters.size();
@@ -195,7 +231,6 @@ int main() {
             if (showDebug) {
                 drawDebugRadii(b, config);
             }
-
             drawBoid(b);
         }
 
@@ -204,7 +239,7 @@ int main() {
         }
 
         if (uiMode == UiMode::Full) {
-            drawFullUi(config);
+            drawFullUi(config, 140);
         }
 
         EndDrawing();

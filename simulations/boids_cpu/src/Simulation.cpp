@@ -22,9 +22,21 @@ void Simulation::reset() {
             }
         });
     }
+
+    m_stats.boidCount = m_boids.size();
+    m_stats.neighborChecks = 0;
 }
 
 void Simulation::update(float dt) {
+    m_stats = {};
+    m_stats.boidCount = m_boids.size();
+
+    const std::size_t boidCount = m_boids.size();
+
+    if (boidCount > 0) {
+        m_stats.neighborChecks = boidCount * (boidCount - 1) * 3;
+    }
+
     for (auto& b : m_boids) {
         Vec2 align = computeAlignment(
             b,
