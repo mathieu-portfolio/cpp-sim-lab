@@ -2,8 +2,34 @@
 
 Vec2 computeAlignment(const Boid&, const std::vector<Boid>&, float) { return {}; }
 Vec2 computeCohesion(const Boid&, const std::vector<Boid>&, float) { return {}; }
-Vec2 computeSeparation(const Boid&, const std::vector<Boid>&, float) { return {}; }
 
+Vec2 computeSeparation(
+    const Boid& boid,
+    const std::vector<Boid>& boids,
+    float radius
+) {
+    Vec2 steering{};
+    int neighborCount = 0;
+
+    for (const Boid& other : boids) {
+        Vec2 offset = boid.position - other.position;
+        float distance = offset.length();
+
+        if (distance <= 0.0f || distance >= radius) {
+            continue;
+        }
+
+        // Closer neighbors push harder.
+        steering += offset * (1.0f / distance);
+        ++neighborCount;
+    }
+
+    if (neighborCount > 0) {
+        steering *= 1.0f / static_cast<float>(neighborCount);
+    }
+
+    return steering;
+}
 Vec2 limitLength(Vec2 v, float maxLength) {
     float len = v.length();
     if (len > maxLength && len > 0.0f) {
