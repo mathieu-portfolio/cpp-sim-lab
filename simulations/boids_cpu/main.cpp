@@ -63,17 +63,7 @@ int main() {
                 );
             }
 
-            const Vec2 dir = b.velocity.normalized();
-            const Vec2 tip = b.position + dir * 8.0f;
-            const Vec2 left = b.position + Vec2{-dir.y, dir.x} * 4.0f;
-            const Vec2 right = b.position + Vec2{dir.y, -dir.x} * 4.0f;
-
-            DrawTriangle(
-                toRaylib(tip),
-                toRaylib(left),
-                toRaylib(right),
-                WHITE
-            );
+            DrawCircleV({b.position.x, b.position.y}, 3.0f, WHITE);
         }
 
         DrawText("boids_cpu", 10, 10, 20, RAYWHITE);
