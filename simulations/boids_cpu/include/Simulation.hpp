@@ -23,11 +23,11 @@ struct SimulationConfig {
     bool useSpatialGrid = false;
     float gridCellSize = 50.0f;
 
-    std::size_t boidCount = 200;
+    std::size_t entityCount = 200;
 };
 
 struct SimulationStats {
-    std::size_t boidCount = 0;
+    std::size_t entityCount = 0;
     std::size_t neighborChecks = 0;
     std::size_t neighborCandidates = 0;
     std::size_t occupiedGridCells = 0;
@@ -39,7 +39,7 @@ public:
     void update(float dt);
     void reset();
 
-    const std::vector<Boid>& getBoids() const { return m_boids; }
+    const std::vector<Boid>& getEntities() const { return m_boids; }
 
     SimulationConfig& getConfig() { return m_config; }
     const SimulationConfig& getConfig() const { return m_config; }
