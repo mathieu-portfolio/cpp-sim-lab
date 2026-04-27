@@ -1,12 +1,12 @@
 add_library(particles_cpu_core
-    Simulation.cpp
-    SpatialGrid.cpp
-    ParticlePhysics.cpp
+    src/Simulation.cpp
+    src/SpatialGrid.cpp
+    src/ParticlePhysics.cpp
 )
 
 target_include_directories(particles_cpu_core
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(particles_cpu_core
