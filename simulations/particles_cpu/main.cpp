@@ -61,26 +61,25 @@ int main() {
         ClearBackground(BLACK);
 
         if (showGrid) {
-            const float cellSize = sim.getConfig().gridCellSize;
+            const auto& config = sim.getConfig();
+            const auto& cells = sim.getGrid().cells();
 
-            for (float x = 0.0f; x <= sim.getConfig().width; x += cellSize) {
-                DrawLine(
-                    static_cast<int>(x),
-                    0,
-                    static_cast<int>(x),
-                    static_cast<int>(sim.getConfig().height),
-                    DARKGRAY
-                );
-            }
+            for (const auto& [coord, indices] : cells) {
+                const int x = static_cast<int>(coord.x * config.gridCellSize);
+                const int y = static_cast<int>(coord.y * config.gridCellSize);
+                const int size = static_cast<int>(config.gridCellSize);
 
-            for (float y = 0.0f; y <= sim.getConfig().height; y += cellSize) {
-                DrawLine(
-                    0,
-                    static_cast<int>(y),
-                    static_cast<int>(sim.getConfig().width),
-                    static_cast<int>(y),
-                    DARKGRAY
-                );
+                DrawRectangleLines(x, y, size, size, YELLOW);
+
+                if (indices.size() > 1) {
+                    DrawText(
+                        TextFormat("%d", static_cast<int>(indices.size())),
+                        x + 2,
+                        y + 2,
+                        10,
+                        ORANGE
+                    );
+                }
             }
         }
 

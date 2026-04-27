@@ -31,6 +31,10 @@ public:
 
     void queryNeighbors(const Vec2& position, std::vector<int>& outIndices) const;
 
+    const std::unordered_map<CellCoord, std::vector<int>, CellCoordHash>& cells() const {
+        return m_cells;
+    }
+
 private:
     float m_cellSize;
     std::unordered_map<CellCoord, std::vector<int>, CellCoordHash> m_cells;

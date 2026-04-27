@@ -38,6 +38,7 @@ public:
     const std::vector<Particle>& getParticles() const { return m_particles; }
     SimulationStats getStats() const;
     const SimulationConfig& getConfig() const { return m_config; }
+    const SpatialGrid& getGrid() const { return m_grid; }
 
 private:
     std::vector<Particle> m_particles;
