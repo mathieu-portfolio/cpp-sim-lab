@@ -2,6 +2,34 @@
 
 #include <math/Vec2.hpp>
 #include "raylib.h"
+#include <algorithm>
+
+void clampCameraToBounds(Camera2D& camera, const SimulationConfig& config) {
+    const float viewWidth = config.width / camera.zoom;
+    const float viewHeight = config.height / camera.zoom;
+
+    if (viewWidth >= config.width) {
+        camera.target.x = config.width * 0.5f;
+    } else {
+        const float halfViewWidth = viewWidth * 0.5f;
+        camera.target.x = std::clamp(
+            camera.target.x,
+            halfViewWidth,
+            config.width - halfViewWidth
+        );
+    }
+
+    if (viewHeight >= config.height) {
+        camera.target.y = config.height * 0.5f;
+    } else {
+        const float halfViewHeight = viewHeight * 0.5f;
+        camera.target.y = std::clamp(
+            camera.target.y,
+            halfViewHeight,
+            config.height - halfViewHeight
+        );
+    }
+}
 
 int main() {
     SimulationConfig config;
@@ -23,6 +51,12 @@ int main() {
     bool paused = false;
     bool step = false;
     bool showGrid = false;
+
+    Camera2D camera{};
+    camera.target = Vector2{config.width * 0.5f, config.height * 0.5f};
+    camera.offset = Vector2{config.width * 0.5f, config.height * 0.5f};
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -57,8 +91,41 @@ int main() {
             step = false;
         }
 
+        const float wheel = GetMouseWheelMove();
+
+        if (wheel != 0.0f) {
+            const Vector2 mouseWorldBefore = GetScreenToWorld2D(GetMousePosition(), camera);
+
+            camera.zoom *= 1.0f + wheel * 0.1f;
+            camera.zoom = std::clamp(camera.zoom, 1.0f, 8.0f);
+
+            const Vector2 mouseWorldAfter = GetScreenToWorld2D(GetMousePosition(), camera);
+
+            camera.target.x += mouseWorldBefore.x - mouseWorldAfter.x;
+            camera.target.y += mouseWorldBefore.y - mouseWorldAfter.y;
+
+            clampCameraToBounds(camera, config);
+        }
+
+        if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
+            const Vector2 delta = GetMouseDelta();
+
+            camera.target.x -= delta.x / camera.zoom;
+            camera.target.y -= delta.y / camera.zoom;
+
+            clampCameraToBounds(camera, config);
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            camera.target = Vector2{config.width * 0.5f, config.height * 0.5f};
+            camera.offset = Vector2{config.width * 0.5f, config.height * 0.5f};
+            camera.zoom = 1.0f;
+        }
+
         BeginDrawing();
         ClearBackground(BLACK);
+
+        BeginMode2D(camera);
 
         if (showGrid) {
             const auto& config = sim.getConfig();
@@ -91,6 +158,8 @@ int main() {
                 WHITE
             );
         }
+
+        EndMode2D();
 
         const auto stats = sim.getStats();
 
@@ -125,6 +194,9 @@ int main() {
         DrawText("Space: pause", 10, y, 18, GRAY); y += line;
         DrawText("N: step", 10, y, 18, GRAY); y += line;
         DrawText("G: toggle grid", 10, y, 18, GRAY); y += line;
+        DrawText("Mouse wheel: zoom", 10, y, 18, GRAY); y += line;
+        DrawText("Middle mouse: pan", 10, y, 18, GRAY); y += line;
+        DrawText("Backspace: reset camera", 10, y, 18, GRAY); y += line;
 
         // --- State ---
         y += 8;
