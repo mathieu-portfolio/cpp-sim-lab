@@ -10,7 +10,9 @@
 #include <vector>
 
 struct BenchResult {
-    double msPerStep = 0.0;
+    double totalMsPerStep = 0.0;
+    double buildMsPerStep = 0.0;
+    double queryCollisionMsPerStep = 0.0;
     std::size_t checksPerStep = 0;
     std::size_t resolvedPerStep = 0;
 };
@@ -61,10 +63,21 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
     std::size_t totalChecks = 0;
     std::size_t totalResolved = 0;
 
-    const auto start = std::chrono::high_resolution_clock::now();
+    double buildMs = 0.0;
+    double queryCollisionMs = 0.0;
+
+    const auto totalStart = std::chrono::high_resolution_clock::now();
 
     for (int step = 0; step < steps; ++step) {
+        const auto buildStart = std::chrono::high_resolution_clock::now();
         grid.build(particles);
+        const auto buildEnd = std::chrono::high_resolution_clock::now();
+
+        buildMs += std::chrono::duration<double, std::milli>(
+            buildEnd - buildStart
+        ).count();
+
+        const auto queryStart = std::chrono::high_resolution_clock::now();
 
         for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
             candidates.clear();
@@ -82,15 +95,24 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
                 }
             }
         }
+
+        const auto queryEnd = std::chrono::high_resolution_clock::now();
+
+        queryCollisionMs += std::chrono::duration<double, std::milli>(
+            queryEnd - queryStart
+        ).count();
     }
 
-    const auto end = std::chrono::high_resolution_clock::now();
+    const auto totalEnd = std::chrono::high_resolution_clock::now();
 
-    const double totalMs =
-        std::chrono::duration<double, std::milli>(end - start).count();
+    const double totalMs = std::chrono::duration<double, std::milli>(
+        totalEnd - totalStart
+    ).count();
 
     return {
         totalMs / steps,
+        buildMs / steps,
+        queryCollisionMs / steps,
         totalChecks / static_cast<std::size_t>(steps),
         totalResolved / static_cast<std::size_t>(steps)
     };
@@ -117,7 +139,8 @@ int main() {
         64.0f
     };
 
-    std::cout << "particles,cell_size,grid_ms,checks,resolved\n";
+    std::cout
+        << "particles,cell_size,total_ms,build_ms,query_collision_ms,checks,resolved\n";
 
     for (std::size_t count : particleCounts) {
         for (float cellSize : cellSizes) {
@@ -125,7 +148,9 @@ int main() {
 
             std::cout << count << ","
                       << cellSize << ","
-                      << result.msPerStep << ","
+                      << result.totalMsPerStep << ","
+                      << result.buildMsPerStep << ","
+                      << result.queryCollisionMsPerStep << ","
                       << result.checksPerStep << ","
                       << result.resolvedPerStep << "\n";
         }

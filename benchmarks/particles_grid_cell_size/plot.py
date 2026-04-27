@@ -11,6 +11,30 @@ def read_rows(path: Path):
         return list(csv.DictReader(f))
 
 
+def group_by_particle_count(rows):
+    by_particle_count = defaultdict(list)
+
+    for row in rows:
+        by_particle_count[int(row["particles"])].append({
+            "cell_size": float(row["cell_size"]),
+            "total_ms": float(row["total_ms"]),
+            "build_ms": float(row["build_ms"]),
+            "query_collision_ms": float(row["query_collision_ms"]),
+            "checks": int(row["checks"]),
+            "resolved": int(row["resolved"]),
+        })
+
+    return by_particle_count
+
+
+def sorted_series(points, key):
+    points = sorted(points, key=lambda p: p["cell_size"])
+    return (
+        [p["cell_size"] for p in points],
+        [p[key] for p in points],
+    )
+
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python plot.py results/results.csv")
@@ -18,55 +42,50 @@ def main():
 
     input_path = Path(sys.argv[1])
     rows = read_rows(input_path)
-
-    by_particle_count = defaultdict(list)
-
-    for row in rows:
-        by_particle_count[int(row["particles"])].append({
-            "cell_size": float(row["cell_size"]),
-            "grid_ms": float(row["grid_ms"]),
-            "checks": int(row["checks"]),
-            "resolved": int(row["resolved"]),
-        })
+    by_particle_count = group_by_particle_count(rows)
 
     output_dir = input_path.parent
 
     plt.figure()
-
     for particle_count, points in sorted(by_particle_count.items()):
-        points.sort(key=lambda p: p["cell_size"])
-
-        cell_sizes = [p["cell_size"] for p in points]
-        grid_ms = [p["grid_ms"] for p in points]
-
-        plt.plot(
-            cell_sizes,
-            grid_ms,
-            marker="o",
-            label=f"{particle_count} particles"
-        )
+        cell_sizes, total_ms = sorted_series(points, "total_ms")
+        plt.plot(cell_sizes, total_ms, marker="o", label=f"{particle_count} particles")
 
     plt.xlabel("Cell size")
     plt.ylabel("Milliseconds per step")
-    plt.title("Spatial grid cell size vs performance")
+    plt.title("Spatial grid cell size vs total time")
     plt.legend()
     plt.grid(True)
-    plt.savefig(output_dir / "grid_cell_size_time.png", dpi=160)
+    plt.savefig(output_dir / "grid_cell_size_total_time.png", dpi=160)
 
     plt.figure()
-
     for particle_count, points in sorted(by_particle_count.items()):
-        points.sort(key=lambda p: p["cell_size"])
+        cell_sizes, build_ms = sorted_series(points, "build_ms")
+        plt.plot(cell_sizes, build_ms, marker="o", label=f"{particle_count} particles")
 
-        cell_sizes = [p["cell_size"] for p in points]
-        checks = [p["checks"] for p in points]
+    plt.xlabel("Cell size")
+    plt.ylabel("Milliseconds per step")
+    plt.title("Spatial grid build time")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(output_dir / "grid_cell_size_build_time.png", dpi=160)
 
-        plt.plot(
-            cell_sizes,
-            checks,
-            marker="o",
-            label=f"{particle_count} particles"
-        )
+    plt.figure()
+    for particle_count, points in sorted(by_particle_count.items()):
+        cell_sizes, query_ms = sorted_series(points, "query_collision_ms")
+        plt.plot(cell_sizes, query_ms, marker="o", label=f"{particle_count} particles")
+
+    plt.xlabel("Cell size")
+    plt.ylabel("Milliseconds per step")
+    plt.title("Spatial grid query + collision time")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(output_dir / "grid_cell_size_query_collision_time.png", dpi=160)
+
+    plt.figure()
+    for particle_count, points in sorted(by_particle_count.items()):
+        cell_sizes, checks = sorted_series(points, "checks")
+        plt.plot(cell_sizes, checks, marker="o", label=f"{particle_count} particles")
 
     plt.xlabel("Cell size")
     plt.ylabel("Collision checks per step")
