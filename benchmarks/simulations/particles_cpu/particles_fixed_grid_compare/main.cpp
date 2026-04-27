@@ -1,11 +1,11 @@
 #include "Particle.hpp"
 #include "SpatialGrid.hpp"
 
+#include <BenchTimer.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -161,48 +161,32 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
     double buildMs = 0.0;
     double queryCollisionMs = 0.0;
 
-    const auto totalStart = std::chrono::high_resolution_clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int step = 0; step < steps; ++step) {
+            buildMs += bench::measureMs([&]() {
+                grid.build(particles);
+            });
 
-    for (int step = 0; step < steps; ++step) {
-        const auto buildStart = std::chrono::high_resolution_clock::now();
-        grid.build(particles);
-        const auto buildEnd = std::chrono::high_resolution_clock::now();
+            queryCollisionMs += bench::measureMs([&]() {
+                for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+                    candidates.clear();
+                    grid.queryNeighbors(particles[i].position, candidates);
 
-        buildMs += std::chrono::duration<double, std::milli>(
-            buildEnd - buildStart
-        ).count();
+                    for (int j : candidates) {
+                        if (j <= i) {
+                            continue;
+                        }
 
-        const auto queryStart = std::chrono::high_resolution_clock::now();
+                        ++totalChecks;
 
-        for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
-            candidates.clear();
-            grid.queryNeighbors(particles[i].position, candidates);
-
-            for (int j : candidates) {
-                if (j <= i) {
-                    continue;
+                        if (resolvePair(particles[i], particles[j])) {
+                            ++totalResolved;
+                        }
+                    }
                 }
-
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
-                }
-            }
+            });
         }
-
-        const auto queryEnd = std::chrono::high_resolution_clock::now();
-
-        queryCollisionMs += std::chrono::duration<double, std::milli>(
-            queryEnd - queryStart
-        ).count();
-    }
-
-    const auto totalEnd = std::chrono::high_resolution_clock::now();
-
-    const double totalMs = std::chrono::duration<double, std::milli>(
-        totalEnd - totalStart
-    ).count();
+    });
 
     return {
         totalMs / steps,
@@ -214,67 +198,7 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
 }
 
 static BenchResult benchSpatialGrid(std::size_t count, float cellSize, int steps) {
-    auto particles = makeParticles(count);
-
-    SpatialGrid grid{cellSize};
-    std::vector<int> candidates;
-
-    std::size_t totalChecks = 0;
-    std::size_t totalResolved = 0;
-
-    double buildMs = 0.0;
-    double queryCollisionMs = 0.0;
-
-    const auto totalStart = std::chrono::high_resolution_clock::now();
-
-    for (int step = 0; step < steps; ++step) {
-        const auto buildStart = std::chrono::high_resolution_clock::now();
-        grid.build(particles);
-        const auto buildEnd = std::chrono::high_resolution_clock::now();
-
-        buildMs += std::chrono::duration<double, std::milli>(
-            buildEnd - buildStart
-        ).count();
-
-        const auto queryStart = std::chrono::high_resolution_clock::now();
-
-        for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
-            candidates.clear();
-            grid.queryNeighbors(particles[i].position, candidates);
-
-            for (int j : candidates) {
-                if (j <= i) {
-                    continue;
-                }
-
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
-                }
-            }
-        }
-
-        const auto queryEnd = std::chrono::high_resolution_clock::now();
-
-        queryCollisionMs += std::chrono::duration<double, std::milli>(
-            queryEnd - queryStart
-        ).count();
-    }
-
-    const auto totalEnd = std::chrono::high_resolution_clock::now();
-
-    const double totalMs = std::chrono::duration<double, std::milli>(
-        totalEnd - totalStart
-    ).count();
-
-    return {
-        totalMs / steps,
-        buildMs / steps,
-        queryCollisionMs / steps,
-        totalChecks / static_cast<std::size_t>(steps),
-        totalResolved / static_cast<std::size_t>(steps)
-    };
+    return benchGrid<SpatialGrid>(count, cellSize, steps);
 }
 
 static BenchResult benchFixedGrid(std::size_t count, float cellSize, int steps) {
@@ -289,48 +213,32 @@ static BenchResult benchFixedGrid(std::size_t count, float cellSize, int steps) 
     double buildMs = 0.0;
     double queryCollisionMs = 0.0;
 
-    const auto totalStart = std::chrono::high_resolution_clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int step = 0; step < steps; ++step) {
+            buildMs += bench::measureMs([&]() {
+                grid.build(particles);
+            });
 
-    for (int step = 0; step < steps; ++step) {
-        const auto buildStart = std::chrono::high_resolution_clock::now();
-        grid.build(particles);
-        const auto buildEnd = std::chrono::high_resolution_clock::now();
+            queryCollisionMs += bench::measureMs([&]() {
+                for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+                    candidates.clear();
+                    grid.queryNeighbors(particles[i].position, candidates);
 
-        buildMs += std::chrono::duration<double, std::milli>(
-            buildEnd - buildStart
-        ).count();
+                    for (int j : candidates) {
+                        if (j <= i) {
+                            continue;
+                        }
 
-        const auto queryStart = std::chrono::high_resolution_clock::now();
+                        ++totalChecks;
 
-        for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
-            candidates.clear();
-            grid.queryNeighbors(particles[i].position, candidates);
-
-            for (int j : candidates) {
-                if (j <= i) {
-                    continue;
+                        if (resolvePair(particles[i], particles[j])) {
+                            ++totalResolved;
+                        }
+                    }
                 }
-
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
-                }
-            }
+            });
         }
-
-        const auto queryEnd = std::chrono::high_resolution_clock::now();
-
-        queryCollisionMs += std::chrono::duration<double, std::milli>(
-            queryEnd - queryStart
-        ).count();
-    }
-
-    const auto totalEnd = std::chrono::high_resolution_clock::now();
-
-    const double totalMs = std::chrono::duration<double, std::milli>(
-        totalEnd - totalStart
-    ).count();
+    });
 
     return {
         totalMs / steps,

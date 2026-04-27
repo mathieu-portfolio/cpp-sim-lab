@@ -1,13 +1,12 @@
 #include "Simulation.hpp"
 
-#include <chrono>
+#include <BenchTimer.hpp>
+
 #include <cstddef>
 #include <iostream>
 #include <vector>
 
 namespace {
-using Clock = std::chrono::steady_clock;
-
 struct BenchResult {
     double totalMs = 0.0;
     double avgFrameMs = 0.0;
@@ -15,10 +14,6 @@ struct BenchResult {
     std::size_t neighborCandidates = 0;
     std::size_t occupiedGridCells = 0;
 };
-
-double elapsedMs(Clock::time_point start, Clock::time_point end) {
-    return std::chrono::duration<double, std::milli>(end - start).count();
-}
 
 BenchResult runBenchmark(SimulationConfig config, int warmupFrames, int measuredFrames) {
     Simulation sim(config);
@@ -29,16 +24,13 @@ BenchResult runBenchmark(SimulationConfig config, int warmupFrames, int measured
         sim.update(Dt);
     }
 
-    const auto start = Clock::now();
-
-    for (int i = 0; i < measuredFrames; ++i) {
-        sim.update(Dt);
-    }
-
-    const auto end = Clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int i = 0; i < measuredFrames; ++i) {
+            sim.update(Dt);
+        }
+    });
 
     const SimulationStats stats = sim.getStats();
-    const double totalMs = elapsedMs(start, end);
 
     return BenchResult{
         totalMs,

@@ -23,6 +23,11 @@ function(add_sim_benchmark)
         ${SIM_BENCH_SOURCES}
     )
 
+    target_include_directories(${SIM_BENCH_NAME}
+        PRIVATE
+            ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../common
+    )
+
     if(SIM_BENCH_LIBS)
         target_link_libraries(${SIM_BENCH_NAME}
             PRIVATE

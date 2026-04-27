@@ -1,10 +1,10 @@
 #include "Particle.hpp"
 #include "SpatialGrid.hpp"
 
+#include <BenchTimer.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
 
-#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -66,48 +66,32 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
     double buildMs = 0.0;
     double queryCollisionMs = 0.0;
 
-    const auto totalStart = std::chrono::high_resolution_clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int step = 0; step < steps; ++step) {
+            buildMs += bench::measureMs([&]() {
+                grid.build(particles);
+            });
 
-    for (int step = 0; step < steps; ++step) {
-        const auto buildStart = std::chrono::high_resolution_clock::now();
-        grid.build(particles);
-        const auto buildEnd = std::chrono::high_resolution_clock::now();
+            queryCollisionMs += bench::measureMs([&]() {
+                for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+                    candidates.clear();
+                    grid.queryNeighbors(particles[i].position, candidates);
 
-        buildMs += std::chrono::duration<double, std::milli>(
-            buildEnd - buildStart
-        ).count();
+                    for (int j : candidates) {
+                        if (j <= i) {
+                            continue;
+                        }
 
-        const auto queryStart = std::chrono::high_resolution_clock::now();
+                        ++totalChecks;
 
-        for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
-            candidates.clear();
-            grid.queryNeighbors(particles[i].position, candidates);
-
-            for (int j : candidates) {
-                if (j <= i) {
-                    continue;
+                        if (resolvePair(particles[i], particles[j])) {
+                            ++totalResolved;
+                        }
+                    }
                 }
-
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
-                }
-            }
+            });
         }
-
-        const auto queryEnd = std::chrono::high_resolution_clock::now();
-
-        queryCollisionMs += std::chrono::duration<double, std::milli>(
-            queryEnd - queryStart
-        ).count();
-    }
-
-    const auto totalEnd = std::chrono::high_resolution_clock::now();
-
-    const double totalMs = std::chrono::duration<double, std::milli>(
-        totalEnd - totalStart
-    ).count();
+    });
 
     return {
         totalMs / steps,

@@ -1,16 +1,9 @@
 #include "Simulation.hpp"
 
-#include <chrono>
+#include <BenchTimer.hpp>
+
 #include <iostream>
 #include <vector>
-
-namespace {
-using Clock = std::chrono::steady_clock;
-
-double elapsedMs(Clock::time_point start, Clock::time_point end) {
-    return std::chrono::duration<double, std::milli>(end - start).count();
-}
-}
 
 int main() {
     constexpr int WarmupFrames = 30;
@@ -45,16 +38,13 @@ int main() {
             sim.update(Dt);
         }
 
-        const auto start = Clock::now();
-
-        for (int i = 0; i < MeasuredFrames; ++i) {
-            sim.update(Dt);
-        }
-
-        const auto end = Clock::now();
+        const double totalMs = bench::measureMs([&]() {
+            for (int i = 0; i < MeasuredFrames; ++i) {
+                sim.update(Dt);
+            }
+        });
 
         const SimulationStats stats = sim.getStats();
-        const double totalMs = elapsedMs(start, end);
         const double avgFrameMs = totalMs / static_cast<double>(MeasuredFrames);
 
         std::cout

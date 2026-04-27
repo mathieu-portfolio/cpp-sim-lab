@@ -1,10 +1,10 @@
 #include "Particle.hpp"
 #include "SpatialGrid.hpp"
 
+#include <BenchTimer.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
 
-#include <chrono>
 #include <iostream>
 #include <vector>
 
@@ -57,23 +57,19 @@ static BenchResult benchNaive(std::size_t count, int steps) {
     std::size_t totalChecks = 0;
     std::size_t totalResolved = 0;
 
-    auto start = std::chrono::high_resolution_clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int step = 0; step < steps; ++step) {
+            for (std::size_t i = 0; i < particles.size(); ++i) {
+                for (std::size_t j = i + 1; j < particles.size(); ++j) {
+                    ++totalChecks;
 
-    for (int step = 0; step < steps; ++step) {
-        for (std::size_t i = 0; i < particles.size(); ++i) {
-            for (std::size_t j = i + 1; j < particles.size(); ++j) {
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
+                    if (resolvePair(particles[i], particles[j])) {
+                        ++totalResolved;
+                    }
                 }
             }
         }
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    double totalMs = std::chrono::duration<double, std::milli>(end - start).count();
+    });
 
     return {
         totalMs / steps,
@@ -91,32 +87,28 @@ static BenchResult benchGrid(std::size_t count, int steps) {
     std::size_t totalChecks = 0;
     std::size_t totalResolved = 0;
 
-    auto start = std::chrono::high_resolution_clock::now();
+    const double totalMs = bench::measureMs([&]() {
+        for (int step = 0; step < steps; ++step) {
+            grid.build(particles);
 
-    for (int step = 0; step < steps; ++step) {
-        grid.build(particles);
+            for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+                candidates.clear();
+                grid.queryNeighbors(particles[i].position, candidates);
 
-        for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
-            candidates.clear();
-            grid.queryNeighbors(particles[i].position, candidates);
+                for (int j : candidates) {
+                    if (j <= i) {
+                        continue;
+                    }
 
-            for (int j : candidates) {
-                if (j <= i) {
-                    continue;
-                }
+                    ++totalChecks;
 
-                ++totalChecks;
-
-                if (resolvePair(particles[i], particles[j])) {
-                    ++totalResolved;
+                    if (resolvePair(particles[i], particles[j])) {
+                        ++totalResolved;
+                    }
                 }
             }
         }
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    double totalMs = std::chrono::duration<double, std::milli>(end - start).count();
+    });
 
     return {
         totalMs / steps,
