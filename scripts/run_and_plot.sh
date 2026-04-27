@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-if [ $# -lt 2 ]; then
-    echo "Usage: ./scripts/run_and_plot.sh <benchmark_name> <preset>"
+if [ $# -lt 1 ]; then
+    echo "Usage: ./scripts/run_and_plot.sh <benchmark_name> [preset]"
+    echo "Example: ./scripts/run_and_plot.sh boids_spatial_grid_compare release"
     exit 1
 fi
 
-./scripts/run_bench.sh $1 $2
-./scripts/plot_bench.sh $1
+BENCH_NAME=$1
+PRESET=${2:-release}
+
+./scripts/run_bench.sh "$BENCH_NAME" "$PRESET"
+./scripts/plot_bench.sh "$BENCH_NAME"

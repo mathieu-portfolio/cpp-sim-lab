@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 if [ $# -lt 1 ]; then
     echo "Usage: ./scripts/plot_bench.sh <benchmark_name>"
