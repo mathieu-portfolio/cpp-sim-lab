@@ -1,6 +1,8 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <BenchmarkRandom.hpp>
+#include <random/Random.hpp>
 
 #include <iostream>
 #include <vector>
@@ -9,6 +11,7 @@ int main() {
     constexpr int WarmupFrames = 30;
     constexpr int MeasuredFrames = 300;
     constexpr float Dt = 1.0f / 60.0f;
+    constexpr std::uint32_t BaseSeed = 1337u;
 
     const std::vector<std::size_t> boidCounts{
         100,
@@ -29,6 +32,8 @@ int main() {
         << "neighbor_checks\n";
 
     for (std::size_t boidCount : boidCounts) {
+        Random::seed(bench::seedFor(BaseSeed, boidCount));
+
         SimulationConfig config;
         config.boidCount = boidCount;
 

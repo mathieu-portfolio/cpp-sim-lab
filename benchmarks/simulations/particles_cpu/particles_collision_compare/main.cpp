@@ -2,11 +2,17 @@
 #include "SpatialGrid.hpp"
 
 #include <BenchTimer.hpp>
+#include <BenchmarkRandom.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
 
+#include <cstdint>
 #include <iostream>
 #include <vector>
+
+namespace {
+constexpr std::uint32_t BaseSeed = 1337u;
+}
 
 struct BenchResult {
     double msPerStep = 0.0;
@@ -51,7 +57,8 @@ static bool resolvePair(Particle& a, Particle& b) {
     return true;
 }
 
-static BenchResult benchNaive(std::size_t count, int steps) {
+static BenchResult benchNaive(std::size_t count, int steps, std::uint32_t seed) {
+    Random::seed(seed);
     auto particles = makeParticles(count);
 
     std::size_t totalChecks = 0;
@@ -78,7 +85,8 @@ static BenchResult benchNaive(std::size_t count, int steps) {
     };
 }
 
-static BenchResult benchGrid(std::size_t count, int steps) {
+static BenchResult benchGrid(std::size_t count, int steps, std::uint32_t seed) {
+    Random::seed(seed);
     auto particles = makeParticles(count);
 
     SpatialGrid grid{16.0f};
@@ -123,8 +131,10 @@ int main() {
     std::cout << "particles,naive_ms,grid_ms,speedup,naive_checks,grid_checks,naive_resolved,grid_resolved\n";
 
     for (std::size_t count : {100ull, 500ull, 1000ull, 2000ull, 5000ull}) {
-        BenchResult naive = benchNaive(count, steps);
-        BenchResult grid = benchGrid(count, steps);
+        const std::uint32_t seed = bench::seedFor(BaseSeed, count);
+
+        BenchResult naive = benchNaive(count, steps, seed);
+        BenchResult grid = benchGrid(count, steps, seed);
 
         double speedup = naive.msPerStep / grid.msPerStep;
 
