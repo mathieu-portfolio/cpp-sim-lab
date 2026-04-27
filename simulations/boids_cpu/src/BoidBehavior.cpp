@@ -89,3 +89,22 @@ Vec2 computeSeparation(
     away *= 1.0f / static_cast<float>(count);
     return steerToward(away, boid.velocity, maxSpeed);
 }
+
+Vec2 limitLength(Vec2 v, float maxLength) {
+    float len = v.length();
+
+    if (len > maxLength && len > 0.0f) {
+        return v * (maxLength / len);
+    }
+
+    return v;
+}
+
+Vec2 wrapPosition(Vec2 pos, float w, float h) {
+    if (pos.x < 0.0f) pos.x += w;
+    if (pos.x > w) pos.x -= w;
+    if (pos.y < 0.0f) pos.y += h;
+    if (pos.y > h) pos.y -= h;
+
+    return pos;
+}
