@@ -1,13 +1,8 @@
 # boids_cpu
 
-TODO: describe the simulation.
+Naive boids simulation (O(n²)).
 
-## Goals
-
-- Correctness first
-- Simple baseline implementation
-- Measurements before optimization
-
-## Controls
-
-TODO
+Goals:
+- correctness first
+- simple steering behaviors
+- later: spatial grid + benchmarks

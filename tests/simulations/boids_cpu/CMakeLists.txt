@@ -1,1 +1,1 @@
-# TODO: add tests for boids_cpu
+# TODO: add boids tests

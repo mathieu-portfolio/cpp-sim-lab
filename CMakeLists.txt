@@ -20,9 +20,14 @@ endif()
 find_package(raylib CONFIG REQUIRED)
 
 add_subdirectory(framework)
+
 add_subdirectory(simulations/particles_cpu)
-add_subdirectory(tests/framework_math)
-add_subdirectory(tests/particles_collision)
-add_subdirectory(benchmarks/particles_collision_compare)
-add_subdirectory(benchmarks/particles_grid_cell_size)
-add_subdirectory(benchmarks/particles_fixed_grid_compare)
+add_subdirectory(simulations/boids_cpu)
+
+add_subdirectory(tests/framework)
+add_subdirectory(tests/simulations/particles_cpu)
+add_subdirectory(tests/simulations/boids_cpu)
+
+add_subdirectory(benchmarks/simulations/particles_cpu/particles_collision_compare)
+add_subdirectory(benchmarks/simulations/particles_cpu/particles_grid_cell_size)
+add_subdirectory(benchmarks/simulations/particles_cpu/particles_fixed_grid_compare)

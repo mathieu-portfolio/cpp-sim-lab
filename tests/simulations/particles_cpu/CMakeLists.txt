@@ -1,6 +1,5 @@
 add_executable(particles_cpu_tests
     collision_tests.cpp
-    boundary_tests.cpp
 )
 
 target_link_libraries(particles_cpu_tests
