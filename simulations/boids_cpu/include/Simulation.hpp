@@ -27,6 +27,7 @@ public:
     void reset();
 
     const std::vector<Boid>& getBoids() const { return m_boids; }
+    const SimulationConfig& getConfig() const { return m_config; }
 
 private:
     std::vector<Boid> m_boids;
