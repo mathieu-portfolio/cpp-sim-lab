@@ -70,12 +70,16 @@ Vec2 computeSeparation(
         Vec2 offset = boid.position - other.position;
         float distance = offset.length();
 
-        if (distance <= 0.0f || distance >= radius) {
+        if (distance >= radius) {
             continue;
         }
 
-        // Closer neighbors push harder.
-        steering += offset * (1.0f / distance);
+        if (distance <= 0.0001f) {
+            offset = Vec2{1.0f, 0.0f};
+            distance = 0.0001f;
+        }
+
+        steering += offset * (1.0f / (distance * distance));
         ++neighborCount;
     }
 

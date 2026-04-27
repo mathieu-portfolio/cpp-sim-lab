@@ -14,7 +14,7 @@ struct SimulationConfig {
     float maxForce = 80.0f;
 
     float alignmentWeight = 1.0f;
-    float cohesionWeight = 0.8f;
+    float cohesionWeight = 0.5f;
     float separationWeight = 1.5f;
 
     std::size_t boidCount = 200;
