@@ -67,6 +67,10 @@ Vec2 computeSeparation(
     int neighborCount = 0;
 
     for (const Boid& other : boids) {
+        if (&other == &boid) {
+            continue;
+        }
+
         Vec2 offset = boid.position - other.position;
         float distance = offset.length();
 
