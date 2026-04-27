@@ -2,32 +2,17 @@
 
 #include "Boid.hpp"
 
+#include <spatial/SpatialHashGrid.hpp>
+
 #include <cstddef>
-#include <unordered_map>
 #include <vector>
-
-struct CellCoord {
-    int x;
-    int y;
-
-    bool operator==(const CellCoord& other) const {
-        return x == other.x && y == other.y;
-    }
-};
-
-struct CellCoordHash {
-    std::size_t operator()(const CellCoord& c) const noexcept {
-        return (std::hash<int>()(c.x) * 73856093) ^
-               (std::hash<int>()(c.y) * 19349663);
-    }
-};
 
 class SpatialGrid {
 public:
     explicit SpatialGrid(float cellSize = 50.0f);
 
     void setCellSize(float cellSize);
-    float getCellSize() const { return m_cellSize; }
+    float getCellSize() const;
 
     void clear();
     void build(const std::vector<Boid>& boids);
@@ -38,13 +23,10 @@ public:
         std::vector<std::size_t>& outIndices
     ) const;
 
-    const std::unordered_map<CellCoord, std::vector<std::size_t>, CellCoordHash>& getCells() const {
-        return m_cells;
+    const auto& getCells() const {
+        return m_grid.getCells();
     }
 
 private:
-    float m_cellSize;
-    std::unordered_map<CellCoord, std::vector<std::size_t>, CellCoordHash> m_cells;
-
-    CellCoord toCell(Vec2 position) const;
+    simfw::SpatialHashGrid<std::size_t> m_grid;
 };
