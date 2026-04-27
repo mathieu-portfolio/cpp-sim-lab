@@ -11,6 +11,7 @@ target_include_directories(particles_collision_tests
 target_link_libraries(particles_collision_tests
     PRIVATE
         sim_framework
+        GTest::gtest_main
 )
 
 target_compile_features(particles_collision_tests
@@ -18,4 +19,5 @@ target_compile_features(particles_collision_tests
         cxx_std_20
 )
 
-add_test(NAME particles_collision_tests COMMAND particles_collision_tests)
+include(GoogleTest)
+gtest_discover_tests(particles_collision_tests)

@@ -5,6 +5,7 @@ add_executable(framework_math_tests
 target_link_libraries(framework_math_tests
     PRIVATE
         sim_framework
+        GTest::gtest_main
 )
 
 target_compile_features(framework_math_tests
@@ -12,4 +13,5 @@ target_compile_features(framework_math_tests
         cxx_std_20
 )
 
-add_test(NAME framework_math_tests COMMAND framework_math_tests)
+include(GoogleTest)
+gtest_discover_tests(framework_math_tests)
