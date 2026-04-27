@@ -8,7 +8,7 @@ fi
 
 BENCH_NAME=$1
 CSV=benchmarks/$BENCH_NAME/results/results.csv
-PLOT_SCRIPT=$(find benchmarks -type f -path "*/$BENCH_NAME/plot.py" | head -n 1)
+PLOT=$(find benchmarks -type f -path "*/$BENCH_NAME/plot.py" | head -n 1)
 
 if [ -z "$PLOT_SCRIPT" ]; then
     echo "Warning: plot.py not found for $BENCH_NAME"
@@ -16,4 +16,4 @@ if [ -z "$PLOT_SCRIPT" ]; then
 fi
 
 echo "Plotting $BENCH_NAME..."
-python "$PLOT_SCRIPT" "$OUT"
+python "$PLOT" "$CSV"
