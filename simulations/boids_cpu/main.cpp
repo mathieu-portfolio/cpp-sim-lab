@@ -8,6 +8,12 @@ namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;
 
+enum class UiMode {
+    None,
+    Compact,
+    Full
+};
+
 struct TunableParameter {
     const char* name;
     float* value;
@@ -22,6 +28,10 @@ Vector2 toRaylib(Vec2 v) {
 
 float clampMin(float value, float minValue) {
     return std::max(value, minValue);
+}
+
+UiMode nextUiMode(UiMode mode) {
+    return static_cast<UiMode>((static_cast<int>(mode) + 1) % 3);
 }
 
 void drawBoid(const Boid& b) {
@@ -51,6 +61,66 @@ void drawDebugRadii(const Boid& b, const SimulationConfig& config) {
         GRAY
     );
 }
+
+void drawCompactUi(
+    bool paused,
+    const Simulation& sim,
+    const TunableParameter& selected
+) {
+    DrawText("boids_cpu", 10, 10, 20, RAYWHITE);
+
+    DrawText(
+        TextFormat(
+            "%s | Boids: %d | F1: UI",
+            paused ? "Paused" : "Running",
+            static_cast<int>(sim.getBoids().size())
+        ),
+        10,
+        36,
+        16,
+        LIGHTGRAY
+    );
+
+    DrawText(
+        TextFormat("Selected: %s = %.2f", selected.name, *selected.value),
+        10,
+        58,
+        16,
+        YELLOW
+    );
+}
+
+void drawFullUi(
+    const SimulationConfig& config
+) {
+    DrawText("Space: pause | N: step | R: reset | D: debug", 10, 86, 16, LIGHTGRAY);
+    DrawText("Tab: select parameter | Left/Right: adjust | Shift: fast", 10, 108, 16, LIGHTGRAY);
+
+    DrawText(
+        TextFormat(
+            "Align %.2f | Cohesion %.2f | Separation %.2f",
+            config.alignmentWeight,
+            config.cohesionWeight,
+            config.separationWeight
+        ),
+        10,
+        136,
+        16,
+        LIGHTGRAY
+    );
+
+    DrawText(
+        TextFormat(
+            "Perception %.1f | Separation radius %.1f",
+            config.perceptionRadius,
+            config.separationRadius
+        ),
+        10,
+        158,
+        16,
+        LIGHTGRAY
+    );
+}
 }
 
 int main() {
@@ -61,6 +131,7 @@ int main() {
 
     bool paused = false;
     bool showDebug = false;
+    UiMode uiMode = UiMode::Compact;
     std::size_t selectedParameter = 0;
 
     while (!WindowShouldClose()) {
@@ -86,6 +157,10 @@ int main() {
 
         if (IsKeyPressed(KEY_D)) {
             showDebug = !showDebug;
+        }
+
+        if (IsKeyPressed(KEY_F1)) {
+            uiMode = nextUiMode(uiMode);
         }
 
         if (IsKeyPressed(KEY_TAB)) {
@@ -124,55 +199,13 @@ int main() {
             drawBoid(b);
         }
 
-        DrawText("boids_cpu", 10, 10, 20, RAYWHITE);
-        DrawText(paused ? "State: paused" : "State: running", 10, 36, 16, LIGHTGRAY);
-        DrawText("Space: pause | N: step | R: reset | D: debug", 10, 58, 16, LIGHTGRAY);
-        DrawText("Tab: select parameter | Left/Right: adjust | Shift: fast", 10, 80, 16, LIGHTGRAY);
+        if (uiMode != UiMode::None) {
+            drawCompactUi(paused, sim, selected);
+        }
 
-        DrawText(
-            TextFormat("Boids: %d", static_cast<int>(sim.getBoids().size())),
-            10,
-            110,
-            16,
-            LIGHTGRAY
-        );
-
-        DrawText(
-            TextFormat(
-                "Selected: %s = %.2f",
-                selected.name,
-                *selected.value
-            ),
-            10,
-            132,
-            16,
-            YELLOW
-        );
-
-        DrawText(
-            TextFormat(
-                "Align %.2f | Cohesion %.2f | Separation %.2f",
-                config.alignmentWeight,
-                config.cohesionWeight,
-                config.separationWeight
-            ),
-            10,
-            154,
-            16,
-            LIGHTGRAY
-        );
-
-        DrawText(
-            TextFormat(
-                "Perception %.1f | Separation radius %.1f",
-                config.perceptionRadius,
-                config.separationRadius
-            ),
-            10,
-            176,
-            16,
-            LIGHTGRAY
-        );
+        if (uiMode == UiMode::Full) {
+            drawFullUi(config);
+        }
 
         EndDrawing();
     }
