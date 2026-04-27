@@ -32,3 +32,4 @@ add_subdirectory(benchmarks/simulations/particles_cpu/particles_collision_compar
 add_subdirectory(benchmarks/simulations/particles_cpu/particles_grid_cell_size)
 add_subdirectory(benchmarks/simulations/particles_cpu/particles_fixed_grid_compare)
 add_subdirectory(benchmarks/simulations/boids_cpu/boids_naive_neighbors)
+add_subdirectory(benchmarks/simulations/boids_cpu/boids_spatial_grid_compare)
