@@ -3,14 +3,6 @@
 namespace {
 constexpr float Epsilon = 0.0001f;
 
-bool isSelf(const Boid& a, const Boid& b) {
-    return &a == &b;
-}
-
-bool isWithinRadius(float distance, float radius) {
-    return distance > Epsilon && distance < radius;
-}
-
 Vec2 steerToward(Vec2 desiredDirection, Vec2 currentVelocity, float maxSpeed) {
     if (desiredDirection.length() <= Epsilon) {
         return {};
@@ -22,122 +14,78 @@ Vec2 steerToward(Vec2 desiredDirection, Vec2 currentVelocity, float maxSpeed) {
 }
 
 Vec2 computeAlignment(
-    const Boid& boid,
+    std::size_t boidIndex,
     const std::vector<Boid>& boids,
-    float radius,
+    const std::vector<std::size_t>& neighbors,
     float maxSpeed
 ) {
-    Vec2 averageVelocity{};
-    int neighborCount = 0;
+    const Boid& boid = boids[boidIndex];
 
-    for (const Boid& other : boids) {
-        if (isSelf(boid, other)) {
-            continue;
-        }
+    Vec2 avgVel{};
+    int count = 0;
 
-        float distance = (other.position - boid.position).length();
+    for (std::size_t idx : neighbors) {
+        if (idx == boidIndex) continue;
 
-        if (!isWithinRadius(distance, radius)) {
-            continue;
-        }
-
-        averageVelocity += other.velocity;
-        ++neighborCount;
+        avgVel += boids[idx].velocity;
+        ++count;
     }
 
-    if (neighborCount == 0) {
-        return {};
-    }
+    if (count == 0) return {};
 
-    averageVelocity *= 1.0f / static_cast<float>(neighborCount);
-    return steerToward(averageVelocity, boid.velocity, maxSpeed);
+    avgVel *= 1.0f / static_cast<float>(count);
+    return steerToward(avgVel, boid.velocity, maxSpeed);
 }
 
 Vec2 computeCohesion(
-    const Boid& boid,
+    std::size_t boidIndex,
     const std::vector<Boid>& boids,
-    float radius,
+    const std::vector<std::size_t>& neighbors,
     float maxSpeed
 ) {
+    const Boid& boid = boids[boidIndex];
+
     Vec2 center{};
-    int neighborCount = 0;
+    int count = 0;
 
-    for (const Boid& other : boids) {
-        if (isSelf(boid, other)) {
-            continue;
-        }
+    for (std::size_t idx : neighbors) {
+        if (idx == boidIndex) continue;
 
-        float distance = (other.position - boid.position).length();
-
-        if (!isWithinRadius(distance, radius)) {
-            continue;
-        }
-
-        center += other.position;
-        ++neighborCount;
+        center += boids[idx].position;
+        ++count;
     }
 
-    if (neighborCount == 0) {
-        return {};
-    }
+    if (count == 0) return {};
 
-    center *= 1.0f / static_cast<float>(neighborCount);
-
-    Vec2 directionToCenter = center - boid.position;
-    return steerToward(directionToCenter, boid.velocity, maxSpeed);
+    center *= 1.0f / static_cast<float>(count);
+    return steerToward(center - boid.position, boid.velocity, maxSpeed);
 }
 
 Vec2 computeSeparation(
-    const Boid& boid,
+    std::size_t boidIndex,
     const std::vector<Boid>& boids,
-    float radius,
+    const std::vector<std::size_t>& neighbors,
     float maxSpeed
 ) {
+    const Boid& boid = boids[boidIndex];
+
     Vec2 away{};
-    int neighborCount = 0;
+    int count = 0;
 
-    for (const Boid& other : boids) {
-        if (isSelf(boid, other)) {
-            continue;
-        }
+    for (std::size_t idx : neighbors) {
+        if (idx == boidIndex) continue;
 
-        Vec2 offset = boid.position - other.position;
-        float distance = offset.length();
+        Vec2 offset = boid.position - boids[idx].position;
+        float dist = offset.length();
 
-        if (distance >= radius) {
-            continue;
-        }
+        if (dist <= Epsilon) continue;
 
-        if (distance <= Epsilon) {
-            continue;
-        }
-
-        away += offset.normalized() * (1.0f / distance);
-        ++neighborCount;
+        away += offset.normalized() * (1.0f / dist);
+        ++count;
     }
 
-    if (neighborCount == 0) {
-        return {};
-    }
+    if (count == 0) return {};
 
-    away *= 1.0f / static_cast<float>(neighborCount);
+    away *= 1.0f / static_cast<float>(count);
     return steerToward(away, boid.velocity, maxSpeed);
-}
-
-Vec2 limitLength(Vec2 v, float maxLength) {
-    float len = v.length();
-
-    if (len > maxLength && len > 0.0f) {
-        return v * (maxLength / len);
-    }
-
-    return v;
-}
-
-Vec2 wrapPosition(Vec2 pos, float w, float h) {
-    if (pos.x < 0.0f) pos.x += w;
-    if (pos.x > w) pos.x -= w;
-    if (pos.y < 0.0f) pos.y += h;
-    if (pos.y > h) pos.y -= h;
-    return pos;
 }
