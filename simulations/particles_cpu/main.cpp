@@ -129,7 +129,7 @@ int main() {
 
         if (showGrid) {
             const auto& config = sim.getConfig();
-            const auto& cells = sim.getGrid().cells();
+            const auto& cells = sim.getGrid().getCells();
 
             for (const auto& [coord, indices] : cells) {
                 const int x = static_cast<int>(coord.x * config.gridCellSize);
@@ -197,6 +197,12 @@ int main() {
         DrawText("Mouse wheel: zoom", 10, y, 18, GRAY); y += line;
         DrawText("Middle mouse: pan", 10, y, 18, GRAY); y += line;
         DrawText("Backspace: reset camera", 10, y, 18, GRAY); y += line;
+
+        DrawText(
+            TextFormat("Zoom: %.2fx", camera.zoom),
+            10, y, 18, GRAY
+        );
+        y += line;
 
         // --- State ---
         y += 8;
