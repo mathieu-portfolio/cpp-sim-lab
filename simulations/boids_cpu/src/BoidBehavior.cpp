@@ -1,18 +1,43 @@
 #include "BoidBehavior.hpp"
 
+namespace {
+constexpr float Epsilon = 0.0001f;
+
+bool isSelf(const Boid& a, const Boid& b) {
+    return &a == &b;
+}
+
+bool isWithinRadius(float distance, float radius) {
+    return distance > Epsilon && distance < radius;
+}
+
+Vec2 steerToward(Vec2 desiredDirection, Vec2 currentVelocity, float maxSpeed) {
+    if (desiredDirection.length() <= Epsilon) {
+        return {};
+    }
+
+    Vec2 desiredVelocity = desiredDirection.normalized() * maxSpeed;
+    return desiredVelocity - currentVelocity;
+}
+}
+
 Vec2 computeAlignment(
     const Boid& boid,
     const std::vector<Boid>& boids,
-    float radius
+    float radius,
+    float maxSpeed
 ) {
     Vec2 averageVelocity{};
     int neighborCount = 0;
 
     for (const Boid& other : boids) {
-        Vec2 offset = other.position - boid.position;
-        float distance = offset.length();
+        if (isSelf(boid, other)) {
+            continue;
+        }
 
-        if (distance <= 0.0f || distance >= radius) {
+        float distance = (other.position - boid.position).length();
+
+        if (!isWithinRadius(distance, radius)) {
             continue;
         }
 
@@ -25,23 +50,26 @@ Vec2 computeAlignment(
     }
 
     averageVelocity *= 1.0f / static_cast<float>(neighborCount);
-
-    return averageVelocity - boid.velocity;
+    return steerToward(averageVelocity, boid.velocity, maxSpeed);
 }
 
 Vec2 computeCohesion(
     const Boid& boid,
     const std::vector<Boid>& boids,
-    float radius
+    float radius,
+    float maxSpeed
 ) {
     Vec2 center{};
     int neighborCount = 0;
 
     for (const Boid& other : boids) {
-        Vec2 offset = other.position - boid.position;
-        float distance = offset.length();
+        if (isSelf(boid, other)) {
+            continue;
+        }
 
-        if (distance <= 0.0f || distance >= radius) {
+        float distance = (other.position - boid.position).length();
+
+        if (!isWithinRadius(distance, radius)) {
             continue;
         }
 
@@ -55,19 +83,21 @@ Vec2 computeCohesion(
 
     center *= 1.0f / static_cast<float>(neighborCount);
 
-    return center - boid.position;
+    Vec2 directionToCenter = center - boid.position;
+    return steerToward(directionToCenter, boid.velocity, maxSpeed);
 }
 
 Vec2 computeSeparation(
     const Boid& boid,
     const std::vector<Boid>& boids,
-    float radius
+    float radius,
+    float maxSpeed
 ) {
-    Vec2 steering{};
+    Vec2 away{};
     int neighborCount = 0;
 
     for (const Boid& other : boids) {
-        if (&other == &boid) {
+        if (isSelf(boid, other)) {
             continue;
         }
 
@@ -78,34 +108,36 @@ Vec2 computeSeparation(
             continue;
         }
 
-        if (distance <= 0.0001f) {
-            offset = Vec2{1.0f, 0.0f};
-            distance = 0.0001f;
+        if (distance <= Epsilon) {
+            continue;
         }
 
-        steering += offset * (1.0f / (distance * distance));
+        away += offset.normalized() * (1.0f / distance);
         ++neighborCount;
     }
 
-    if (neighborCount > 0) {
-        steering *= 1.0f / static_cast<float>(neighborCount);
+    if (neighborCount == 0) {
+        return {};
     }
 
-    return steering;
+    away *= 1.0f / static_cast<float>(neighborCount);
+    return steerToward(away, boid.velocity, maxSpeed);
 }
 
 Vec2 limitLength(Vec2 v, float maxLength) {
     float len = v.length();
+
     if (len > maxLength && len > 0.0f) {
         return v * (maxLength / len);
     }
+
     return v;
 }
 
 Vec2 wrapPosition(Vec2 pos, float w, float h) {
-    if (pos.x < 0) pos.x += w;
+    if (pos.x < 0.0f) pos.x += w;
     if (pos.x > w) pos.x -= w;
-    if (pos.y < 0) pos.y += h;
+    if (pos.y < 0.0f) pos.y += h;
     if (pos.y > h) pos.y -= h;
     return pos;
 }

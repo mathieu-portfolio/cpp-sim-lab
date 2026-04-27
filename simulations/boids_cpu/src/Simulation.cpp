@@ -26,9 +26,26 @@ void Simulation::reset() {
 
 void Simulation::update(float dt) {
     for (auto& b : m_boids) {
-        Vec2 align = computeAlignment(b, m_boids, m_config.perceptionRadius);
-        Vec2 coh = computeCohesion(b, m_boids, m_config.perceptionRadius);
-        Vec2 sep = computeSeparation(b, m_boids, m_config.separationRadius);
+        Vec2 align = computeAlignment(
+            b,
+            m_boids,
+            m_config.perceptionRadius,
+            m_config.maxSpeed
+        );
+
+        Vec2 coh = computeCohesion(
+            b,
+            m_boids,
+            m_config.perceptionRadius,
+            m_config.maxSpeed
+        );
+
+        Vec2 sep = computeSeparation(
+            b,
+            m_boids,
+            m_config.separationRadius,
+            m_config.maxSpeed
+        );
 
         Vec2 force =
             align * m_config.alignmentWeight +
