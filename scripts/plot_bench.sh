@@ -7,10 +7,22 @@ if [ $# -lt 1 ]; then
 fi
 
 BENCH_NAME=$1
-CSV=benchmarks/$BENCH_NAME/results/results.csv
-PLOT=$(find benchmarks -type f -path "*/$BENCH_NAME/plot.py" | head -n 1)
+BENCH_DIR=$(find benchmarks -type d -path "*/$BENCH_NAME" | head -n 1)
 
-if [ -z "$PLOT" ]; then
+if [ -z "$BENCH_DIR" ]; then
+    echo "Error: benchmark directory not found for $BENCH_NAME"
+    exit 1
+fi
+
+CSV="$BENCH_DIR/results/results.csv"
+PLOT="$BENCH_DIR/plot.py"
+
+if [ ! -f "$CSV" ]; then
+    echo "Error: results CSV not found: $CSV"
+    exit 1
+fi
+
+if [ ! -f "$PLOT" ]; then
     echo "Warning: plot.py not found for $BENCH_NAME"
     exit 0
 fi
