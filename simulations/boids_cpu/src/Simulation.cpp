@@ -1,14 +1,85 @@
 #include "Simulation.hpp"
 #include "BoidBehavior.hpp"
+
+#include <algorithm>
 #include <random/Random.hpp>
 
+namespace {
+void addNeighborsFromCandidateList(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& candidates,
+    float perceptionRadius,
+    float separationRadius,
+    std::vector<std::size_t>& perceptionNeighbors,
+    std::vector<std::size_t>& separationNeighbors,
+    SimulationStats& stats
+) {
+    perceptionNeighbors.clear();
+    separationNeighbors.clear();
+
+    for (std::size_t candidateIndex : candidates) {
+        if (candidateIndex == boidIndex) {
+            continue;
+        }
+
+        ++stats.neighborChecks;
+
+        const float distance =
+            (boids[candidateIndex].position - boids[boidIndex].position).length();
+
+        if (distance < perceptionRadius) {
+            perceptionNeighbors.push_back(candidateIndex);
+        }
+
+        if (distance < separationRadius) {
+            separationNeighbors.push_back(candidateIndex);
+        }
+    }
+}
+
+void addNeighborsNaive(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    float perceptionRadius,
+    float separationRadius,
+    std::vector<std::size_t>& perceptionNeighbors,
+    std::vector<std::size_t>& separationNeighbors,
+    SimulationStats& stats
+) {
+    perceptionNeighbors.clear();
+    separationNeighbors.clear();
+
+    for (std::size_t i = 0; i < boids.size(); ++i) {
+        if (i == boidIndex) {
+            continue;
+        }
+
+        ++stats.neighborChecks;
+
+        const float distance =
+            (boids[i].position - boids[boidIndex].position).length();
+
+        if (distance < perceptionRadius) {
+            perceptionNeighbors.push_back(i);
+        }
+
+        if (distance < separationRadius) {
+            separationNeighbors.push_back(i);
+        }
+    }
+}
+}
+
 Simulation::Simulation(SimulationConfig config)
-    : m_config(config) {
+    : m_config(config),
+      m_grid(config.gridCellSize) {
     reset();
 }
 
 void Simulation::reset() {
     m_boids.clear();
+    m_boids.reserve(m_config.boidCount);
 
     for (std::size_t i = 0; i < m_config.boidCount; ++i) {
         m_boids.push_back({
@@ -23,58 +94,82 @@ void Simulation::reset() {
         });
     }
 
+    m_stats = {};
     m_stats.boidCount = m_boids.size();
-    m_stats.neighborChecks = 0;
 }
 
 void Simulation::update(float dt) {
     m_stats = {};
     m_stats.boidCount = m_boids.size();
 
-    const std::size_t boidCount = m_boids.size();
+    m_grid.setCellSize(m_config.gridCellSize);
 
-    if (boidCount > 0) {
-        m_stats.neighborChecks = boidCount * (boidCount - 1) * 3;
+    if (m_config.useSpatialGrid) {
+        m_grid.build(m_boids);
+        m_stats.occupiedGridCells = m_grid.getCells().size();
+    } else {
+        m_grid.clear();
     }
 
-    std::vector<std::size_t> neighbors;
+    std::vector<std::size_t> candidates;
+    std::vector<std::size_t> perceptionNeighbors;
+    std::vector<std::size_t> separationNeighbors;
+
+    const float queryRadius =
+        std::max(m_config.perceptionRadius, m_config.separationRadius);
 
     for (std::size_t i = 0; i < m_boids.size(); ++i) {
-        neighbors.clear();
+        if (m_config.useSpatialGrid) {
+            m_grid.queryNeighbors(m_boids[i].position, queryRadius, candidates);
+            m_stats.neighborCandidates += candidates.size();
 
-        for (std::size_t j = 0; j < m_boids.size(); ++j) {
-            if (i == j) continue;
-
-            Vec2 offset = m_boids[j].position - m_boids[i].position;
-            float dist = offset.length();
-
-            if (dist < m_config.perceptionRadius) {
-                neighbors.push_back(j);
-            }
-
-            // stats
-            ++m_stats.neighborChecks;
+            addNeighborsFromCandidateList(
+                i,
+                m_boids,
+                candidates,
+                m_config.perceptionRadius,
+                m_config.separationRadius,
+                perceptionNeighbors,
+                separationNeighbors,
+                m_stats
+            );
+        } else {
+            addNeighborsNaive(
+                i,
+                m_boids,
+                m_config.perceptionRadius,
+                m_config.separationRadius,
+                perceptionNeighbors,
+                separationNeighbors,
+                m_stats
+            );
         }
 
-        Vec2 align = computeAlignment(i, m_boids, neighbors, m_config.maxSpeed);
-        Vec2 coh   = computeCohesion(i, m_boids, neighbors, m_config.maxSpeed);
+        Vec2 align = computeAlignment(
+            i,
+            m_boids,
+            perceptionNeighbors,
+            m_config.maxSpeed
+        );
 
-        // reuse neighbors for separation or recompute with smaller radius
-        std::vector<std::size_t> sepNeighbors;
+        Vec2 coh = computeCohesion(
+            i,
+            m_boids,
+            perceptionNeighbors,
+            m_config.maxSpeed
+        );
 
-        for (std::size_t idx : neighbors) {
-            float dist = (m_boids[idx].position - m_boids[i].position).length();
-            if (dist < m_config.separationRadius) {
-                sepNeighbors.push_back(idx);
-            }
-        }
-
-        Vec2 sep = computeSeparation(i, m_boids, sepNeighbors, m_config.maxSpeed);
+        Vec2 sep = computeSeparation(
+            i,
+            m_boids,
+            separationNeighbors,
+            m_config.maxSpeed
+        );
 
         Vec2 force =
             align * m_config.alignmentWeight +
-            coh   * m_config.cohesionWeight +
-            sep   * m_config.separationWeight;
+            coh * m_config.cohesionWeight +
+            sep * m_config.separationWeight;
 
         force = limitLength(force, m_config.maxForce);
 

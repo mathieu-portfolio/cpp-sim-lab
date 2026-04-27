@@ -24,11 +24,23 @@ struct CellCoordHash {
 
 class SpatialGrid {
 public:
-    explicit SpatialGrid(float cellSize);
+    explicit SpatialGrid(float cellSize = 50.0f);
+
+    void setCellSize(float cellSize);
+    float getCellSize() const { return m_cellSize; }
 
     void clear();
     void build(const std::vector<Boid>& boids);
-    void queryNeighbors(Vec2 position, float radius, std::vector<std::size_t>& outIndices) const;
+
+    void queryNeighbors(
+        Vec2 position,
+        float radius,
+        std::vector<std::size_t>& outIndices
+    ) const;
+
+    const std::unordered_map<CellCoord, std::vector<std::size_t>, CellCoordHash>& getCells() const {
+        return m_cells;
+    }
 
 private:
     float m_cellSize;

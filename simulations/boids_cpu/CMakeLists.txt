@@ -1,6 +1,7 @@
 add_library(boids_cpu_core
     src/Simulation.cpp
     src/BoidBehavior.cpp
+    src/SpatialGrid.cpp
 )
 
 target_include_directories(boids_cpu_core

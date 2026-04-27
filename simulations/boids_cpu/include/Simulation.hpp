@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Boid.hpp"
+#include "SpatialGrid.hpp"
+
 #include <cstddef>
 #include <vector>
 
@@ -18,12 +20,17 @@ struct SimulationConfig {
     float cohesionWeight = 0.4f;
     float separationWeight = 2.0f;
 
+    bool useSpatialGrid = false;
+    float gridCellSize = 50.0f;
+
     std::size_t boidCount = 200;
 };
 
 struct SimulationStats {
     std::size_t boidCount = 0;
     std::size_t neighborChecks = 0;
+    std::size_t neighborCandidates = 0;
+    std::size_t occupiedGridCells = 0;
 };
 
 class Simulation {
@@ -39,8 +46,11 @@ public:
 
     SimulationStats getStats() const { return m_stats; }
 
+    const SpatialGrid& getGrid() const { return m_grid; }
+
 private:
     std::vector<Boid> m_boids;
     SimulationConfig m_config;
     SimulationStats m_stats;
+    SpatialGrid m_grid;
 };

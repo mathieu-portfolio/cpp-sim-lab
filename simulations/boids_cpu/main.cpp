@@ -14,6 +14,12 @@ enum class UiMode {
     Full
 };
 
+enum class GridDebugMode {
+    None,
+    OccupiedCells,
+    HotCells
+};
+
 struct TunableParameter {
     const char* name;
     float* value;
@@ -32,6 +38,23 @@ float clampMin(float value, float minValue) {
 
 UiMode nextUiMode(UiMode mode) {
     return static_cast<UiMode>((static_cast<int>(mode) + 1) % 3);
+}
+
+GridDebugMode nextGridDebugMode(GridDebugMode mode) {
+    return static_cast<GridDebugMode>((static_cast<int>(mode) + 1) % 3);
+}
+
+const char* gridDebugModeName(GridDebugMode mode) {
+    switch (mode) {
+        case GridDebugMode::None:
+            return "none";
+        case GridDebugMode::OccupiedCells:
+            return "occupied cells";
+        case GridDebugMode::HotCells:
+            return "hot cells";
+    }
+
+    return "unknown";
 }
 
 void drawBoid(const Boid& b) {
@@ -62,11 +85,44 @@ void drawDebugRadii(const Boid& b, const SimulationConfig& config) {
     );
 }
 
-void drawCompactUi(
+void drawGridDebug(const Simulation& sim, GridDebugMode mode) {
+    if (mode == GridDebugMode::None) {
+        return;
+    }
+
+    const SpatialGrid& grid = sim.getGrid();
+    const float cellSize = grid.getCellSize();
+
+    for (const auto& [coord, indices] : grid.getCells()) {
+        if (mode == GridDebugMode::HotCells && indices.size() < 4) {
+            continue;
+        }
+
+        const int x = static_cast<int>(coord.x * cellSize);
+        const int y = static_cast<int>(coord.y * cellSize);
+        const int size = static_cast<int>(cellSize);
+
+        DrawRectangleLines(x, y, size, size, DARKGREEN);
+
+        if (indices.size() >= 2) {
+            DrawText(
+                TextFormat("%d", static_cast<int>(indices.size())),
+                x + 4,
+                y + 4,
+                12,
+                GREEN
+            );
+        }
+    }
+}
+
+int drawCompactUi(
     bool paused,
     const Simulation& sim,
-    const TunableParameter& selected
+    const TunableParameter& selected,
+    GridDebugMode gridDebugMode
 ) {
+    const SimulationConfig& config = sim.getConfig();
     const SimulationStats stats = sim.getStats();
 
     int y = 10;
@@ -75,13 +131,7 @@ void drawCompactUi(
     DrawText("boids_cpu", 10, y, 20, RAYWHITE);
     y += lineHeight + 6;
 
-    DrawText(
-        paused ? "Paused" : "Running",
-        10,
-        y,
-        16,
-        LIGHTGRAY
-    );
+    DrawText(paused ? "Paused" : "Running", 10, y, 16, LIGHTGRAY);
     y += lineHeight;
 
     DrawText(
@@ -103,6 +153,42 @@ void drawCompactUi(
     y += lineHeight;
 
     DrawText(
+        TextFormat("Candidates: %d", static_cast<int>(stats.neighborCandidates)),
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        TextFormat("Grid cells: %d", static_cast<int>(stats.occupiedGridCells)),
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        config.useSpatialGrid ? "Backend: spatial grid" : "Backend: naive",
+        10,
+        y,
+        16,
+        config.useSpatialGrid ? GREEN : LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        TextFormat("Grid debug: %s", gridDebugModeName(gridDebugMode)),
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
         TextFormat("Selected: %s = %.2f", selected.name, *selected.value),
         10,
         y,
@@ -111,13 +197,10 @@ void drawCompactUi(
     );
     y += lineHeight;
 
-    DrawText(
-        "F1: UI mode",
-        10,
-        y,
-        16,
-        DARKGRAY
-    );
+    DrawText("F1: UI mode", 10, y, 16, DARKGRAY);
+    y += lineHeight;
+
+    return y;
 }
 
 void drawFullUi(const SimulationConfig& config, int startY) {
@@ -125,7 +208,7 @@ void drawFullUi(const SimulationConfig& config, int startY) {
     const int lineHeight = 20;
 
     DrawText(
-        "Space: pause | N: step | R: reset | D: debug",
+        "Space: pause | N: step | R: reset | D: debug radii | F1: UI mode",
         10,
         y,
         16,
@@ -135,6 +218,15 @@ void drawFullUi(const SimulationConfig& config, int startY) {
 
     DrawText(
         "Tab: select | Left/Right: adjust | Shift: fast",
+        10,
+        y,
+        16,
+        LIGHTGRAY
+    );
+    y += lineHeight;
+
+    DrawText(
+        "G: toggle grid backend | H: grid debug mode",
         10,
         y,
         16,
@@ -158,9 +250,10 @@ void drawFullUi(const SimulationConfig& config, int startY) {
 
     DrawText(
         TextFormat(
-            "Perception %.1f | Separation radius %.1f",
+            "Perception %.1f | Separation radius %.1f | Grid cell %.1f",
             config.perceptionRadius,
-            config.separationRadius
+            config.separationRadius,
+            config.gridCellSize
         ),
         10,
         y,
@@ -168,6 +261,7 @@ void drawFullUi(const SimulationConfig& config, int startY) {
         LIGHTGRAY
     );
 }
+
 }
 
 int main() {
@@ -179,6 +273,7 @@ int main() {
     bool paused = false;
     bool showDebug = false;
     UiMode uiMode = UiMode::Compact;
+    GridDebugMode gridDebugMode = GridDebugMode::None;
     std::size_t selectedParameter = 0;
 
     while (!WindowShouldClose()) {
@@ -186,18 +281,38 @@ int main() {
 
         auto& config = sim.getConfig();
 
-        std::array<TunableParameter, 5> parameters{{
+        std::array<TunableParameter, 6> parameters{{
             {"alignmentWeight", &config.alignmentWeight, 0.0f, 0.5f, 2.0f},
             {"cohesionWeight", &config.cohesionWeight, 0.0f, 0.5f, 2.0f},
             {"separationWeight", &config.separationWeight, 0.0f, 0.5f, 2.0f},
             {"perceptionRadius", &config.perceptionRadius, 1.0f, 30.0f, 100.0f},
             {"separationRadius", &config.separationRadius, 1.0f, 30.0f, 100.0f},
+            {"gridCellSize", &config.gridCellSize, 1.0f, 30.0f, 100.0f},
         }};
 
-        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) sim.reset();
-        if (IsKeyPressed(KEY_D)) showDebug = !showDebug;
-        if (IsKeyPressed(KEY_F1)) uiMode = nextUiMode(uiMode);
+        if (IsKeyPressed(KEY_SPACE)) {
+            paused = !paused;
+        }
+
+        if (IsKeyPressed(KEY_R)) {
+            sim.reset();
+        }
+
+        if (IsKeyPressed(KEY_D)) {
+            showDebug = !showDebug;
+        }
+
+        if (IsKeyPressed(KEY_F1)) {
+            uiMode = nextUiMode(uiMode);
+        }
+
+        if (IsKeyPressed(KEY_G)) {
+            config.useSpatialGrid = !config.useSpatialGrid;
+        }
+
+        if (IsKeyPressed(KEY_H)) {
+            gridDebugMode = nextGridDebugMode(gridDebugMode);
+        }
 
         if (IsKeyPressed(KEY_TAB)) {
             selectedParameter = (selectedParameter + 1) % parameters.size();
@@ -227,19 +342,22 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
+        drawGridDebug(sim, gridDebugMode);
+
         for (const auto& b : sim.getBoids()) {
             if (showDebug) {
                 drawDebugRadii(b, config);
             }
+
             drawBoid(b);
         }
 
         if (uiMode != UiMode::None) {
-            drawCompactUi(paused, sim, selected);
-        }
+            const int nextY = drawCompactUi(paused, sim, selected, gridDebugMode);
 
-        if (uiMode == UiMode::Full) {
-            drawFullUi(config, 140);
+            if (uiMode == UiMode::Full) {
+                drawFullUi(config, nextY + 10);
+            }
         }
 
         EndDrawing();

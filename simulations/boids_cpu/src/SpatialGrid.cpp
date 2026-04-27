@@ -5,6 +5,10 @@
 SpatialGrid::SpatialGrid(float cellSize)
     : m_cellSize(cellSize) {}
 
+void SpatialGrid::setCellSize(float cellSize) {
+    m_cellSize = cellSize;
+}
+
 void SpatialGrid::clear() {
     m_cells.clear();
 }
@@ -36,7 +40,7 @@ void SpatialGrid::queryNeighbors(
 
     for (int dy = -cellRadius; dy <= cellRadius; ++dy) {
         for (int dx = -cellRadius; dx <= cellRadius; ++dx) {
-            CellCoord coord{base.x + dx, base.y + dy};
+            const CellCoord coord{base.x + dx, base.y + dy};
 
             auto it = m_cells.find(coord);
             if (it == m_cells.end()) {
