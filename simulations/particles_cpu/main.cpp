@@ -20,8 +20,19 @@ int main() {
     Simulation sim{config};
     sim.reset();
 
+    bool paused = false;
+    bool step = false;
+
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
+
+        if (IsKeyPressed(KEY_SPACE)) {
+            paused = !paused;
+        }
+
+        if (IsKeyPressed(KEY_N)) {
+            step = true;
+        }
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const auto mouse = GetMousePosition();
@@ -36,7 +47,10 @@ int main() {
             sim.reset();
         }
 
-        sim.update(dt);
+        if (!paused || step) {
+            sim.update(dt);
+            step = false;
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -81,6 +95,9 @@ int main() {
         DrawText("Left mouse: spawn", 10, 90, 18, GRAY);
         DrawText("Right mouse: clear", 10, 112, 18, GRAY);
         DrawText("R: reset", 10, 134, 18, GRAY);
+        DrawText("Space: pause", 10, 156, 18, GRAY);
+        DrawText("N: step", 10, 178, 18, GRAY);
+        DrawText(paused ? "Paused" : "Running", 10, 200, 18, YELLOW);
 
         EndDrawing();
     }
