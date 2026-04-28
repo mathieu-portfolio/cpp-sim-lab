@@ -274,6 +274,28 @@ void Simulation::update(float dt) {
         agent.velocity = limitLength(agent.velocity, m_config.maxSpeed);
         agent.position += agent.velocity * dt;
 
+        for (const Obstacle& obstacle : m_obstacles) {
+            Vec2 away = agent.position - obstacle.position;
+            float distance = away.length();
+
+            const float minDistance = obstacle.radius + agent.radius;
+
+            if (distance <= Epsilon || distance >= minDistance) {
+                continue;
+            }
+
+            Vec2 normal = away * (1.0f / distance);
+
+            agent.position = obstacle.position + normal * minDistance;
+
+            const float velocityIntoObstacle =
+                Vec2::dot(agent.velocity, normal);
+
+            if (velocityIntoObstacle < 0.0f) {
+                agent.velocity -= normal * velocityIntoObstacle;
+            }
+        }
+
         agent.position = clampToWorld(
             agent.position,
             m_config.width,
