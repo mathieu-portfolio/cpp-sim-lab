@@ -9,6 +9,10 @@
 
 namespace {
 
+struct Item {
+    Vec2 position;
+};
+
 std::vector<std::size_t> sorted(std::vector<std::size_t> values) {
     std::sort(values.begin(), values.end());
     return values;
@@ -26,8 +30,7 @@ TEST(SpatialQueryTests, NaiveBackendReturnsAllIndices) {
         10.0f,
         simfw::simulation::SpatialQueryOptions<std::size_t>{
             simfw::simulation::SpatialQueryBackend::Naive,
-            4,
-            std::nullopt
+            4
         },
         candidates
     );
@@ -43,11 +46,7 @@ TEST(SpatialQueryTests, NaiveBackendCanExcludeSelf) {
         grid,
         Vec2{},
         10.0f,
-        simfw::simulation::SpatialQueryOptions<std::size_t>{
-            simfw::simulation::SpatialQueryBackend::Naive,
-            5,
-            2
-        },
+        simfw::simulation::makeSpatialQueryOptionsExcluding(false, 5, std::size_t{2}),
         candidates
     );
 
@@ -55,14 +54,10 @@ TEST(SpatialQueryTests, NaiveBackendCanExcludeSelf) {
 }
 
 TEST(SpatialQueryTests, GridBackendQueriesNearbyCells) {
-    struct Item {
-        Vec2 position;
-    };
-
     const std::vector<Item> items{
         Item{Vec2{0.0f, 0.0f}},
         Item{Vec2{8.0f, 0.0f}},
-        Item{100.0f, 100.0f}
+        Item{Vec2{100.0f, 100.0f}}
     };
 
     simfw::SpatialHashGrid<std::size_t> grid{10.0f};
@@ -83,10 +78,6 @@ TEST(SpatialQueryTests, GridBackendQueriesNearbyCells) {
 }
 
 TEST(SpatialQueryTests, GridBackendCanExcludeSelf) {
-    struct Item {
-        Vec2 position;
-    };
-
     const std::vector<Item> items{
         Item{Vec2{0.0f, 0.0f}},
         Item{Vec2{8.0f, 0.0f}}
@@ -102,7 +93,7 @@ TEST(SpatialQueryTests, GridBackendCanExcludeSelf) {
         grid,
         Vec2{0.0f, 0.0f},
         10.0f,
-        simfw::simulation::makeSpatialQueryOptions(true, items.size(), std::size_t{0}),
+        simfw::simulation::makeSpatialQueryOptionsExcluding(true, items.size(), std::size_t{0}),
         candidates
     );
 
@@ -114,5 +105,5 @@ TEST(SpatialQueryTests, FactoryChoosesNaiveBackendWhenGridIsDisabled) {
 
     EXPECT_EQ(options.backend, simfw::simulation::SpatialQueryBackend::Naive);
     EXPECT_EQ(options.itemCount, 7u);
-    EXPECT_FALSE(options.excludedIndex.has_value());
+    EXPECT_FALSE(options.excludeIndex);
 }
