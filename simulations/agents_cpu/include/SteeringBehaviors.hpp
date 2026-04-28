@@ -20,6 +20,7 @@ struct BehaviorContext {
     const std::vector<Agent>& agents;
     const std::vector<Obstacle>& obstacles;
     CandidateLists candidates;
+    AgentIntent intent = AgentIntent::SeekTarget;
     SimulationStats& stats;
 };
 

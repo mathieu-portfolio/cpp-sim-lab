@@ -60,6 +60,10 @@ Vec2 computeAcceleration(std::size_t agentIndex, BehaviorContext& context) {
 }
 
 Vec2 seek(std::size_t agentIndex, BehaviorContext& context) {
+    if (context.intent == AgentIntent::Idle) {
+        return Vec2{};
+    }
+
     const SimulationConfig& config = context.config;
     const Agent& agent = context.agents[agentIndex];
 
@@ -77,7 +81,13 @@ Vec2 seek(std::size_t agentIndex, BehaviorContext& context) {
     }
 
     const Vec2 desiredVelocity = toTarget.normalized() * desiredSpeed;
-    return limitLength(desiredVelocity - agent.velocity, config.maxForce);
+    Vec2 force = limitLength(desiredVelocity - agent.velocity, config.maxForce);
+
+    if (context.intent == AgentIntent::AvoidObstacle) {
+        force *= config.avoidIntentSeekScale;
+    }
+
+    return force;
 }
 
 Vec2 separate(std::size_t agentIndex, BehaviorContext& context) {

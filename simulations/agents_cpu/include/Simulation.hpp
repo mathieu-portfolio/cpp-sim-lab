@@ -41,7 +41,12 @@ struct SimulationConfig {
 
     bool useSpatialGrid = true;
     bool useParallelUpdate = true;
+    bool useIntent = true;
+
     float gridCellSize = 24.0f;
+    float obstacleIntentRadius = 48.0f;
+    float avoidIntentSeekScale = 0.25f;
+    float idleDamping = 8.0f;
 };
 
 struct SimulationStats {
@@ -58,6 +63,11 @@ struct SimulationStats {
     std::size_t obstacleCandidates = 0;
     std::size_t obstacleOverlapChecks = 0;
     std::size_t occupiedObstacleGridCells = 0;
+
+    std::size_t seekingTargetCount = 0;
+    std::size_t avoidingObstacleCount = 0;
+    std::size_t idleCount = 0;
+    std::size_t intentChanges = 0;
 };
 
 class Simulation

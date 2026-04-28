@@ -11,6 +11,10 @@ struct StatsUiTraits<agents_cpu::SimulationStats> {
     static constexpr auto fields = std::make_tuple(
         StatField{"Agents", &agents_cpu::SimulationStats::agentCount},
         StatField{"Arrived", &agents_cpu::SimulationStats::arrivedCount},
+        StatField{"Seeking", &agents_cpu::SimulationStats::seekingTargetCount},
+        StatField{"Avoiding", &agents_cpu::SimulationStats::avoidingObstacleCount},
+        StatField{"Idle", &agents_cpu::SimulationStats::idleCount},
+        StatField{"Intent changes", &agents_cpu::SimulationStats::intentChanges},
         StatField{"Obstacles", &agents_cpu::SimulationStats::obstacleCount},
         StatField{"Neighbor checks", &agents_cpu::SimulationStats::neighborChecks},
         StatField{"Obstacle checks", &agents_cpu::SimulationStats::obstacleChecks},
@@ -35,6 +39,9 @@ struct ConfigUiTraits<agents_cpu::SimulationConfig> {
         TunableField{"separation radius", &agents_cpu::SimulationConfig::separationRadius, 1.0f, 10.0f, 40.0f},
         TunableField{"obstacle radius", &agents_cpu::SimulationConfig::obstacleRadius, 1.0f, 8.0f, 24.0f},
         TunableField{"avoid radius", &agents_cpu::SimulationConfig::obstacleAvoidanceRadius, 1.0f, 20.0f, 80.0f},
+        TunableField{"intent radius", &agents_cpu::SimulationConfig::obstacleIntentRadius, 1.0f, 20.0f, 80.0f},
+        TunableField{"avoid seek scale", &agents_cpu::SimulationConfig::avoidIntentSeekScale, 0.0f, 0.25f, 1.0f},
+        TunableField{"idle damping", &agents_cpu::SimulationConfig::idleDamping, 0.0f, 2.0f, 8.0f},
         TunableField{"cell size", &agents_cpu::SimulationConfig::gridCellSize, 1.0f, 10.0f, 40.0f}
     );
 };

@@ -12,6 +12,7 @@
 namespace agents_cpu {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
+constexpr float Epsilon = 0.0001f;
 
 Vec2 agentPosition(const Agent& agent) {
     return agent.position;
@@ -59,6 +60,82 @@ std::size_t hardwareWorkerCount() {
     }
 
     return static_cast<std::size_t>(hardwareThreads);
+}
+
+bool hasObstacleThreat(
+    const Agent& agent,
+    const std::vector<Obstacle>& obstacles,
+    const std::vector<std::size_t>& obstacleCandidates,
+    float obstacleIntentRadius
+) {
+    for (std::size_t obstacleIndex : obstacleCandidates) {
+        const Obstacle& obstacle = obstacles[obstacleIndex];
+        const Vec2 away = agent.position - obstacle.position;
+        const float distance = away.length();
+        const float threatDistance = obstacle.radius + agent.radius + obstacleIntentRadius;
+
+        if (distance > Epsilon && distance <= threatDistance) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+AgentIntent decideIntent(
+    const Agent& previousAgent,
+    const SimulationConfig& config,
+    const std::vector<Obstacle>& obstacles,
+    const std::vector<std::size_t>& obstacleCandidates
+) {
+    if (!config.useIntent) {
+        return AgentIntent::SeekTarget;
+    }
+
+    if (hasObstacleThreat(
+            previousAgent,
+            obstacles,
+            obstacleCandidates,
+            config.obstacleIntentRadius
+        )) {
+        return AgentIntent::AvoidObstacle;
+    }
+
+    if ((previousAgent.target - previousAgent.position).length() <= config.targetRadius) {
+        return AgentIntent::Idle;
+    }
+
+    return AgentIntent::SeekTarget;
+}
+
+void recordIntentStats(
+    AgentIntent intent,
+    AgentIntent previousIntent,
+    SimulationStats& stats
+) {
+    switch (intent) {
+    case AgentIntent::SeekTarget:
+        ++stats.seekingTargetCount;
+        break;
+    case AgentIntent::AvoidObstacle:
+        ++stats.avoidingObstacleCount;
+        break;
+    case AgentIntent::Idle:
+        ++stats.idleCount;
+        break;
+    }
+
+    if (intent != previousIntent) {
+        ++stats.intentChanges;
+    }
+}
+
+float dampingFactor(float damping, float dt) {
+    if (damping <= 0.0f) {
+        return 1.0f;
+    }
+
+    return std::max(0.0f, 1.0f - damping * std::max(dt, 0.0f));
 }
 } // namespace
 
@@ -109,7 +186,10 @@ float Simulation::maxObstacleQueryRadius(float dt) const {
 
     const float maxMoveDistance = m_config.maxSpeed * std::max(dt, 0.0f);
     const float overlapRadius = m_config.agentRadius + maxMoveDistance;
-    const float agentInfluenceRadius = std::max(m_config.obstacleAvoidanceRadius, overlapRadius);
+    const float agentInfluenceRadius = std::max(
+        std::max(m_config.obstacleAvoidanceRadius, m_config.obstacleIntentRadius),
+        overlapRadius
+    );
 
     return maxRadius + agentInfluenceRadius;
 }
@@ -134,7 +214,8 @@ void Simulation::reset() {
                 Random::range(-20.0f, 20.0f)
             },
             m_target,
-            m_config.agentRadius
+            m_config.agentRadius,
+            AgentIntent::SeekTarget
         });
     }
 
@@ -147,6 +228,10 @@ void Simulation::setTarget(Vec2 target) {
 
     for (Agent& agent : m_entities) {
         agent.target = m_target;
+
+        if (agent.intent == AgentIntent::Idle) {
+            agent.intent = AgentIntent::SeekTarget;
+        }
     }
 }
 
@@ -246,6 +331,15 @@ void Simulation::updateAgentRange(
         collectAgentCandidates(i, scratch, stats);
         collectObstacleCandidates(previousAgent, obstacleQueryRadius, scratch, stats);
 
+        const AgentIntent intent = decideIntent(
+            previousAgent,
+            m_config,
+            m_obstacles,
+            scratch.obstacleCandidates
+        );
+
+        recordIntentStats(intent, previousAgent.intent, stats);
+
         steering::BehaviorContext behaviorContext{
             m_config,
             m_previousAgents,
@@ -254,16 +348,23 @@ void Simulation::updateAgentRange(
                 scratch.agentCandidates,
                 scratch.obstacleCandidates
             },
+            intent,
             stats
         };
 
         const Vec2 acceleration = steering::computeAcceleration(i, behaviorContext);
 
         agent.velocity = previousAgent.velocity + acceleration * dt;
+
+        if (intent == AgentIntent::Idle) {
+            agent.velocity *= dampingFactor(m_config.idleDamping, dt);
+        }
+
         agent.velocity = steering::limitLength(agent.velocity, m_config.maxSpeed);
         agent.position = previousAgent.position + agent.velocity * dt;
         agent.target = previousAgent.target;
         agent.radius = previousAgent.radius;
+        agent.intent = intent;
 
         steering::resolveObstacleOverlap(
             agent,
@@ -292,6 +393,11 @@ void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
     m_stats.obstacleChecks += workerStats.obstacleChecks;
     m_stats.obstacleCandidates += workerStats.obstacleCandidates;
     m_stats.obstacleOverlapChecks += workerStats.obstacleOverlapChecks;
+
+    m_stats.seekingTargetCount += workerStats.seekingTargetCount;
+    m_stats.avoidingObstacleCount += workerStats.avoidingObstacleCount;
+    m_stats.idleCount += workerStats.idleCount;
+    m_stats.intentChanges += workerStats.intentChanges;
 }
 
 void Simulation::updateAgentsSingleThread(float dt, float obstacleQueryRadius) {
