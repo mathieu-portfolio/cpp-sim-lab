@@ -19,6 +19,8 @@ struct BenchResult {
     double totalMs = 0.0;
     double avgFrameMs = 0.0;
     std::size_t obstacleChecks = 0;
+    std::size_t obstacleOverlapChecks = 0;
+    std::size_t obstacleCandidates = 0;
     std::size_t neighborChecks = 0;
     std::size_t neighborCandidates = 0;
     std::size_t occupiedGridCells = 0;
@@ -85,6 +87,8 @@ BenchResult runBenchmark(
         totalMs,
         totalMs / static_cast<double>(measuredFrames),
         stats.obstacleChecks,
+        stats.obstacleOverlapChecks,
+        stats.obstacleCandidates,
         stats.neighborChecks,
         stats.neighborCandidates,
         stats.occupiedGridCells
@@ -115,6 +119,8 @@ int main() {
         << "total_ms,"
         << "avg_frame_ms,"
         << "obstacle_checks,"
+        << "obstacle_overlap_checks,"
+        << "obstacle_candidates,"
         << "neighbor_checks,"
         << "neighbor_candidates,"
         << "occupied_grid_cells\n";
@@ -143,6 +149,8 @@ int main() {
             << result.totalMs << ","
             << result.avgFrameMs << ","
             << result.obstacleChecks << ","
+            << result.obstacleOverlapChecks << ","
+            << result.obstacleCandidates << ","
             << result.neighborChecks << ","
             << result.neighborCandidates << ","
             << result.occupiedGridCells

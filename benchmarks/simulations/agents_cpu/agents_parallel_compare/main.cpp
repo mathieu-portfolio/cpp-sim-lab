@@ -21,6 +21,7 @@ struct BenchResult {
     std::size_t neighborChecks = 0;
     std::size_t neighborCandidates = 0;
     std::size_t obstacleChecks = 0;
+    std::size_t obstacleOverlapChecks = 0;
     std::size_t obstacleCandidates = 0;
     std::size_t occupiedGridCells = 0;
     std::size_t occupiedObstacleGridCells = 0;
@@ -89,6 +90,7 @@ BenchResult runBenchmark(
         stats.neighborChecks,
         stats.neighborCandidates,
         stats.obstacleChecks,
+        stats.obstacleOverlapChecks,
         stats.obstacleCandidates,
         stats.occupiedGridCells,
         stats.occupiedObstacleGridCells
@@ -131,6 +133,8 @@ int main() {
         << "parallel_neighbor_candidates,"
         << "single_obstacle_checks,"
         << "parallel_obstacle_checks,"
+        << "single_obstacle_overlap_checks,"
+        << "parallel_obstacle_overlap_checks,"
         << "single_obstacle_candidates,"
         << "parallel_obstacle_candidates,"
         << "grid_occupied_cells,"
@@ -185,6 +189,8 @@ int main() {
             << parallel.neighborCandidates << ","
             << singleThread.obstacleChecks << ","
             << parallel.obstacleChecks << ","
+            << singleThread.obstacleOverlapChecks << ","
+            << parallel.obstacleOverlapChecks << ","
             << singleThread.obstacleCandidates << ","
             << parallel.obstacleCandidates << ","
             << parallel.occupiedGridCells << ","

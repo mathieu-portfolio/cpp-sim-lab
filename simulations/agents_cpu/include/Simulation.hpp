@@ -53,6 +53,7 @@ struct SimulationStats {
     std::size_t obstacleCount = 0;
     std::size_t obstacleChecks = 0;
     std::size_t obstacleCandidates = 0;
+    std::size_t obstacleOverlapChecks = 0;
     std::size_t occupiedObstacleGridCells = 0;
 };
 
@@ -95,7 +96,7 @@ private:
     void normalizeConfigCounts();
     void updateStatsCount();
     Vec2 randomPoint() const;
-    float maxObstacleQueryRadius() const;
+    float maxObstacleQueryRadius(float dt) const;
 
     void beginFrame();
     void snapshotAgents();

@@ -41,6 +41,7 @@ TEST(AgentsCpuSimulationTest, SpatialGridBuildsObstacleCells) {
     EXPECT_EQ(stats.occupiedObstacleGridCells, 1u);
     EXPECT_EQ(stats.obstacleCandidates, 1u);
     EXPECT_EQ(stats.obstacleChecks, 1u);
+    EXPECT_EQ(stats.obstacleOverlapChecks, 1u);
 }
 
 TEST(AgentsCpuSimulationTest, SpatialObstacleQuerySkipsFarObstacles) {
@@ -60,6 +61,28 @@ TEST(AgentsCpuSimulationTest, SpatialObstacleQuerySkipsFarObstacles) {
     EXPECT_EQ(stats.obstacleCount, 1u);
     EXPECT_EQ(stats.obstacleCandidates, 0u);
     EXPECT_EQ(stats.obstacleChecks, 0u);
+    EXPECT_EQ(stats.obstacleOverlapChecks, 0u);
+}
+
+TEST(AgentsCpuSimulationTest, SpatialObstacleOverlapUsesNearbyCandidatesOnly) {
+    SimulationConfig config = singleAgentConfig();
+    config.useSpatialGrid = true;
+
+    Simulation simulation{config};
+    simulation.getEntities()[0].position = Vec2{10.0f, 10.0f};
+    simulation.getEntities()[0].velocity = Vec2{};
+    simulation.getEntities()[0].target = Vec2{10.0f, 10.0f};
+
+    simulation.addObstacle(Vec2{12.0f, 10.0f});
+    simulation.addObstacle(Vec2{190.0f, 190.0f});
+    simulation.update(0.0f);
+
+    const SimulationStats stats = simulation.getStats();
+
+    EXPECT_EQ(stats.obstacleCount, 2u);
+    EXPECT_EQ(stats.obstacleCandidates, 1u);
+    EXPECT_EQ(stats.obstacleChecks, 1u);
+    EXPECT_EQ(stats.obstacleOverlapChecks, 1u);
 }
 
 TEST(AgentsCpuSimulationTest, NaiveObstacleQueryChecksEveryObstacle) {
@@ -78,4 +101,5 @@ TEST(AgentsCpuSimulationTest, NaiveObstacleQueryChecksEveryObstacle) {
 
     EXPECT_EQ(stats.obstacleCount, 1u);
     EXPECT_EQ(stats.obstacleChecks, 1u);
+    EXPECT_EQ(stats.obstacleOverlapChecks, 1u);
 }

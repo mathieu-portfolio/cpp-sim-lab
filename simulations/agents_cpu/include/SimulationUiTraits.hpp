@@ -14,6 +14,7 @@ struct StatsUiTraits<agents_cpu::SimulationStats> {
         StatField{"Obstacles", &agents_cpu::SimulationStats::obstacleCount},
         StatField{"Neighbor checks", &agents_cpu::SimulationStats::neighborChecks},
         StatField{"Obstacle checks", &agents_cpu::SimulationStats::obstacleChecks},
+        StatField{"Obstacle overlap checks", &agents_cpu::SimulationStats::obstacleOverlapChecks},
         StatField{"Candidates", &agents_cpu::SimulationStats::neighborCandidates},
         StatField{"Obstacle candidates", &agents_cpu::SimulationStats::obstacleCandidates},
         StatField{"Grid cells", &agents_cpu::SimulationStats::occupiedGridCells},

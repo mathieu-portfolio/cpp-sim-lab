@@ -122,8 +122,16 @@ Vec2 obstacleAvoidanceForce(
     return force;
 }
 
-void resolveObstacleOverlap(Agent& agent, const std::vector<Obstacle>& obstacles) {
-    for (const Obstacle& obstacle : obstacles) {
+void resolveObstacleOverlap(
+    Agent& agent,
+    const std::vector<Obstacle>& obstacles,
+    const std::vector<std::size_t>& candidates,
+    SimulationStats& stats
+) {
+    for (std::size_t obstacleIndex : candidates) {
+        ++stats.obstacleOverlapChecks;
+
+        const Obstacle& obstacle = obstacles[obstacleIndex];
         Vec2 away = agent.position - obstacle.position;
         float distance = away.length();
 
@@ -225,14 +233,18 @@ Vec2 Simulation::randomPoint() const {
     };
 }
 
-float Simulation::maxObstacleQueryRadius() const {
+float Simulation::maxObstacleQueryRadius(float dt) const {
     float maxRadius = 0.0f;
 
     for (const Obstacle& obstacle : m_obstacles) {
         maxRadius = std::max(maxRadius, obstacle.radius);
     }
 
-    return maxRadius + m_config.obstacleAvoidanceRadius;
+    const float maxMoveDistance = m_config.maxSpeed * std::max(dt, 0.0f);
+    const float overlapRadius = m_config.agentRadius + maxMoveDistance;
+    const float agentInfluenceRadius = std::max(m_config.obstacleAvoidanceRadius, overlapRadius);
+
+    return maxRadius + agentInfluenceRadius;
 }
 
 void Simulation::reset() {
@@ -402,7 +414,7 @@ void Simulation::updateAgentRange(
         agent.target = previousAgent.target;
         agent.radius = previousAgent.radius;
 
-        resolveObstacleOverlap(agent, m_obstacles);
+        resolveObstacleOverlap(agent, m_obstacles, scratch.obstacleCandidates, stats);
 
         agent.position = clampToWorld(
             agent.position,
@@ -423,6 +435,7 @@ void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
 
     m_stats.obstacleChecks += workerStats.obstacleChecks;
     m_stats.obstacleCandidates += workerStats.obstacleCandidates;
+    m_stats.obstacleOverlapChecks += workerStats.obstacleOverlapChecks;
 }
 
 void Simulation::updateAgentsSingleThread(float dt, float obstacleQueryRadius) {
@@ -502,7 +515,7 @@ void Simulation::updateAgents(float dt) {
         return;
     }
 
-    const float obstacleQueryRadius = maxObstacleQueryRadius();
+    const float obstacleQueryRadius = maxObstacleQueryRadius(dt);
 
     if (m_config.useParallelUpdate) {
         updateAgentsParallel(dt, obstacleQueryRadius);
