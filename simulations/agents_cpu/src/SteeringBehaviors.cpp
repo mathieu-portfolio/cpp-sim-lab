@@ -18,16 +18,96 @@ float scaleFactor(const SimulationConfig& config, ForceScale scale) {
 
     return 1.0f;
 }
+
+IntentMask maskForIntent(AgentIntent intent) {
+    switch (intent) {
+    case AgentIntent::SeekTarget:
+        return IntentMask::SeekTarget;
+    case AgentIntent::AvoidObstacle:
+        return IntentMask::AvoidObstacle;
+    case AgentIntent::Idle:
+        return IntentMask::Idle;
+    }
+
+    return IntentMask::None;
+}
+
+BehaviorFn behaviorFunction(BehaviorType type) {
+    switch (type) {
+    case BehaviorType::Seek:
+        return seek;
+    case BehaviorType::Separation:
+        return separate;
+    case BehaviorType::ObstacleAvoidance:
+        return avoidObstacles;
+    }
+
+    return nullptr;
+}
+
+const char* behaviorName(BehaviorType type) {
+    switch (type) {
+    case BehaviorType::Seek:
+        return "seek";
+    case BehaviorType::Separation:
+        return "separation";
+    case BehaviorType::ObstacleAvoidance:
+        return "obstacle avoidance";
+    }
+
+    return "unknown";
+}
 } // namespace
 
 std::span<const WeightedBehavior> defaultBehaviors() {
     static constexpr std::array<WeightedBehavior, 3> Behaviors{{
-        WeightedBehavior{seek, &SimulationConfig::seekWeight, ForceScale::Unit},
-        WeightedBehavior{separate, &SimulationConfig::separationWeight, ForceScale::MaxForce},
-        WeightedBehavior{avoidObstacles, &SimulationConfig::obstacleAvoidanceWeight, ForceScale::MaxForce}
+        WeightedBehavior{
+            BehaviorType::Seek,
+            seek,
+            &SimulationConfig::seekWeight,
+            ForceScale::Unit,
+            IntentMask::Moving,
+            "seek"
+        },
+        WeightedBehavior{
+            BehaviorType::Separation,
+            separate,
+            &SimulationConfig::separationWeight,
+            ForceScale::MaxForce,
+            IntentMask::All,
+            "separation"
+        },
+        WeightedBehavior{
+            BehaviorType::ObstacleAvoidance,
+            avoidObstacles,
+            &SimulationConfig::obstacleAvoidanceWeight,
+            ForceScale::MaxForce,
+            IntentMask::All,
+            "obstacle avoidance"
+        }
     }};
 
     return Behaviors;
+}
+
+WeightedBehavior makeBehavior(
+    BehaviorType type,
+    float SimulationConfig::* weight,
+    ForceScale scale,
+    IntentMask intents
+) {
+    return WeightedBehavior{
+        type,
+        behaviorFunction(type),
+        weight,
+        scale,
+        intents,
+        behaviorName(type)
+    };
+}
+
+bool appliesToIntent(const WeightedBehavior& behavior, AgentIntent intent) {
+    return any(behavior.intents & maskForIntent(intent));
 }
 
 Vec2 limitLength(Vec2 value, float maxLength) {
@@ -40,16 +120,27 @@ Vec2 limitLength(Vec2 value, float maxLength) {
     return value * (maxLength / length);
 }
 
-Vec2 computeAcceleration(std::size_t agentIndex, BehaviorContext& context) {
+Vec2 computeAcceleration(
+    std::size_t agentIndex,
+    BehaviorContext& context,
+    std::span<const WeightedBehavior> behaviors
+) {
     Vec2 acceleration{};
 
-    for (const WeightedBehavior& behavior : defaultBehaviors()) {
+    for (const WeightedBehavior& behavior : behaviors) {
+        if (behavior.compute == nullptr || behavior.weight == nullptr) {
+            continue;
+        }
+
+        if (!appliesToIntent(behavior, context.intent)) {
+            continue;
+        }
+
         const float weight = context.config.*(behavior.weight);
 
-        // Always evaluate behaviors, even when their weight is zero.
-        // Some behaviors also collect instrumentation stats while scanning
-        // candidates, and those stats should stay independent from the
-        // weighted steering contribution.
+        // Behaviors still own their instrumentation. When a behavior applies to
+        // the current intent, it is evaluated even at zero weight so candidate
+        // scan stats remain independent from force contribution.
         const Vec2 force = behavior.compute(agentIndex, context);
 
         acceleration += force *
@@ -60,10 +151,6 @@ Vec2 computeAcceleration(std::size_t agentIndex, BehaviorContext& context) {
 }
 
 Vec2 seek(std::size_t agentIndex, BehaviorContext& context) {
-    if (context.intent == AgentIntent::Idle) {
-        return Vec2{};
-    }
-
     const SimulationConfig& config = context.config;
     const Agent& agent = context.agents[agentIndex];
 

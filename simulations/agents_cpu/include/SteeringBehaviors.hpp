@@ -5,6 +5,7 @@
 #include "Simulation.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -26,22 +27,69 @@ struct BehaviorContext {
 
 using BehaviorFn = Vec2 (*)(std::size_t agentIndex, BehaviorContext& context);
 
+enum class BehaviorType {
+    Seek,
+    Separation,
+    ObstacleAvoidance
+};
+
 enum class ForceScale {
     Unit,
     MaxForce
 };
 
+enum class IntentMask : std::uint8_t {
+    None = 0,
+    SeekTarget = 1u << 0u,
+    AvoidObstacle = 1u << 1u,
+    Idle = 1u << 2u,
+    Moving = SeekTarget | AvoidObstacle,
+    All = SeekTarget | AvoidObstacle | Idle
+};
+
+constexpr IntentMask operator|(IntentMask lhs, IntentMask rhs) {
+    return static_cast<IntentMask>(
+        static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs)
+    );
+}
+
+constexpr IntentMask operator&(IntentMask lhs, IntentMask rhs) {
+    return static_cast<IntentMask>(
+        static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)
+    );
+}
+
+constexpr bool any(IntentMask mask) {
+    return static_cast<std::uint8_t>(mask) != 0u;
+}
+
 struct WeightedBehavior {
-    BehaviorFn compute;
-    float SimulationConfig::* weight;
+    BehaviorType type = BehaviorType::Seek;
+    BehaviorFn compute = nullptr;
+    float SimulationConfig::* weight = nullptr;
     ForceScale scale = ForceScale::Unit;
+    IntentMask intents = IntentMask::All;
+    const char* name = "";
 };
 
 std::span<const WeightedBehavior> defaultBehaviors();
 
+WeightedBehavior makeBehavior(
+    BehaviorType type,
+    float SimulationConfig::* weight,
+    ForceScale scale,
+    IntentMask intents = IntentMask::All
+);
+
+bool appliesToIntent(const WeightedBehavior& behavior, AgentIntent intent);
+
 Vec2 limitLength(Vec2 value, float maxLength);
 
-Vec2 computeAcceleration(std::size_t agentIndex, BehaviorContext& context);
+Vec2 computeAcceleration(
+    std::size_t agentIndex,
+    BehaviorContext& context,
+    std::span<const WeightedBehavior> behaviors = defaultBehaviors()
+);
 
 Vec2 seek(std::size_t agentIndex, BehaviorContext& context);
 Vec2 separate(std::size_t agentIndex, BehaviorContext& context);
