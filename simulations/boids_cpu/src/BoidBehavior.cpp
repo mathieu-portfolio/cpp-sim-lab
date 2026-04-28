@@ -7,17 +7,6 @@
 
 namespace boids_cpu {
 namespace {
-constexpr float Epsilon = 0.0001f;
-
-Vec2 steerToward(Vec2 desiredDirection, Vec2 currentVelocity, float maxSpeed) {
-    if (desiredDirection.length() <= Epsilon) {
-        return {};
-    }
-
-    const Vec2 desiredVelocity = desiredDirection.normalized() * maxSpeed;
-    return desiredVelocity - currentVelocity;
-}
-
 float behaviorWeight(
     const SimulationConfig& config,
     const WeightedBoidBehavior& behavior
@@ -39,11 +28,11 @@ float behaviorWeight(
 BoidBehaviorFn behaviorFunction(BoidBehaviorType type) {
     switch (type) {
     case BoidBehaviorType::Alignment:
-        return computeAlignment;
+        return computeAlignmentBehavior;
     case BoidBehaviorType::Cohesion:
-        return computeCohesion;
+        return computeCohesionBehavior;
     case BoidBehaviorType::Separation:
-        return computeSeparation;
+        return computeSeparationBehavior;
     }
 
     return nullptr;
@@ -67,7 +56,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
     static constexpr std::array<WeightedBoidBehavior, 3> Behaviors{{
         WeightedBoidBehavior{
             BoidBehaviorType::Alignment,
-            computeAlignment,
+            computeAlignmentBehavior,
             BoidBehaviorWeight::Alignment,
             1.0f,
             true,
@@ -75,7 +64,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
         },
         WeightedBoidBehavior{
             BoidBehaviorType::Cohesion,
-            computeCohesion,
+            computeCohesionBehavior,
             BoidBehaviorWeight::Cohesion,
             1.0f,
             true,
@@ -83,7 +72,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
         },
         WeightedBoidBehavior{
             BoidBehaviorType::Separation,
-            computeSeparation,
+            computeSeparationBehavior,
             BoidBehaviorWeight::Separation,
             1.0f,
             true,
@@ -148,170 +137,31 @@ Vec2 computeBehavior(
     return {};
 }
 
-Vec2 computeAlignment(std::size_t boidIndex, BoidBehaviorContext& context) {
-    const Boid& boid = context.boids[boidIndex];
-
-    Vec2 averageVelocity{};
-    int neighborCount = 0;
-
-    for (std::size_t neighborIndex : context.candidates.perception) {
-        if (neighborIndex == boidIndex) {
-            continue;
-        }
-
-        averageVelocity += context.boids[neighborIndex].velocity;
-        ++neighborCount;
-    }
-
-    if (neighborCount == 0) {
-        return {};
-    }
-
-    averageVelocity *= 1.0f / static_cast<float>(neighborCount);
-    return steerToward(averageVelocity, boid.velocity, context.config.maxSpeed);
+Vec2 computeAlignmentBehavior(std::size_t boidIndex, BoidBehaviorContext& context) {
+    return computeAlignment(
+        boidIndex,
+        context.boids,
+        context.candidates.perception,
+        context.config.maxSpeed
+    );
 }
 
-Vec2 computeCohesion(std::size_t boidIndex, BoidBehaviorContext& context) {
-    const Boid& boid = context.boids[boidIndex];
-
-    Vec2 center{};
-    int neighborCount = 0;
-
-    for (std::size_t neighborIndex : context.candidates.perception) {
-        if (neighborIndex == boidIndex) {
-            continue;
-        }
-
-        center += context.boids[neighborIndex].position;
-        ++neighborCount;
-    }
-
-    if (neighborCount == 0) {
-        return {};
-    }
-
-    center *= 1.0f / static_cast<float>(neighborCount);
-    return steerToward(center - boid.position, boid.velocity, context.config.maxSpeed);
+Vec2 computeCohesionBehavior(std::size_t boidIndex, BoidBehaviorContext& context) {
+    return computeCohesion(
+        boidIndex,
+        context.boids,
+        context.candidates.perception,
+        context.config.maxSpeed
+    );
 }
 
-Vec2 computeSeparation(std::size_t boidIndex, BoidBehaviorContext& context) {
-    const Boid& boid = context.boids[boidIndex];
-
-    Vec2 away{};
-    int neighborCount = 0;
-
-    for (std::size_t neighborIndex : context.candidates.separation) {
-        if (neighborIndex == boidIndex) {
-            continue;
-        }
-
-        const Vec2 offset = boid.position - context.boids[neighborIndex].position;
-        const float distance = offset.length();
-
-        if (distance <= Epsilon) {
-            continue;
-        }
-
-        away += offset.normalized() * (1.0f / distance);
-        ++neighborCount;
-    }
-
-    if (neighborCount == 0) {
-        return {};
-    }
-
-    away *= 1.0f / static_cast<float>(neighborCount);
-    return steerToward(away, boid.velocity, context.config.maxSpeed);
-}
-
-Vec2 computeAlignment(
-    std::size_t boidIndex,
-    const std::vector<Boid>& boids,
-    const std::vector<std::size_t>& neighbors,
-    float maxSpeed
-) {
-    SimulationConfig config;
-    config.maxSpeed = maxSpeed;
-
-    SimulationStats stats;
-    BoidBehaviorContext context{
-        config,
-        boids,
-        BoidCandidateLists{neighbors, {}},
-        stats
-    };
-
-    return computeAlignment(boidIndex, context);
-}
-
-Vec2 computeCohesion(
-    std::size_t boidIndex,
-    const std::vector<Boid>& boids,
-    const std::vector<std::size_t>& neighbors,
-    float maxSpeed
-) {
-    SimulationConfig config;
-    config.maxSpeed = maxSpeed;
-
-    SimulationStats stats;
-    BoidBehaviorContext context{
-        config,
-        boids,
-        BoidCandidateLists{neighbors, {}},
-        stats
-    };
-
-    return computeCohesion(boidIndex, context);
-}
-
-Vec2 computeSeparation(
-    std::size_t boidIndex,
-    const std::vector<Boid>& boids,
-    const std::vector<std::size_t>& neighbors,
-    float maxSpeed
-) {
-    SimulationConfig config;
-    config.maxSpeed = maxSpeed;
-
-    SimulationStats stats;
-    BoidBehaviorContext context{
-        config,
-        boids,
-        BoidCandidateLists{{}, neighbors},
-        stats
-    };
-
-    return computeSeparation(boidIndex, context);
-}
-
-Vec2 limitLength(Vec2 value, float maxLength) {
-    const float length = value.length();
-
-    if (length > maxLength && length > 0.0f) {
-        return value * (maxLength / length);
-    }
-
-    return value;
-}
-
-Vec2 wrapPosition(Vec2 position, float width, float height) {
-    if (position.x < 0.0f) {
-        position.x += width;
-    }
-
-    if (position.x > width) {
-        position.x -= width;
-    }
-
-    if (position.y < 0.0f) {
-        position.y += height;
-    }
-
-    if (position.y > height) {
-        position.y -= height;
-    }
-
-    return position;
+Vec2 computeSeparationBehavior(std::size_t boidIndex, BoidBehaviorContext& context) {
+    return computeSeparation(
+        boidIndex,
+        context.boids,
+        context.candidates.separation,
+        context.config.maxSpeed
+    );
 }
 
 } // namespace boids_cpu
