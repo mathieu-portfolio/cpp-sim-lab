@@ -12,5 +12,5 @@ _deps
 CMakeUserPresets.json
 
 build/
-# Benchmark generated results
 benchmarks/**/results/
+.vscode/
