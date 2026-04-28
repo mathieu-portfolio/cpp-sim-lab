@@ -80,7 +80,7 @@ void Simulation::integrateParticles(float dt) {
         m_threadPool.get(),
         m_entities.size(),
         MinItemsPerParallelTask,
-        m_config.useParallelUpdate,
+        m_config.execution.useParallelUpdate,
         [this, dt](
             std::size_t beginIndex,
             std::size_t endIndex,
@@ -96,7 +96,7 @@ void Simulation::integrateParticles(float dt) {
 void Simulation::buildSpatialIndex() {
     m_grid.setCellSize(m_config.gridCellSize);
 
-    if (m_config.useSpatialGrid) {
+    if (m_config.execution.useSpatialGrid) {
         m_grid.build(m_entities, particlePosition);
     } else {
         m_grid.clear();
@@ -114,7 +114,7 @@ void Simulation::resolveCollisions() {
                 m_entities[particleIndex].position,
                 queryRadius,
                 simfw::simulation::makeSpatialQueryOptions<int>(
-                    m_config.useSpatialGrid,
+                    m_config.execution.useSpatialGrid,
                     m_entities.size()
                 ),
                 candidates

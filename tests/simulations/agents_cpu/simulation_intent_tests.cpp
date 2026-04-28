@@ -14,8 +14,8 @@ SimulationConfig baseConfig(std::size_t agentCount = 8) {
     config.height = 800.0f;
     config.agentCount = agentCount;
     config.entityCount = agentCount;
-    config.useSpatialGrid = true;
-    config.useParallelUpdate = false;
+    config.execution.useSpatialGrid = true;
+    config.execution.useParallelUpdate = false;
     config.gridCellSize = 64.0f;
     config.maxSpeed = 100.0f;
     config.maxForce = 100.0f;
@@ -86,7 +86,7 @@ TEST(AgentsCpuIntent, AgentsAtTargetBecomeIdleAndDampVelocity) {
     config.height = 0.0f;
     config.targetRadius = 1.0f;
     config.idleDamping = 1000.0f;
-    config.useSpatialGrid = false;
+    config.execution.useSpatialGrid = false;
 
     Simulation sim{config};
 
@@ -105,7 +105,7 @@ TEST(AgentsCpuIntent, AgentsAtTargetBecomeIdleAndDampVelocity) {
 
 TEST(AgentsCpuIntent, ParallelUpdateAccumulatesIntentStats) {
     SimulationConfig config = baseConfig(512);
-    config.useParallelUpdate = true;
+    config.execution.useParallelUpdate = true;
 
     Simulation sim{config};
     sim.addObstacle(Vec2{400.0f, 400.0f});

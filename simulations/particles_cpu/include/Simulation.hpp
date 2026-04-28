@@ -3,6 +3,7 @@
 #include "Particle.hpp"
 
 #include <simulation/SimulationBase.hpp>
+#include <simulation/SimulationExecutionConfig.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -29,8 +30,7 @@ struct SimulationConfig {
     float gridCellSize = 16.0f;
 
     float cellSize = 16.0f;
-    bool useSpatialGrid = true;
-    bool useParallelUpdate = true;
+    simfw::simulation::SimulationExecutionConfig execution{};
     std::size_t entityCount = 0;
 };
 

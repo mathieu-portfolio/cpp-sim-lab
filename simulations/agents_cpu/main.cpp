@@ -3,6 +3,7 @@
 
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
+#include <ui/SimulationBackendControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 
 #include <raylib.h>
@@ -122,17 +123,7 @@ int main() {
             paramCount
         );
 
-        if (IsKeyPressed(KEY_G)) {
-            config.useSpatialGrid = !config.useSpatialGrid;
-        }
-
-        if (IsKeyPressed(KEY_H)) {
-            gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
-        }
-
-        if (IsKeyPressed(KEY_P)) {
-            config.useParallelUpdate = !config.useParallelUpdate;
-        }
+        simfw::ui::handleSimulationBackendControls(config, gridDebugMode);
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             const Vector2 mouse = GetMousePosition();
@@ -180,7 +171,7 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        if (config.useSpatialGrid) {
+        if (config.execution.useSpatialGrid) {
             simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
         }
 
@@ -210,24 +201,7 @@ int main() {
 
             simfw::ui::drawStats(cursor, sim.getStats());
 
-            cursor.draw(
-                config.useSpatialGrid ? "Backend: spatial grid" : "Backend: naive",
-                16,
-                config.useSpatialGrid ? GREEN : LIGHTGRAY
-            );
-
-            cursor.draw(
-                config.useParallelUpdate ? "Update: parallel" : "Update: single-thread",
-                16,
-                config.useParallelUpdate ? GREEN : LIGHTGRAY
-            );
-
-            cursor.draw(
-                TextFormat(
-                    "Grid debug: %s",
-                    simfw::ui::gridDebugModeName(gridDebugMode)
-                )
-            );
+            simfw::ui::drawSimulationBackendStatus(cursor, config, gridDebugMode);
 
             cursor.gap(6);
 

@@ -24,7 +24,7 @@ SimulationConfig makeCollisionConfig(bool useSpatialGrid) {
     config.maxParticleCount = 2;
     config.gridCellSize = 128.0f;
     config.cellSize = config.gridCellSize;
-    config.useSpatialGrid = useSpatialGrid;
+    config.execution.useSpatialGrid = useSpatialGrid;
     return config;
 }
 
@@ -81,7 +81,7 @@ TEST(ParticleSimulationBackends, DisabledSpatialGridStillChecksCollisions) {
     spawnDeterministicPair(sim);
     sim.update(0.0f);
 
-    EXPECT_FALSE(sim.getConfig().useSpatialGrid);
+    EXPECT_FALSE(sim.getConfig().execution.useSpatialGrid);
     EXPECT_GT(sim.getStats().collisionChecks, 0U);
     EXPECT_GT(sim.getStats().collisionsResolved, 0U);
 }
@@ -128,7 +128,7 @@ TEST(ParticleSimulationBackends, SwitchingFromGridToNaiveClearsDebugGrid) {
 
     ASSERT_FALSE(sim.getGrid().getCells().empty());
 
-    sim.getConfig().useSpatialGrid = false;
+    sim.getConfig().execution.useSpatialGrid = false;
     sim.update(0.0f);
 
     EXPECT_TRUE(sim.getGrid().getCells().empty());

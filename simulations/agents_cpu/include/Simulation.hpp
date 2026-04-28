@@ -4,6 +4,8 @@
 #include "Obstacle.hpp"
 
 #include <simulation/SimulationBase.hpp>
+#include <simulation/SimulationExecutionConfig.hpp>
+#include <simulation/NeighborScratch.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -39,8 +41,7 @@ struct SimulationConfig {
     float obstacleRadius = 24.0f;
     float obstacleAvoidanceRadius = 70.0f;
 
-    bool useSpatialGrid = true;
-    bool useParallelUpdate = true;
+    simfw::simulation::SimulationExecutionConfig execution{};
     bool useIntent = true;
 
     float gridCellSize = 24.0f;
@@ -101,10 +102,7 @@ public:
     void clearObstacles();
 
 private:
-    struct AgentUpdateScratch {
-        std::vector<std::size_t> agentCandidates;
-        std::vector<std::size_t> obstacleCandidates;
-    };
+    using AgentUpdateScratch = simfw::simulation::NeighborScratch<std::size_t>;
 
     Grid m_agentGrid;
     Grid m_obstacleGrid;

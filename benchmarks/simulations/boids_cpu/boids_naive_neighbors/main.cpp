@@ -40,6 +40,8 @@ int main() {
         SimulationConfig config;
         config.boidCount = boidCount;
         config.entityCount = boidCount;
+        config.execution.useSpatialGrid = false;
+        config.execution.useParallelUpdate = false;
 
         Simulation sim(config);
 

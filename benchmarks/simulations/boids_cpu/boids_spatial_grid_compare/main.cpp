@@ -90,12 +90,13 @@ int main() {
         baseConfig.boidCount = boidCount;
         baseConfig.entityCount = boidCount;
         baseConfig.gridCellSize = baseConfig.perceptionRadius;
+        baseConfig.execution.useParallelUpdate = false;
 
         SimulationConfig naiveConfig = baseConfig;
-        naiveConfig.useSpatialGrid = false;
+        naiveConfig.execution.useSpatialGrid = false;
 
         SimulationConfig gridConfig = baseConfig;
-        gridConfig.useSpatialGrid = true;
+        gridConfig.execution.useSpatialGrid = true;
 
         const std::uint32_t seed = bench::seedFor(BaseSeed, boidCount);
 

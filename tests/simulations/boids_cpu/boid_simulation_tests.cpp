@@ -51,11 +51,11 @@ void expectSameBoids(const Simulation& lhs, const Simulation& rhs) {
 
 TEST(BoidSimulationTest, SpatialGridMatchesNaiveBackendForOneStep) {
     SimulationConfig naiveConfig = deterministicConfig();
-    naiveConfig.useSpatialGrid = false;
-    naiveConfig.useParallelUpdate = false;
+    naiveConfig.execution.useSpatialGrid = false;
+    naiveConfig.execution.useParallelUpdate = false;
 
     SimulationConfig gridConfig = naiveConfig;
-    gridConfig.useSpatialGrid = true;
+    gridConfig.execution.useSpatialGrid = true;
 
     Simulation naive = makeSimulation(naiveConfig);
     Simulation grid = makeSimulation(gridConfig);
@@ -68,11 +68,11 @@ TEST(BoidSimulationTest, SpatialGridMatchesNaiveBackendForOneStep) {
 
 TEST(BoidSimulationTest, SpatialGridMatchesNaiveBackendAcrossMultipleSteps) {
     SimulationConfig naiveConfig = deterministicConfig();
-    naiveConfig.useSpatialGrid = false;
-    naiveConfig.useParallelUpdate = false;
+    naiveConfig.execution.useSpatialGrid = false;
+    naiveConfig.execution.useParallelUpdate = false;
 
     SimulationConfig gridConfig = naiveConfig;
-    gridConfig.useSpatialGrid = true;
+    gridConfig.execution.useSpatialGrid = true;
 
     Simulation naive = makeSimulation(naiveConfig);
     Simulation grid = makeSimulation(gridConfig);
@@ -87,11 +87,11 @@ TEST(BoidSimulationTest, SpatialGridMatchesNaiveBackendAcrossMultipleSteps) {
 
 TEST(BoidSimulationTest, ParallelUpdateMatchesSingleThreadBackend) {
     SimulationConfig singleThreadConfig = deterministicConfig();
-    singleThreadConfig.useSpatialGrid = true;
-    singleThreadConfig.useParallelUpdate = false;
+    singleThreadConfig.execution.useSpatialGrid = true;
+    singleThreadConfig.execution.useParallelUpdate = false;
 
     SimulationConfig parallelConfig = singleThreadConfig;
-    parallelConfig.useParallelUpdate = true;
+    parallelConfig.execution.useParallelUpdate = true;
 
     Simulation singleThread = makeSimulation(singleThreadConfig);
     Simulation parallel = makeSimulation(parallelConfig);

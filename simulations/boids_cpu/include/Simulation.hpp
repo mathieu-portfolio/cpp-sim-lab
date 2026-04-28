@@ -3,6 +3,8 @@
 #include "Boid.hpp"
 
 #include <simulation/SimulationBase.hpp>
+#include <simulation/SimulationExecutionConfig.hpp>
+#include <simulation/NeighborScratch.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -29,8 +31,7 @@ struct SimulationConfig {
     float cohesionWeight = 0.4f;
     float separationWeight = 2.0f;
 
-    bool useSpatialGrid = false;
-    bool useParallelUpdate = true;
+    simfw::simulation::SimulationExecutionConfig execution{false, true};
     float gridCellSize = 50.0f;
 
     std::size_t boidCount = DefaultBoidCount;
@@ -68,11 +69,7 @@ public:
     const Grid& getGrid() const { return m_grid; }
 
 private:
-    struct BoidUpdateScratch {
-        std::vector<std::size_t> candidates;
-        std::vector<std::size_t> perceptionNeighbors;
-        std::vector<std::size_t> separationNeighbors;
-    };
+    using BoidUpdateScratch = simfw::simulation::NeighborScratch<std::size_t>;
 
     Grid m_grid;
     std::vector<Boid> m_previousBoids;

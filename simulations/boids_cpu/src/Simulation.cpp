@@ -128,7 +128,7 @@ void Simulation::snapshotBoids() {
 void Simulation::buildSpatialIndex() {
     m_grid.setCellSize(m_config.gridCellSize);
 
-    if (m_config.useSpatialGrid) {
+    if (m_config.execution.useSpatialGrid) {
         m_grid.build(m_previousBoids, boidPosition);
         m_stats.occupiedGridCells = m_grid.getCells().size();
     } else {
@@ -147,7 +147,7 @@ void Simulation::collectCandidateBoids(
         m_previousBoids[boidIndex].position,
         queryRadius,
         simfw::simulation::makeSpatialQueryOptionsExcluding(
-            m_config.useSpatialGrid,
+            m_config.execution.useSpatialGrid,
             m_previousBoids.size(),
             boidIndex
         ),
@@ -174,29 +174,29 @@ void Simulation::updateBoidRange(
             scratch.candidates,
             m_config.perceptionRadius,
             m_config.separationRadius,
-            scratch.perceptionNeighbors,
-            scratch.separationNeighbors,
+            scratch.neighbors,
+            scratch.secondaryNeighbors,
             stats
         );
 
         Vec2 align = computeAlignment(
             i,
             m_previousBoids,
-            scratch.perceptionNeighbors,
+            scratch.neighbors,
             m_config.maxSpeed
         );
 
         Vec2 coh = computeCohesion(
             i,
             m_previousBoids,
-            scratch.perceptionNeighbors,
+            scratch.neighbors,
             m_config.maxSpeed
         );
 
         Vec2 sep = computeSeparation(
             i,
             m_previousBoids,
-            scratch.separationNeighbors,
+            scratch.secondaryNeighbors,
             m_config.maxSpeed
         );
 
@@ -239,7 +239,7 @@ void Simulation::updateBoids(float dt) {
         m_threadPool.get(),
         m_entities.size(),
         MinItemsPerParallelTask,
-        m_config.useParallelUpdate,
+        m_config.execution.useParallelUpdate,
         [this, dt, queryRadius](
             std::size_t beginIndex,
             std::size_t endIndex,

@@ -243,7 +243,7 @@ void Simulation::buildSpatialIndexes() {
     m_agentGrid.setCellSize(m_config.gridCellSize);
     m_obstacleGrid.setCellSize(m_config.gridCellSize);
 
-    if (m_config.useSpatialGrid) {
+    if (m_config.execution.useSpatialGrid) {
         m_agentGrid.build(m_previousAgents, agentPosition);
         m_obstacleGrid.build(m_obstacles, obstaclePosition);
         m_stats.occupiedGridCells = m_agentGrid.getCells().size();
@@ -264,15 +264,15 @@ void Simulation::collectAgentCandidates(
         m_previousAgents[agentIndex].position,
         m_config.separationRadius,
         simfw::simulation::makeSpatialQueryOptionsExcluding(
-            m_config.useSpatialGrid,
+            m_config.execution.useSpatialGrid,
             m_previousAgents.size(),
             agentIndex
         ),
-        scratch.agentCandidates
+        scratch.candidates
     );
 
-    if (m_config.useSpatialGrid) {
-        stats.neighborCandidates += scratch.agentCandidates.size();
+    if (m_config.execution.useSpatialGrid) {
+        stats.neighborCandidates += scratch.candidates.size();
     }
 }
 
@@ -287,14 +287,14 @@ void Simulation::collectObstacleCandidates(
         previousAgent.position,
         obstacleQueryRadius,
         simfw::simulation::makeSpatialQueryOptions(
-            m_config.useSpatialGrid,
+            m_config.execution.useSpatialGrid,
             m_obstacles.size()
         ),
-        scratch.obstacleCandidates
+        scratch.secondaryNeighbors
     );
 
-    if (m_config.useSpatialGrid) {
-        stats.obstacleCandidates += scratch.obstacleCandidates.size();
+    if (m_config.execution.useSpatialGrid) {
+        stats.obstacleCandidates += scratch.secondaryNeighbors.size();
     }
 }
 
@@ -317,7 +317,7 @@ void Simulation::updateAgentRange(
             previousAgent,
             m_config,
             m_obstacles,
-            scratch.obstacleCandidates
+            scratch.secondaryNeighbors
         );
 
         recordIntentStats(intent, previousAgent.intent, stats);
@@ -327,8 +327,8 @@ void Simulation::updateAgentRange(
             m_previousAgents,
             m_obstacles,
             steering::CandidateLists{
-                scratch.agentCandidates,
-                scratch.obstacleCandidates
+                scratch.candidates,
+                scratch.secondaryNeighbors
             },
             intent,
             stats
@@ -351,7 +351,7 @@ void Simulation::updateAgentRange(
         steering::resolveObstacleOverlap(
             agent,
             m_obstacles,
-            scratch.obstacleCandidates,
+            scratch.secondaryNeighbors,
             stats
         );
 
@@ -390,7 +390,7 @@ void Simulation::updateAgents(float dt) {
         m_threadPool.get(),
         m_entities.size(),
         MinItemsPerParallelTask,
-        m_config.useParallelUpdate,
+        m_config.execution.useParallelUpdate,
         [this, dt, obstacleQueryRadius = maxObstacleQueryRadius(dt)](
             std::size_t beginIndex,
             std::size_t endIndex,

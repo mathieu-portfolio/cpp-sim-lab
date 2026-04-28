@@ -4,6 +4,7 @@ add_executable(framework_tests
     spatial_query_tests.cpp
     stats_reduction_tests.cpp
     collision_pairs_tests.cpp
+    simulation_execution_tests.cpp
 )
 
 target_link_libraries(framework_tests
