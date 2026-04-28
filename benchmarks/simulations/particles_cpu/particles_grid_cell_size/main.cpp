@@ -1,13 +1,19 @@
 #include "Particle.hpp"
-#include "SpatialGrid.hpp"
 
 #include <BenchTimer.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
+#include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
 #include <iostream>
 #include <vector>
+
+namespace {
+Vec2 particlePosition(const Particle& particle) {
+    return particle.position;
+}
+}
 
 struct BenchResult {
     double totalMsPerStep = 0.0;
@@ -57,7 +63,7 @@ static bool resolvePair(Particle& a, Particle& b) {
 static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
     auto particles = makeParticles(count);
 
-    SpatialGrid grid{cellSize};
+    simfw::SpatialHashGrid<int> grid{cellSize};
     std::vector<int> candidates;
 
     std::size_t totalChecks = 0;
@@ -69,13 +75,13 @@ static BenchResult benchGrid(std::size_t count, float cellSize, int steps) {
     const double totalMs = bench::measureMs([&]() {
         for (int step = 0; step < steps; ++step) {
             buildMs += bench::measureMs([&]() {
-                grid.build(particles);
+                grid.build(particles, particlePosition);
             });
 
             queryCollisionMs += bench::measureMs([&]() {
                 for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
                     candidates.clear();
-                    grid.queryNeighbors(particles[i].position, candidates);
+                    grid.queryCellsAround(particles[i].position, 1, candidates);
 
                     for (int j : candidates) {
                         if (j <= i) {

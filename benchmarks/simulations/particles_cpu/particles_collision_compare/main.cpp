@@ -1,10 +1,10 @@
 #include "Particle.hpp"
-#include "SpatialGrid.hpp"
 
 #include <BenchTimer.hpp>
 #include <BenchmarkRandom.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
+#include <spatial/SpatialHashGrid.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -12,6 +12,10 @@
 
 namespace {
 constexpr std::uint32_t BaseSeed = 1337u;
+
+Vec2 particlePosition(const Particle& particle) {
+    return particle.position;
+}
 }
 
 struct BenchResult {
@@ -89,7 +93,7 @@ static BenchResult benchGrid(std::size_t count, int steps, std::uint32_t seed) {
     Random::seed(seed);
     auto particles = makeParticles(count);
 
-    SpatialGrid grid{16.0f};
+    simfw::SpatialHashGrid<int> grid{16.0f};
     std::vector<int> candidates;
 
     std::size_t totalChecks = 0;
@@ -97,11 +101,11 @@ static BenchResult benchGrid(std::size_t count, int steps, std::uint32_t seed) {
 
     const double totalMs = bench::measureMs([&]() {
         for (int step = 0; step < steps; ++step) {
-            grid.build(particles);
+            grid.build(particles, particlePosition);
 
             for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
                 candidates.clear();
-                grid.queryNeighbors(particles[i].position, candidates);
+                grid.queryCellsAround(particles[i].position, 1, candidates);
 
                 for (int j : candidates) {
                     if (j <= i) {

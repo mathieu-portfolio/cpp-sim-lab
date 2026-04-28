@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Boid.hpp"
-#include "SpatialGrid.hpp"
+
+#include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
 #include <vector>
@@ -26,16 +27,11 @@ struct SimulationConfig {
     float gridCellSize = 50.0f;
 
     std::size_t boidCount = DefaultBoidCount;
-
-    // Compatibility alias for the attempted generic naming.
-    // Prefer boidCount in boids_cpu-specific code.
     std::size_t entityCount = DefaultBoidCount;
 };
 
 struct SimulationStats {
     std::size_t boidCount = 0;
-
-    // Compatibility alias for generic stats naming.
     std::size_t entityCount = 0;
 
     std::size_t neighborChecks = 0;
@@ -45,13 +41,13 @@ struct SimulationStats {
 
 class Simulation {
 public:
+    using Grid = simfw::SpatialHashGrid<std::size_t>;
+
     explicit Simulation(SimulationConfig config = {});
     void update(float dt);
     void reset();
 
     const std::vector<Boid>& getBoids() const { return m_boids; }
-
-    // Compatibility alias for generic code.
     const std::vector<Boid>& getEntities() const { return m_boids; }
 
     SimulationConfig& getConfig() { return m_config; }
@@ -59,13 +55,13 @@ public:
 
     SimulationStats getStats() const { return m_stats; }
 
-    const SpatialGrid& getGrid() const { return m_grid; }
+    const Grid& getGrid() const { return m_grid; }
 
 private:
     std::vector<Boid> m_boids;
     SimulationConfig m_config;
     SimulationStats m_stats;
-    SpatialGrid m_grid;
+    Grid m_grid;
 
     void normalizeConfigCounts();
     void updateStatsCount();

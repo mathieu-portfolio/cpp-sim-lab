@@ -3,6 +3,8 @@
 #include <math/Vec2.hpp>
 
 #include <cmath>
+#include <cstddef>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -24,10 +26,10 @@ struct CellCoordHash {
     }
 };
 
-template <typename Index>
+template <typename Index = std::size_t>
 class SpatialHashGrid {
 public:
-    explicit SpatialHashGrid(float cellSize)
+    explicit SpatialHashGrid(float cellSize = 50.0f)
         : m_cellSize(cellSize) {}
 
     void setCellSize(float cellSize) {
@@ -85,7 +87,9 @@ public:
         float radius,
         std::vector<Index>& outIndices
     ) const {
-        const int cellRadius = static_cast<int>(std::ceil(radius / m_cellSize));
+        const int cellRadius =
+            static_cast<int>(std::ceil(radius / m_cellSize));
+
         queryCellsAround(position, cellRadius, outIndices);
     }
 

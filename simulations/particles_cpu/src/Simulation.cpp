@@ -5,9 +5,13 @@
 #include <random/Random.hpp>
 
 namespace {
+Vec2 particlePosition(const Particle& particle) {
+    return particle.position;
+}
+
 void resolveCollisionsGrid(
     std::vector<Particle>& particles,
-    SpatialGrid& grid,
+    Simulation::Grid& grid,
     SimulationStats& stats,
     const SimulationConfig& config
 ) {
@@ -17,7 +21,7 @@ void resolveCollisionsGrid(
         Particle& a = particles[i];
 
         candidates.clear();
-        grid.queryNeighbors(a.position, candidates);
+        grid.queryCellsAround(a.position, 1, candidates);
 
         for (int j : candidates) {
             if (j <= i) {
@@ -73,8 +77,11 @@ void Simulation::update(float dt) {
     }
 
     if (m_config.useSpatialGrid) {
-        m_grid.build(m_particles);
+        m_grid.setCellSize(m_config.gridCellSize);
+        m_grid.build(m_particles, particlePosition);
         resolveCollisionsGrid(m_particles, m_grid, m_stats, m_config);
+    } else {
+        m_grid.clear();
     }
 
     for (auto& p : m_particles) {
@@ -107,6 +114,7 @@ void Simulation::spawn(const Vec2& pos) {
 
 void Simulation::clear() {
     m_particles.clear();
+    m_grid.clear();
 
     m_stats = {};
     m_stats.maxParticleCount = m_config.maxParticleCount;

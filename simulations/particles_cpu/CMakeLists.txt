@@ -1,6 +1,5 @@
 add_library(particles_cpu_core
     src/Simulation.cpp
-    src/SpatialGrid.cpp
     src/ParticlePhysics.cpp
 )
 

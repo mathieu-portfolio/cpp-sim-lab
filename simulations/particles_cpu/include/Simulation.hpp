@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Particle.hpp"
-#include "SpatialGrid.hpp"
+
+#include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
 #include <vector>
@@ -21,8 +22,6 @@ struct SimulationConfig {
 
     float gridCellSize = 16.0f;
 
-    // Compatibility with the attempted generic naming.
-    // Prefer maxParticleCount / particleCount in particles_cpu-specific code.
     float cellSize = 16.0f;
     bool useSpatialGrid = true;
     std::size_t entityCount = 0;
@@ -33,13 +32,13 @@ struct SimulationStats {
     std::size_t maxParticleCount = 0;
     std::size_t collisionChecks = 0;
     std::size_t collisionsResolved = 0;
-
-    // Compatibility alias for generic stats naming.
     std::size_t entityCount = 0;
 };
 
 class Simulation {
 public:
+    using Grid = simfw::SpatialHashGrid<int>;
+
     explicit Simulation(SimulationConfig config = {});
 
     void update(float dt);
@@ -48,14 +47,12 @@ public:
     void clear();
 
     const std::vector<Particle>& getParticles() const { return m_particles; }
-
-    // Compatibility alias for generic code.
     const std::vector<Particle>& getEntities() const { return m_particles; }
 
     SimulationConfig& getConfig() { return m_config; }
     const SimulationConfig& getConfig() const { return m_config; }
 
-    const SpatialGrid& getGrid() const { return m_grid; }
+    const Grid& getGrid() const { return m_grid; }
 
     SimulationStats getStats() const;
 
@@ -63,7 +60,7 @@ private:
     std::vector<Particle> m_particles;
     SimulationConfig m_config;
     SimulationStats m_stats;
-    SpatialGrid m_grid;
+    Grid m_grid;
 
     void updateStatsCount();
 };

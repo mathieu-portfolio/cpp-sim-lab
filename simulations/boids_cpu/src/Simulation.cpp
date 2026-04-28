@@ -69,6 +69,10 @@ void addNeighborsNaive(
         }
     }
 }
+
+Vec2 boidPosition(const Boid& boid) {
+    return boid.position;
+}
 }
 
 Simulation::Simulation(SimulationConfig config)
@@ -125,7 +129,7 @@ void Simulation::update(float dt) {
     m_grid.setCellSize(m_config.gridCellSize);
 
     if (m_config.useSpatialGrid) {
-        m_grid.build(m_boids);
+        m_grid.build(m_boids, boidPosition);
         m_stats.occupiedGridCells = m_grid.getCells().size();
     } else {
         m_grid.clear();
@@ -140,7 +144,8 @@ void Simulation::update(float dt) {
 
     for (std::size_t i = 0; i < m_boids.size(); ++i) {
         if (m_config.useSpatialGrid) {
-            m_grid.queryNeighbors(m_boids[i].position, queryRadius, candidates);
+            candidates.clear();
+            m_grid.queryRadius(m_boids[i].position, queryRadius, candidates);
             m_stats.neighborCandidates += candidates.size();
 
             addNeighborsFromCandidateList(

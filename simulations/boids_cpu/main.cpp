@@ -90,7 +90,7 @@ void drawGridDebug(const Simulation& sim, GridDebugMode mode) {
         return;
     }
 
-    const SpatialGrid& grid = sim.getGrid();
+    const auto& grid = sim.getGrid();
     const float cellSize = grid.getCellSize();
 
     for (const auto& [coord, indices] : grid.getCells()) {
