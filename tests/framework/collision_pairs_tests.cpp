@@ -11,13 +11,11 @@ using Pair = std::pair<int, int>;
 }
 
 TEST(CollisionPairsTest, VisitsEachUniqueCandidatePairOnce) {
-    std::vector<int> candidates;
     std::vector<Pair> visited;
 
     simfw::simulation::forEachUniqueCandidatePair<int>(
         3,
-        candidates,
-        [](int source, std::vector<int>& out) {
+        [](std::size_t, std::vector<int>& out) {
             out = {0, 1, 2};
         },
         [&visited](int a, int b) {
@@ -35,13 +33,11 @@ TEST(CollisionPairsTest, VisitsEachUniqueCandidatePairOnce) {
 }
 
 TEST(CollisionPairsTest, IgnoresSelfAndPreviouslyVisitedPairs) {
-    std::vector<int> candidates;
     std::vector<Pair> visited;
 
     simfw::simulation::forEachUniqueCandidatePair<int>(
         4,
-        candidates,
-        [](int source, std::vector<int>& out) {
+        [](std::size_t source, std::vector<int>& out) {
             switch (source) {
             case 0:
                 out = {0, 1, 2};
@@ -54,6 +50,9 @@ TEST(CollisionPairsTest, IgnoresSelfAndPreviouslyVisitedPairs) {
                 break;
             case 3:
                 out = {1, 3};
+                break;
+            default:
+                out.clear();
                 break;
             }
         },
@@ -72,13 +71,11 @@ TEST(CollisionPairsTest, IgnoresSelfAndPreviouslyVisitedPairs) {
 }
 
 TEST(CollisionPairsTest, SupportsEmptyCandidateLists) {
-    std::vector<int> candidates;
     std::vector<Pair> visited;
 
     simfw::simulation::forEachUniqueCandidatePair<int>(
         5,
-        candidates,
-        [](int, std::vector<int>& out) {
+        [](std::size_t, std::vector<int>& out) {
             out.clear();
         },
         [&visited](int a, int b) {
@@ -89,18 +86,25 @@ TEST(CollisionPairsTest, SupportsEmptyCandidateLists) {
     EXPECT_TRUE(visited.empty());
 }
 
-TEST(CollisionPairsTest, ReusesCallerProvidedCandidateStorage) {
-    std::vector<int> candidates;
-    candidates.reserve(16);
-    const auto* initialData = candidates.data();
-
+TEST(CollisionPairsTest, ReusesInternalCandidateStorageAcrossItems) {
+    const int* firstData = nullptr;
+    std::size_t firstCapacity = 0;
     std::size_t visitCount = 0;
 
     simfw::simulation::forEachUniqueCandidatePair<int>(
         2,
-        candidates,
-        [](int, std::vector<int>& out) {
-            out = {0, 1};
+        [&firstData, &firstCapacity](std::size_t source, std::vector<int>& out) {
+            if (source == 0) {
+                out.reserve(16);
+                out = {0, 1};
+                firstData = out.data();
+                firstCapacity = out.capacity();
+                return;
+            }
+
+            out.clear();
+            EXPECT_EQ(out.capacity(), firstCapacity);
+            EXPECT_EQ(out.data(), firstData);
         },
         [&visitCount](int, int) {
             ++visitCount;
@@ -108,6 +112,5 @@ TEST(CollisionPairsTest, ReusesCallerProvidedCandidateStorage) {
     );
 
     EXPECT_EQ(visitCount, 1U);
-    EXPECT_EQ(candidates.capacity(), 16U);
-    EXPECT_EQ(candidates.data(), initialData);
+    EXPECT_EQ(firstCapacity, 16U);
 }
