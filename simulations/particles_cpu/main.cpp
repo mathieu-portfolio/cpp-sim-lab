@@ -3,69 +3,10 @@
 #include <math/Vec2.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
+#include <ui/SimulationUiRenderer.hpp>
+#include "SimulationUiTraits.hpp"
 
 #include <raylib.h>
-
-namespace {
-void drawCompactUi(
-    bool paused,
-    const Simulation& sim,
-    const Camera2D& camera
-) {
-    const auto stats = sim.getStats();
-
-    simfw::ui::TextCursor cursor{10, 10, 22};
-
-    cursor.draw(
-        TextFormat(
-            "Particles: %d / %d",
-            static_cast<int>(stats.particleCount),
-            static_cast<int>(stats.maxParticleCount)
-        ),
-        20,
-        GREEN
-    );
-
-    cursor.draw(
-        TextFormat(
-            "Collision checks: %d",
-            static_cast<int>(stats.collisionChecks)
-        ),
-        18,
-        GRAY
-    );
-
-    cursor.draw(
-        TextFormat(
-            "Collisions resolved: %d",
-            static_cast<int>(stats.collisionsResolved)
-        ),
-        18,
-        GRAY
-    );
-
-    cursor.gap(12);
-
-    cursor.draw("Left mouse: spawn", 18, GRAY);
-    cursor.draw("Right mouse: clear", 18, GRAY);
-    cursor.draw("R: reset", 18, GRAY);
-    cursor.draw("Space: pause", 18, GRAY);
-    cursor.draw("N: step", 18, GRAY);
-    cursor.draw("G: toggle grid", 18, GRAY);
-    cursor.draw("Mouse wheel: zoom", 18, GRAY);
-    cursor.draw("Middle mouse: pan", 18, GRAY);
-    cursor.draw("Backspace: reset camera", 18, GRAY);
-
-    cursor.draw(
-        TextFormat("Zoom: %.2fx", camera.zoom),
-        18,
-        GRAY
-    );
-
-    cursor.gap(8);
-    cursor.draw(paused ? "Paused" : "Running", 18, YELLOW);
-}
-} // namespace
 
 int main() {
     SimulationConfig config;
@@ -87,6 +28,7 @@ int main() {
     bool paused = false;
     bool step = false;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
+    std::size_t selectedParameter = 0;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         config.width,
@@ -96,29 +38,33 @@ int main() {
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
 
-        if (IsKeyPressed(KEY_SPACE)) {
-            paused = !paused;
-        }
+        constexpr std::size_t paramCount =
+            std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
 
-        if (IsKeyPressed(KEY_G)) {
-            gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
-        }
+        selectedParameter %= paramCount;
 
-        if (IsKeyPressed(KEY_N)) {
-            step = true;
-        }
+        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
+        if (IsKeyPressed(KEY_G)) gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
+        if (IsKeyPressed(KEY_N)) step = true;
+        if (IsKeyPressed(KEY_R)) sim.reset();
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const auto mouse = GetMousePosition();
             sim.spawn(Vec2{mouse.x, mouse.y});
         }
 
-        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-            sim.clear();
+        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) sim.clear();
+
+        const bool fastAdjust =
+            IsKeyDown(KEY_LEFT_SHIFT) ||
+            IsKeyDown(KEY_RIGHT_SHIFT);
+
+        if (IsKeyDown(KEY_LEFT)) {
+            simfw::ui::adjustTunables(config, selectedParameter, -1.0f, dt, fastAdjust);
         }
 
-        if (IsKeyPressed(KEY_R)) {
-            sim.reset();
+        if (IsKeyDown(KEY_RIGHT)) {
+            simfw::ui::adjustTunables(config, selectedParameter, 1.0f, dt, fastAdjust);
         }
 
         if (!paused || step) {
@@ -178,7 +124,15 @@ int main() {
 
         EndMode2D();
 
-        drawCompactUi(paused, sim, camera);
+        simfw::ui::TextCursor cursor{10, 10, 22};
+
+        simfw::ui::drawStats(cursor, sim.getStats());
+        cursor.gap(6);
+        simfw::ui::drawTunables(cursor, config, selectedParameter);
+
+        cursor.gap(10);
+        cursor.draw("Space: pause | N: step | R: reset");
+        cursor.draw("Mouse: spawn | Right: clear | Wheel: zoom | Middle: pan");
 
         EndDrawing();
     }
