@@ -1,6 +1,8 @@
 #include "Simulation.hpp"
 #include "SimulationUiTraits.hpp"
 
+#include <ui/EntitySelection.hpp>
+#include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationBackendControls.hpp>
@@ -9,14 +11,19 @@
 
 #include <raylib.h>
 
+#include <optional>
+
 using namespace agents_cpu;
 
 namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;
+constexpr float AgentDrawRadius = 3.0f;
+constexpr float SelectionPickRadius = 14.0f;
+constexpr float SelectionRingRadius = 10.0f;
 
 void drawAgent(const Agent& agent) {
-    DrawCircleV(simfw::ui::toRaylib(agent.position), 3.0f, WHITE);
+    DrawCircleV(simfw::ui::toRaylib(agent.position), AgentDrawRadius, WHITE);
 
     Vec2 dir = agent.velocity.length() > 0.001f
         ? agent.velocity.normalized()
@@ -95,6 +102,14 @@ void drawTarget(Vec2 target, const SimulationConfig& config) {
         GREEN
     );
 }
+
+Vec2 agentPosition(const Agent& agent) {
+    return agent.position;
+}
+
+bool isSelectionModifierDown() {
+    return IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+}
 } // namespace
 
 int main() {
@@ -109,6 +124,12 @@ int main() {
 
     simfw::ui::SimulationControls controls;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
+    std::optional<std::size_t> selectedAgent;
+
+    Camera2D camera = simfw::ui::makeCenteredCamera(
+        config.width,
+        config.height
+    );
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -127,13 +148,23 @@ int main() {
         simfw::ui::handleSimulationBackendControls(config, gridDebugMode);
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            const Vector2 mouse = GetMousePosition();
-            sim.setTarget(Vec2{mouse.x, mouse.y});
+            const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
+
+            if (isSelectionModifierDown()) {
+                selectedAgent = simfw::ui::findClosestEntity(
+                    sim.getAgents(),
+                    mouseWorld,
+                    SelectionPickRadius / camera.zoom,
+                    agentPosition
+                );
+            } else {
+                sim.setTarget(mouseWorld);
+            }
         }
 
         if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-            const Vector2 mouse = GetMousePosition();
-            sim.addObstacle(Vec2{mouse.x, mouse.y});
+            const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
+            sim.addObstacle(mouseWorld);
         }
 
         if (IsKeyPressed(KEY_C)) {
@@ -169,8 +200,42 @@ int main() {
             simfw::ui::finishSimulationStep(controls);
         }
 
+        simfw::ui::zoomCameraAtScreenPoint(
+            camera,
+            GetMousePosition(),
+            GetMouseWheelMove(),
+            0.1f,
+            1.0f,
+            8.0f,
+            config.width,
+            config.height
+        );
+
+        if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
+            simfw::ui::panCameraByScreenDelta(
+                camera,
+                GetMouseDelta(),
+                config.width,
+                config.height
+            );
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            simfw::ui::resetCameraToBounds(
+                camera,
+                config.width,
+                config.height
+            );
+        }
+
+        if (selectedAgent && *selectedAgent >= sim.getAgents().size()) {
+            selectedAgent.reset();
+        }
+
         BeginDrawing();
         ClearBackground(BLACK);
+
+        BeginMode2D(camera);
 
         if (config.execution.useSpatialGrid) {
             simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
@@ -194,6 +259,16 @@ int main() {
             drawAgent(agent);
         }
 
+        if (selectedAgent) {
+            simfw::ui::drawSelectionRing(
+                sim.getAgents()[*selectedAgent].position,
+                SelectionRingRadius,
+                YELLOW
+            );
+        }
+
+        EndMode2D();
+
         if (controls.uiMode != simfw::ui::UiMode::None) {
             simfw::ui::TextCursor cursor{10, 10, 20};
 
@@ -212,16 +287,35 @@ int main() {
                 controls.selectedParameter
             );
 
+            cursor.gap(8);
+            cursor.draw(
+                TextFormat("Zoom: %.2fx", camera.zoom),
+                18,
+                GRAY
+            );
+
+            if (selectedAgent) {
+                const Agent& agent = sim.getAgents()[*selectedAgent];
+                cursor.draw(TextFormat("Selected agent: %d", static_cast<int>(*selectedAgent)), 16, YELLOW);
+                cursor.draw(TextFormat("intent: %s", intentName(agent.intent)));
+                cursor.draw(TextFormat("pos: %.1f, %.1f", agent.position.x, agent.position.y));
+                cursor.draw(TextFormat("vel: %.1f, %.1f", agent.velocity.x, agent.velocity.y));
+            }
+
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 simfw::ui::TextCursor controlsCursor =
-                    simfw::ui::makeRightSideControlCursor(320, 10, 20);
+                    simfw::ui::makeRightSideControlCursor(340, 10, 20);
 
                 simfw::ui::drawControlHints(
                     controlsCursor,
                     {
                         "Left mouse: set target",
+                        "Ctrl + Left mouse: select agent",
                         "Right mouse: add obstacle",
                         "C: clear obstacles",
+                        "Wheel: zoom",
+                        "Middle mouse: pan",
+                        "Backspace: reset camera",
                         "Space: pause",
                         "N: step",
                         "R: reset",

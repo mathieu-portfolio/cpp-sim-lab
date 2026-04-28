@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <math/Vec2.hpp>
+#include <ui/EntitySelection.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
@@ -11,7 +12,22 @@
 
 #include <raylib.h>
 
+#include <optional>
+
 using namespace particles_cpu;
+
+namespace {
+constexpr float SelectionPickRadius = 14.0f;
+constexpr float SelectionRingPadding = 5.0f;
+
+Vec2 particlePosition(const Particle& particle) {
+    return particle.position;
+}
+
+bool isSelectionModifierDown() {
+    return IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+}
+} // namespace
 
 int main() {
     SimulationConfig config;
@@ -32,6 +48,7 @@ int main() {
 
     simfw::ui::SimulationControls controls;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
+    std::optional<std::size_t> selectedParticle;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         config.width,
@@ -54,13 +71,20 @@ int main() {
 
         simfw::ui::handleSimulationBackendControls(config, gridDebugMode);
 
-        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            const auto mouse = GetMousePosition();
-            sim.spawn(Vec2{mouse.x, mouse.y});
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && isSelectionModifierDown()) {
+            selectedParticle = simfw::ui::findClosestEntity(
+                sim.getParticles(),
+                simfw::ui::screenToWorld(GetMousePosition(), camera),
+                SelectionPickRadius / camera.zoom,
+                particlePosition
+            );
+        } else if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !isSelectionModifierDown()) {
+            sim.spawn(simfw::ui::screenToWorld(GetMousePosition(), camera));
         }
 
         if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
             sim.clear();
+            selectedParticle.reset();
         }
 
         const bool fastAdjust =
@@ -120,6 +144,10 @@ int main() {
             );
         }
 
+        if (selectedParticle && *selectedParticle >= sim.getParticles().size()) {
+            selectedParticle.reset();
+        }
+
         BeginDrawing();
         ClearBackground(BLACK);
 
@@ -141,6 +169,15 @@ int main() {
                 static_cast<int>(p.position.y),
                 p.radius,
                 WHITE
+            );
+        }
+
+        if (selectedParticle) {
+            const Particle& particle = sim.getParticles()[*selectedParticle];
+            simfw::ui::drawSelectionRing(
+                particle.position,
+                particle.radius + SelectionRingPadding,
+                YELLOW
             );
         }
 
@@ -171,13 +208,26 @@ int main() {
                 GRAY
             );
 
+            if (selectedParticle) {
+                const Particle& particle = sim.getParticles()[*selectedParticle];
+                cursor.draw(TextFormat("Selected particle: %d", static_cast<int>(*selectedParticle)), 16, YELLOW);
+                cursor.draw(TextFormat("pos: %.1f, %.1f", particle.position.x, particle.position.y));
+                cursor.draw(TextFormat("vel: %.1f, %.1f", particle.velocity.x, particle.velocity.y));
+            }
+
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 simfw::ui::TextCursor controlsCursor =
-                    simfw::ui::makeRightSideControlCursor(310, 10, 20);
+                    simfw::ui::makeRightSideControlCursor(330, 10, 20);
 
                 simfw::ui::drawControlHints(
                     controlsCursor,
                     {
+                        "Left mouse: spawn",
+                        "Ctrl + Left mouse: select particle",
+                        "Right mouse: clear",
+                        "Wheel: zoom",
+                        "Middle mouse: pan",
+                        "Backspace: reset camera",
                         "Space: pause",
                         "N: step",
                         "R: reset",
@@ -186,14 +236,9 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "Left mouse: spawn",
-                        "Right mouse: clear",
-                        "Wheel: zoom",
-                        "Middle mouse: pan",
                         "G: toggle grid backend",
                         "H: grid debug mode",
-                        "P: parallel update",
-                        "Backspace: reset camera"
+                        "P: parallel update"
                     }
                 );
             }
