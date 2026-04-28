@@ -81,6 +81,38 @@ Vec2 separationForce(
     return force;
 }
 
+Vec2 obstacleAvoidanceForce(
+    const Agent& agent,
+    const std::vector<Obstacle>& obstacles,
+    float avoidanceRadius,
+    SimulationStats& stats
+) {
+    Vec2 force{};
+    int obstacleCount = 0;
+
+    for (const Obstacle& obstacle : obstacles) {
+        ++stats.obstacleChecks;
+
+        const Vec2 away = agent.position - obstacle.position;
+        const float distance = away.length();
+        const float influenceDistance = obstacle.radius + avoidanceRadius;
+
+        if (distance <= Epsilon || distance >= influenceDistance) {
+            continue;
+        }
+
+        const float strength = 1.0f - (distance / influenceDistance);
+        force += away.normalized() * strength;
+        ++obstacleCount;
+    }
+
+    if (obstacleCount > 0) {
+        force *= 1.0f / static_cast<float>(obstacleCount);
+    }
+
+    return force;
+}
+
 void collectNaiveCandidates(
     std::size_t agentIndex,
     std::size_t agentCount,
@@ -124,6 +156,7 @@ void Simulation::normalizeConfigCounts() {
 void Simulation::updateStatsCount() {
     m_stats.agentCount = m_entities.size();
     m_stats.entityCount = m_entities.size();
+    m_stats.obstacleCount = m_obstacles.size();
 }
 
 Vec2 Simulation::randomPoint() const {
@@ -165,6 +198,20 @@ void Simulation::setTarget(Vec2 target) {
     for (Agent& agent : m_entities) {
         agent.target = m_target;
     }
+}
+
+void Simulation::addObstacle(Vec2 position) {
+    m_obstacles.push_back({
+        clampToWorld(position, m_config.width, m_config.height),
+        m_config.obstacleRadius
+    });
+
+    updateStatsCount();
+}
+
+void Simulation::clearObstacles() {
+    m_obstacles.clear();
+    updateStatsCount();
 }
 
 void Simulation::update(float dt) {
@@ -211,8 +258,15 @@ void Simulation::update(float dt) {
             m_stats
         ) * (m_config.maxForce * m_config.separationWeight);
 
+        const Vec2 obstacleAvoidance = obstacleAvoidanceForce(
+            agent,
+            m_obstacles,
+            m_config.obstacleAvoidanceRadius,
+            m_stats
+        ) * (m_config.maxForce * m_config.obstacleAvoidanceWeight);
+
         const Vec2 acceleration = limitLength(
-            seek + separation,
+            seek + separation + obstacleAvoidance,
             m_config.maxForce
         );
 

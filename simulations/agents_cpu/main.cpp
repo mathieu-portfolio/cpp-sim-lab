@@ -27,6 +27,31 @@ void drawAgent(const Agent& agent) {
     );
 }
 
+void drawObstacle(const Obstacle& obstacle) {
+    DrawCircle(
+        static_cast<int>(obstacle.position.x),
+        static_cast<int>(obstacle.position.y),
+        obstacle.radius,
+        DARKGRAY
+    );
+
+    DrawCircleLines(
+        static_cast<int>(obstacle.position.x),
+        static_cast<int>(obstacle.position.y),
+        obstacle.radius,
+        GRAY
+    );
+}
+
+void drawDebugObstacle(const Obstacle& obstacle, const SimulationConfig& config) {
+    DrawCircleLines(
+        static_cast<int>(obstacle.position.x),
+        static_cast<int>(obstacle.position.y),
+        obstacle.radius + config.obstacleAvoidanceRadius,
+        DARKGRAY
+    );
+}
+
 void drawDebugAgent(const Agent& agent, const SimulationConfig& config) {
     DrawCircleLines(
         static_cast<int>(agent.position.x),
@@ -108,6 +133,15 @@ int main() {
             sim.setTarget(Vec2{mouse.x, mouse.y});
         }
 
+        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            const Vector2 mouse = GetMousePosition();
+            sim.addObstacle(Vec2{mouse.x, mouse.y});
+        }
+
+        if (IsKeyPressed(KEY_C)) {
+            sim.clearObstacles();
+        }
+
         const bool fastAdjust =
             IsKeyDown(KEY_LEFT_SHIFT) ||
             IsKeyDown(KEY_RIGHT_SHIFT);
@@ -143,6 +177,14 @@ int main() {
         simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
 
         drawTarget(sim.getTarget(), config);
+
+        for (const Obstacle& obstacle : sim.getObstacles()) {
+            drawObstacle(obstacle);
+
+            if (controls.showDebug) {
+                drawDebugObstacle(obstacle, config);
+            }
+        }
 
         for (const Agent& agent : sim.getAgents()) {
             if (controls.showDebug) {
@@ -183,7 +225,7 @@ int main() {
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 cursor.gap(10);
-                cursor.draw("Left mouse: set target");
+                cursor.draw("Left mouse: set target | Right mouse: add obstacle | C: clear obstacles");
                 cursor.draw("Space: pause | N: step | R: reset | D: debug | F1: UI mode");
                 cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
                 cursor.draw("G: toggle grid backend | H: grid debug mode");

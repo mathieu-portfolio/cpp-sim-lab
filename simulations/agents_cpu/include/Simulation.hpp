@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Agent.hpp"
+#include "Obstacle.hpp"
 
 #include <simulation/SimulationBase.hpp>
 #include <spatial/SpatialHashGrid.hpp>
@@ -24,10 +25,14 @@ struct SimulationConfig {
 
     float seekWeight = 1.0f;
     float separationWeight = 2.2f;
+    float obstacleAvoidanceWeight = 3.0f;
 
     float arrivalRadius = 80.0f;
     float targetRadius = 12.0f;
     float separationRadius = 18.0f;
+
+    float obstacleRadius = 24.0f;
+    float obstacleAvoidanceRadius = 70.0f;
 
     bool useSpatialGrid = true;
     float gridCellSize = 24.0f;
@@ -41,6 +46,9 @@ struct SimulationStats {
     std::size_t neighborCandidates = 0;
     std::size_t occupiedGridCells = 0;
     std::size_t arrivedCount = 0;
+
+    std::size_t obstacleCount = 0;
+    std::size_t obstacleChecks = 0;
 };
 
 class Simulation
@@ -55,15 +63,20 @@ public:
     void reset();
 
     const std::vector<Agent>& getAgents() const { return m_entities; }
+    const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
 
     const Grid& getGrid() const { return m_grid; }
 
     void setTarget(Vec2 target);
     Vec2 getTarget() const { return m_target; }
 
+    void addObstacle(Vec2 position);
+    void clearObstacles();
+
 private:
     Grid m_grid;
     Vec2 m_target;
+    std::vector<Obstacle> m_obstacles;
 
     void normalizeConfigCounts();
     void updateStatsCount();
