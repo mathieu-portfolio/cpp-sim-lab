@@ -1,35 +1,9 @@
 #include "Simulation.hpp"
 
 #include <math/Vec2.hpp>
-#include "raylib.h"
-#include <algorithm>
+#include <ui/RaylibCamera.hpp>
 
-void clampCameraToBounds(Camera2D& camera, const SimulationConfig& config) {
-    const float viewWidth = config.width / camera.zoom;
-    const float viewHeight = config.height / camera.zoom;
-
-    if (viewWidth >= config.width) {
-        camera.target.x = config.width * 0.5f;
-    } else {
-        const float halfViewWidth = viewWidth * 0.5f;
-        camera.target.x = std::clamp(
-            camera.target.x,
-            halfViewWidth,
-            config.width - halfViewWidth
-        );
-    }
-
-    if (viewHeight >= config.height) {
-        camera.target.y = config.height * 0.5f;
-    } else {
-        const float halfViewHeight = viewHeight * 0.5f;
-        camera.target.y = std::clamp(
-            camera.target.y,
-            halfViewHeight,
-            config.height - halfViewHeight
-        );
-    }
-}
+#include <raylib.h>
 
 int main() {
     SimulationConfig config;
@@ -52,11 +26,10 @@ int main() {
     bool step = false;
     bool showGrid = false;
 
-    Camera2D camera{};
-    camera.target = Vector2{config.width * 0.5f, config.height * 0.5f};
-    camera.offset = Vector2{config.width * 0.5f, config.height * 0.5f};
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
+    Camera2D camera = simfw::ui::makeCenteredCamera(
+        config.width,
+        config.height
+    );
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -91,35 +64,32 @@ int main() {
             step = false;
         }
 
-        const float wheel = GetMouseWheelMove();
-
-        if (wheel != 0.0f) {
-            const Vector2 mouseWorldBefore = GetScreenToWorld2D(GetMousePosition(), camera);
-
-            camera.zoom *= 1.0f + wheel * 0.1f;
-            camera.zoom = std::clamp(camera.zoom, 1.0f, 8.0f);
-
-            const Vector2 mouseWorldAfter = GetScreenToWorld2D(GetMousePosition(), camera);
-
-            camera.target.x += mouseWorldBefore.x - mouseWorldAfter.x;
-            camera.target.y += mouseWorldBefore.y - mouseWorldAfter.y;
-
-            clampCameraToBounds(camera, config);
-        }
+        simfw::ui::zoomCameraAtScreenPoint(
+            camera,
+            GetMousePosition(),
+            GetMouseWheelMove(),
+            0.1f,
+            1.0f,
+            8.0f,
+            config.width,
+            config.height
+        );
 
         if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
-            const Vector2 delta = GetMouseDelta();
-
-            camera.target.x -= delta.x / camera.zoom;
-            camera.target.y -= delta.y / camera.zoom;
-
-            clampCameraToBounds(camera, config);
+            simfw::ui::panCameraByScreenDelta(
+                camera,
+                GetMouseDelta(),
+                config.width,
+                config.height
+            );
         }
 
         if (IsKeyPressed(KEY_BACKSPACE)) {
-            camera.target = Vector2{config.width * 0.5f, config.height * 0.5f};
-            camera.offset = Vector2{config.width * 0.5f, config.height * 0.5f};
-            camera.zoom = 1.0f;
+            simfw::ui::resetCameraToBounds(
+                camera,
+                config.width,
+                config.height
+            );
         }
 
         BeginDrawing();
