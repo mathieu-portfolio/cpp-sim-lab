@@ -224,6 +224,66 @@ Vec2 computeSeparation(std::size_t boidIndex, BoidBehaviorContext& context) {
     return steerToward(away, boid.velocity, context.config.maxSpeed);
 }
 
+Vec2 computeAlignment(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+) {
+    SimulationConfig config;
+    config.maxSpeed = maxSpeed;
+
+    SimulationStats stats;
+    BoidBehaviorContext context{
+        config,
+        boids,
+        BoidCandidateLists{neighbors, {}},
+        stats
+    };
+
+    return computeAlignment(boidIndex, context);
+}
+
+Vec2 computeCohesion(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+) {
+    SimulationConfig config;
+    config.maxSpeed = maxSpeed;
+
+    SimulationStats stats;
+    BoidBehaviorContext context{
+        config,
+        boids,
+        BoidCandidateLists{neighbors, {}},
+        stats
+    };
+
+    return computeCohesion(boidIndex, context);
+}
+
+Vec2 computeSeparation(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+) {
+    SimulationConfig config;
+    config.maxSpeed = maxSpeed;
+
+    SimulationStats stats;
+    BoidBehaviorContext context{
+        config,
+        boids,
+        BoidCandidateLists{{}, neighbors},
+        stats
+    };
+
+    return computeSeparation(boidIndex, context);
+}
+
 Vec2 limitLength(Vec2 value, float maxLength) {
     const float length = value.length();
 

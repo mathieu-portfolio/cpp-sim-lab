@@ -74,6 +74,29 @@ Vec2 computeAlignment(std::size_t boidIndex, BoidBehaviorContext& context);
 Vec2 computeCohesion(std::size_t boidIndex, BoidBehaviorContext& context);
 Vec2 computeSeparation(std::size_t boidIndex, BoidBehaviorContext& context);
 
+// Compatibility helpers for focused behavior tests and direct callers.
+// The composable pipeline uses BoidBehaviorContext overloads above.
+Vec2 computeAlignment(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+);
+
+Vec2 computeCohesion(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+);
+
+Vec2 computeSeparation(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    const std::vector<std::size_t>& neighbors,
+    float maxSpeed
+);
+
 Vec2 limitLength(Vec2 value, float maxLength);
 Vec2 wrapPosition(Vec2 position, float width, float height);
 
