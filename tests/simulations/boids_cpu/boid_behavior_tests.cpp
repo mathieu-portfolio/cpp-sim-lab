@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <vector>
 
+using namespace boids_cpu;
+
 namespace {
 constexpr float Epsilon = 0.001f;
 

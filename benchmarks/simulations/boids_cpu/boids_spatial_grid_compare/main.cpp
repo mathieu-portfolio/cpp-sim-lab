@@ -9,6 +9,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace boids_cpu;
+
 namespace {
 constexpr std::uint32_t BaseSeed = 1337u;
 

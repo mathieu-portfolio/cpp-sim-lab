@@ -9,6 +9,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace particles_cpu;
+
 namespace {
 Vec2 particlePosition(const Particle& particle) {
     return particle.position;

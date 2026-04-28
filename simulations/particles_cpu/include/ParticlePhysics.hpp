@@ -3,6 +3,8 @@
 #include "Particle.hpp"
 #include "Simulation.hpp"
 
+namespace particles_cpu {
+
 bool resolveParticleCollision(
     Particle& a,
     Particle& b,
@@ -13,3 +15,5 @@ void solveParticleBounds(
     Particle& particle,
     const SimulationConfig& config
 );
+
+} // namespace particles_cpu

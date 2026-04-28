@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <vector>
 
+namespace boids_cpu {
+
 Vec2 computeAlignment(
     std::size_t boidIndex,
     const std::vector<Boid>& boids,
@@ -28,3 +30,5 @@ Vec2 computeSeparation(
 
 Vec2 limitLength(Vec2 v, float maxLength);
 Vec2 wrapPosition(Vec2 pos, float w, float h);
+
+} // namespace boids_cpu

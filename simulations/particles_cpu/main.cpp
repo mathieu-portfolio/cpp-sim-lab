@@ -9,6 +9,8 @@
 
 #include <raylib.h>
 
+using namespace particles_cpu;
+
 int main() {
     SimulationConfig config;
     config.width = 800.0f;
@@ -36,6 +38,8 @@ int main() {
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
+
+        auto& config = sim.getConfig();
 
         constexpr std::size_t paramCount =
             std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;

@@ -8,6 +8,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace boids_cpu;
+
 int main() {
     constexpr int WarmupFrames = 30;
     constexpr int MeasuredFrames = 300;

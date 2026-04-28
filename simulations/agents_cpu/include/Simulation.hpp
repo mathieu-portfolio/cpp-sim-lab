@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <vector>
 
+namespace agents_cpu {
+
 struct SimulationConfig {
     static constexpr std::size_t DefaultAgentCount = 250;
 
@@ -82,3 +84,5 @@ private:
     void updateStatsCount();
     Vec2 randomPoint() const;
 };
+
+} // namespace agents_cpu

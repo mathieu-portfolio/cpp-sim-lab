@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <vector>
 
+namespace particles_cpu {
+
 struct SimulationConfig {
     float width = 800.0f;
     float height = 800.0f;
@@ -58,3 +60,5 @@ private:
 
     void updateStatsCount();
 };
+
+} // namespace particles_cpu

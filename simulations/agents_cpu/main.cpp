@@ -7,6 +7,8 @@
 
 #include <raylib.h>
 
+using namespace agents_cpu;
+
 namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;

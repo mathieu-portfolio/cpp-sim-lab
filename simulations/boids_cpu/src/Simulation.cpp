@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <random/Random.hpp>
 
+namespace boids_cpu {
 namespace {
 void addNeighborsFromCandidateList(
     std::size_t boidIndex,
@@ -209,3 +210,5 @@ void Simulation::update(float dt) {
         );
     }
 }
+
+} // namespace boids_cpu

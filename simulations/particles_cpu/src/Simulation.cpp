@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <random/Random.hpp>
 
+namespace particles_cpu {
 namespace {
 Vec2 particlePosition(const Particle& particle) {
     return particle.position;
@@ -143,3 +144,5 @@ void Simulation::reset() {
 
     updateStatsCount();
 }
+
+} // namespace particles_cpu

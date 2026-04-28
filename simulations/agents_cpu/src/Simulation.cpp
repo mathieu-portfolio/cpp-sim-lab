@@ -4,6 +4,7 @@
 #include <cmath>
 #include <random/Random.hpp>
 
+namespace agents_cpu {
 namespace {
 constexpr float Epsilon = 0.0001f;
 
@@ -111,6 +112,28 @@ Vec2 obstacleAvoidanceForce(
     }
 
     return force;
+}
+
+void resolveObstacleOverlap(Agent& agent, const std::vector<Obstacle>& obstacles) {
+    for (const Obstacle& obstacle : obstacles) {
+        Vec2 away = agent.position - obstacle.position;
+        float distance = away.length();
+
+        const float minDistance = obstacle.radius + agent.radius;
+
+        if (distance <= Epsilon || distance >= minDistance) {
+            continue;
+        }
+
+        Vec2 normal = away * (1.0f / distance);
+        agent.position = obstacle.position + normal * minDistance;
+
+        const float velocityIntoObstacle = Vec2::dot(agent.velocity, normal);
+
+        if (velocityIntoObstacle < 0.0f) {
+            agent.velocity -= normal * velocityIntoObstacle;
+        }
+    }
 }
 
 void collectNaiveCandidates(
@@ -274,27 +297,7 @@ void Simulation::update(float dt) {
         agent.velocity = limitLength(agent.velocity, m_config.maxSpeed);
         agent.position += agent.velocity * dt;
 
-        for (const Obstacle& obstacle : m_obstacles) {
-            Vec2 away = agent.position - obstacle.position;
-            float distance = away.length();
-
-            const float minDistance = obstacle.radius + agent.radius;
-
-            if (distance <= Epsilon || distance >= minDistance) {
-                continue;
-            }
-
-            Vec2 normal = away * (1.0f / distance);
-
-            agent.position = obstacle.position + normal * minDistance;
-
-            const float velocityIntoObstacle =
-                Vec2::dot(agent.velocity, normal);
-
-            if (velocityIntoObstacle < 0.0f) {
-                agent.velocity -= normal * velocityIntoObstacle;
-            }
-        }
+        resolveObstacleOverlap(agent, m_obstacles);
 
         agent.position = clampToWorld(
             agent.position,
@@ -307,3 +310,5 @@ void Simulation::update(float dt) {
         }
     }
 }
+
+} // namespace agents_cpu

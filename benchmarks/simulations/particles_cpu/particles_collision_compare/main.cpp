@@ -10,6 +10,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace particles_cpu;
+
 namespace {
 constexpr std::uint32_t BaseSeed = 1337u;
 

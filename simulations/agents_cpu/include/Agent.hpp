@@ -2,6 +2,8 @@
 
 #include <math/Vec2.hpp>
 
+namespace agents_cpu {
+
 struct Agent {
     Vec2 position;
     Vec2 velocity;
@@ -9,3 +11,5 @@ struct Agent {
 
     float radius = 4.0f;
 };
+
+} // namespace agents_cpu

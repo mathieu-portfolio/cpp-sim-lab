@@ -1,5 +1,6 @@
 #include "BoidBehavior.hpp"
 
+namespace boids_cpu {
 namespace {
 constexpr float Epsilon = 0.0001f;
 
@@ -108,3 +109,5 @@ Vec2 wrapPosition(Vec2 pos, float w, float h) {
 
     return pos;
 }
+
+} // namespace boids_cpu

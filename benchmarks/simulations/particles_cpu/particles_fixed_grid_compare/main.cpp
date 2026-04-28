@@ -11,6 +11,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace particles_cpu;
+
 namespace {
 constexpr float WorldWidth = 800.0f;
 constexpr float WorldHeight = 800.0f;

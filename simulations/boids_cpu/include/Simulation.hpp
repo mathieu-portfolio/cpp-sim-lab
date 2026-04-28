@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <vector>
 
+namespace boids_cpu {
+
 struct SimulationConfig {
     static constexpr std::size_t DefaultBoidCount = 200;
 
@@ -60,3 +62,5 @@ private:
     void normalizeConfigCounts();
     void updateStatsCount();
 };
+
+} // namespace boids_cpu
