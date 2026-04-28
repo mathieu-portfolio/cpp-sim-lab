@@ -4,6 +4,7 @@
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationBackendControls.hpp>
+#include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 
 #include <raylib.h>
@@ -212,11 +213,28 @@ int main() {
             );
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
-                cursor.gap(10);
-                cursor.draw("Left mouse: set target | Right mouse: add obstacle | C: clear obstacles");
-                cursor.draw("Space: pause | N: step | R: reset | D: debug | F1: UI mode");
-                cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
-                cursor.draw("G: toggle grid backend | H: grid debug mode | P: parallel update");
+                simfw::ui::TextCursor controlsCursor =
+                    simfw::ui::makeRightSideControlCursor(320, 10, 20);
+
+                simfw::ui::drawControlHints(
+                    controlsCursor,
+                    {
+                        "Left mouse: set target",
+                        "Right mouse: add obstacle",
+                        "C: clear obstacles",
+                        "Space: pause",
+                        "N: step",
+                        "R: reset",
+                        "D: debug",
+                        "F1: UI mode",
+                        "Tab: select tunable",
+                        "Left/Right: adjust",
+                        "Shift: fast adjust",
+                        "G: toggle grid backend",
+                        "H: grid debug mode",
+                        "P: parallel update"
+                    }
+                );
             }
         }
 

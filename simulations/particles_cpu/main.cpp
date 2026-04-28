@@ -5,6 +5,7 @@
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationBackendControls.hpp>
+#include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 #include "SimulationUiTraits.hpp"
 
@@ -163,21 +164,39 @@ int main() {
                 controls.selectedParameter
             );
 
-            if (controls.uiMode == simfw::ui::UiMode::Full) {
-                cursor.gap(10);
-                cursor.draw("Space: pause | N: step | R: reset | D: debug grid | F1: UI mode");
-                cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
-                cursor.draw("Mouse: spawn | Right: clear | Wheel: zoom | Middle: pan");
-                cursor.draw("G: toggle grid backend | H: grid debug mode | P: parallel update");
-                cursor.draw("Backspace: reset camera");
-            }
-
             cursor.gap(8);
             cursor.draw(
                 TextFormat("Zoom: %.2fx", camera.zoom),
                 18,
                 GRAY
             );
+
+            if (controls.uiMode == simfw::ui::UiMode::Full) {
+                simfw::ui::TextCursor controlsCursor =
+                    simfw::ui::makeRightSideControlCursor(310, 10, 20);
+
+                simfw::ui::drawControlHints(
+                    controlsCursor,
+                    {
+                        "Space: pause",
+                        "N: step",
+                        "R: reset",
+                        "D: debug grid",
+                        "F1: UI mode",
+                        "Tab: select tunable",
+                        "Left/Right: adjust",
+                        "Shift: fast adjust",
+                        "Left mouse: spawn",
+                        "Right mouse: clear",
+                        "Wheel: zoom",
+                        "Middle mouse: pan",
+                        "G: toggle grid backend",
+                        "H: grid debug mode",
+                        "P: parallel update",
+                        "Backspace: reset camera"
+                    }
+                );
+            }
         }
 
         EndDrawing();
