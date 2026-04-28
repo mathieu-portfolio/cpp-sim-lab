@@ -7,6 +7,7 @@
 #include <cmath>
 #include <memory>
 #include <random/Random.hpp>
+#include <simulation/ParallelUpdate.hpp>
 #include <thread>
 
 namespace agents_cpu {
@@ -400,68 +401,33 @@ void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
     m_stats.intentChanges += workerStats.intentChanges;
 }
 
-void Simulation::updateAgentsSingleThread(float dt, float obstacleQueryRadius) {
-    AgentUpdateScratch scratch;
-    SimulationStats stats;
 
-    updateAgentRange(
-        0,
+void Simulation::updateAgents(float dt) {
+    simfw::runParallelUpdate<ThreadPool, AgentUpdateScratch, SimulationStats>(
+        m_threadPool.get(),
         m_entities.size(),
-        dt,
-        obstacleQueryRadius,
-        scratch,
-        stats
-    );
-
-    mergeWorkerStats(stats);
-}
-
-void Simulation::updateAgentsParallel(float dt, float obstacleQueryRadius) {
-    const std::size_t agentCount = m_entities.size();
-    const std::size_t taskCount =
-        (agentCount + MinItemsPerParallelTask - 1) / MinItemsPerParallelTask;
-
-    std::vector<AgentUpdateScratch> workerScratch(taskCount);
-    std::vector<SimulationStats> workerStats(taskCount);
-
-    m_threadPool->parallel_for(
-        agentCount,
         MinItemsPerParallelTask,
-        [this, dt, obstacleQueryRadius, &workerScratch, &workerStats](
+        m_config.useParallelUpdate,
+        [this, dt, obstacleQueryRadius = maxObstacleQueryRadius(dt)](
             std::size_t beginIndex,
             std::size_t endIndex,
-            std::size_t taskIndex
+            AgentUpdateScratch& scratch,
+            SimulationStats& stats
         ) {
             updateAgentRange(
                 beginIndex,
                 endIndex,
                 dt,
                 obstacleQueryRadius,
-                workerScratch[taskIndex],
-                workerStats[taskIndex]
+                scratch,
+                stats
             );
+        },
+        [this](const SimulationStats& stats) {
+            mergeWorkerStats(stats);
         }
     );
-
-    for (const SimulationStats& stats : workerStats) {
-        mergeWorkerStats(stats);
-    }
 }
-
-void Simulation::updateAgents(float dt) {
-    if (m_entities.empty()) {
-        return;
-    }
-
-    const float obstacleQueryRadius = maxObstacleQueryRadius(dt);
-
-    if (m_config.useParallelUpdate) {
-        updateAgentsParallel(dt, obstacleQueryRadius);
-    } else {
-        updateAgentsSingleThread(dt, obstacleQueryRadius);
-    }
-}
-
 void Simulation::update(float dt) {
     beginFrame();
     snapshotAgents();
