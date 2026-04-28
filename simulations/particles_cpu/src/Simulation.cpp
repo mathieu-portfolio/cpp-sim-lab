@@ -1,6 +1,8 @@
 #include "Simulation.hpp"
 #include "ParticlePhysics.hpp"
 
+#include <simulation/SpatialQuery.hpp>
+
 #include <algorithm>
 #include <random/Random.hpp>
 
@@ -10,7 +12,7 @@ Vec2 particlePosition(const Particle& particle) {
     return particle.position;
 }
 
-void resolveCollisionsGrid(
+void resolveCollisions(
     std::vector<Particle>& particles,
     Simulation::Grid& grid,
     SimulationStats& stats,
@@ -18,11 +20,23 @@ void resolveCollisionsGrid(
 ) {
     std::vector<int> candidates;
 
-    for (int i = 0; i < static_cast<int>(particles.size()); ++i) {
+    const float queryRadius = config.gridCellSize;
+    const int particleCount = static_cast<int>(particles.size());
+
+    for (int i = 0; i < particleCount; ++i) {
         Particle& a = particles[i];
 
-        candidates.clear();
-        grid.queryCellsAround(a.position, 1, candidates);
+        simfw::simulation::collectCandidates(
+            grid,
+            a.position,
+            queryRadius,
+            simfw::simulation::makeSpatialQueryOptionsExcluding<int>(
+                config.useSpatialGrid,
+                particles.size(),
+                i
+            ),
+            candidates
+        );
 
         for (int j : candidates) {
             if (j <= i) {
@@ -77,13 +91,15 @@ void Simulation::update(float dt) {
         solveParticleBounds(p, m_config);
     }
 
+    m_grid.setCellSize(m_config.gridCellSize);
+
     if (m_config.useSpatialGrid) {
-        m_grid.setCellSize(m_config.gridCellSize);
         m_grid.build(m_entities, particlePosition);
-        resolveCollisionsGrid(m_entities, m_grid, m_stats, m_config);
     } else {
         m_grid.clear();
     }
+
+    resolveCollisions(m_entities, m_grid, m_stats, m_config);
 
     for (auto& p : m_entities) {
         solveParticleBounds(p, m_config);
