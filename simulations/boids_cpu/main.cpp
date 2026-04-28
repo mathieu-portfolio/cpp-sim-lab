@@ -1,64 +1,16 @@
 #include "Simulation.hpp"
 
-#include <algorithm>
 #include <array>
+#include <ui/RaylibDebugUi.hpp>
+
 #include <raylib.h>
 
 namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;
 
-enum class UiMode {
-    None,
-    Compact,
-    Full
-};
-
-enum class GridDebugMode {
-    None,
-    OccupiedCells,
-    HotCells
-};
-
-struct TunableParameter {
-    const char* name;
-    float* value;
-    float minValue;
-    float normalStep;
-    float fastStep;
-};
-
-Vector2 toRaylib(Vec2 v) {
-    return Vector2{v.x, v.y};
-}
-
-float clampMin(float value, float minValue) {
-    return std::max(value, minValue);
-}
-
-UiMode nextUiMode(UiMode mode) {
-    return static_cast<UiMode>((static_cast<int>(mode) + 1) % 3);
-}
-
-GridDebugMode nextGridDebugMode(GridDebugMode mode) {
-    return static_cast<GridDebugMode>((static_cast<int>(mode) + 1) % 3);
-}
-
-const char* gridDebugModeName(GridDebugMode mode) {
-    switch (mode) {
-        case GridDebugMode::None:
-            return "none";
-        case GridDebugMode::OccupiedCells:
-            return "occupied cells";
-        case GridDebugMode::HotCells:
-            return "hot cells";
-    }
-
-    return "unknown";
-}
-
 void drawBoid(const Boid& b) {
-    DrawCircleV(toRaylib(b.position), 3.0f, WHITE);
+    DrawCircleV(simfw::ui::toRaylib(b.position), 3.0f, WHITE);
 
     Vec2 dir = b.velocity.length() > 0.001f
         ? b.velocity.normalized()
@@ -66,7 +18,11 @@ void drawBoid(const Boid& b) {
 
     Vec2 end = b.position + dir * 10.0f;
 
-    DrawLineV(toRaylib(b.position), toRaylib(end), GRAY);
+    DrawLineV(
+        simfw::ui::toRaylib(b.position),
+        simfw::ui::toRaylib(end),
+        GRAY
+    );
 }
 
 void drawDebugRadii(const Boid& b, const SimulationConfig& config) {
@@ -85,184 +41,93 @@ void drawDebugRadii(const Boid& b, const SimulationConfig& config) {
     );
 }
 
-void drawGridDebug(const Simulation& sim, GridDebugMode mode) {
-    if (mode == GridDebugMode::None) {
-        return;
-    }
-
-    const auto& grid = sim.getGrid();
-    const float cellSize = grid.getCellSize();
-
-    for (const auto& [coord, indices] : grid.getCells()) {
-        if (mode == GridDebugMode::HotCells && indices.size() < 4) {
-            continue;
-        }
-
-        const int x = static_cast<int>(coord.x * cellSize);
-        const int y = static_cast<int>(coord.y * cellSize);
-        const int size = static_cast<int>(cellSize);
-
-        DrawRectangleLines(x, y, size, size, DARKGREEN);
-
-        if (indices.size() >= 2) {
-            DrawText(
-                TextFormat("%d", static_cast<int>(indices.size())),
-                x + 4,
-                y + 4,
-                12,
-                GREEN
-            );
-        }
-    }
-}
-
 int drawCompactUi(
     bool paused,
     const Simulation& sim,
-    const TunableParameter& selected,
-    GridDebugMode gridDebugMode
+    const simfw::ui::TunableParameter& selected,
+    simfw::ui::GridDebugMode gridDebugMode
 ) {
     const SimulationConfig& config = sim.getConfig();
     const SimulationStats stats = sim.getStats();
 
-    int y = 10;
-    const int lineHeight = 20;
+    simfw::ui::TextCursor cursor{10, 10, 20};
 
-    DrawText("boids_cpu", 10, y, 20, RAYWHITE);
-    y += lineHeight + 6;
+    cursor.draw("boids_cpu", 20, RAYWHITE);
+    cursor.gap(6);
 
-    DrawText(paused ? "Paused" : "Running", 10, y, 16, LIGHTGRAY);
-    y += lineHeight;
+    cursor.draw(paused ? "Paused" : "Running");
 
-    DrawText(
-        TextFormat("Boids: %d", static_cast<int>(stats.boidCount)),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        TextFormat("Boids: %d", static_cast<int>(stats.boidCount))
     );
-    y += lineHeight;
 
-    DrawText(
-        TextFormat("Neighbor checks: %d", static_cast<int>(stats.neighborChecks)),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        TextFormat("Neighbor checks: %d", static_cast<int>(stats.neighborChecks))
     );
-    y += lineHeight;
 
-    DrawText(
-        TextFormat("Candidates: %d", static_cast<int>(stats.neighborCandidates)),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        TextFormat("Candidates: %d", static_cast<int>(stats.neighborCandidates))
     );
-    y += lineHeight;
 
-    DrawText(
-        TextFormat("Grid cells: %d", static_cast<int>(stats.occupiedGridCells)),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        TextFormat("Grid cells: %d", static_cast<int>(stats.occupiedGridCells))
     );
-    y += lineHeight;
 
-    DrawText(
+    cursor.draw(
         config.useSpatialGrid ? "Backend: spatial grid" : "Backend: naive",
-        10,
-        y,
         16,
         config.useSpatialGrid ? GREEN : LIGHTGRAY
     );
-    y += lineHeight;
 
-    DrawText(
-        TextFormat("Grid debug: %s", gridDebugModeName(gridDebugMode)),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        TextFormat(
+            "Grid debug: %s",
+            simfw::ui::gridDebugModeName(gridDebugMode)
+        )
     );
-    y += lineHeight;
 
-    DrawText(
+    cursor.draw(
         TextFormat("Selected: %s = %.2f", selected.name, *selected.value),
-        10,
-        y,
         16,
         YELLOW
     );
-    y += lineHeight;
 
-    DrawText("F1: UI mode", 10, y, 16, DARKGRAY);
-    y += lineHeight;
+    cursor.draw("F1: UI mode", 16, DARKGRAY);
 
-    return y;
+    return cursor.y;
 }
 
 void drawFullUi(const SimulationConfig& config, int startY) {
-    int y = startY;
-    const int lineHeight = 20;
+    simfw::ui::TextCursor cursor{10, startY, 20};
 
-    DrawText(
-        "Space: pause | N: step | R: reset | D: debug radii | F1: UI mode",
-        10,
-        y,
-        16,
-        LIGHTGRAY
+    cursor.draw(
+        "Space: pause | N: step | R: reset | D: debug radii | F1: UI mode"
     );
-    y += lineHeight;
 
-    DrawText(
-        "Tab: select | Left/Right: adjust | Shift: fast",
-        10,
-        y,
-        16,
-        LIGHTGRAY
-    );
-    y += lineHeight;
+    cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
 
-    DrawText(
-        "G: toggle grid backend | H: grid debug mode",
-        10,
-        y,
-        16,
-        LIGHTGRAY
-    );
-    y += lineHeight;
+    cursor.draw("G: toggle grid backend | H: grid debug mode");
 
-    DrawText(
+    cursor.draw(
         TextFormat(
             "Align %.2f | Cohesion %.2f | Separation %.2f",
             config.alignmentWeight,
             config.cohesionWeight,
             config.separationWeight
-        ),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+        )
     );
-    y += lineHeight;
 
-    DrawText(
+    cursor.draw(
         TextFormat(
             "Perception %.1f | Separation radius %.1f | Grid cell %.1f",
             config.perceptionRadius,
             config.separationRadius,
             config.gridCellSize
-        ),
-        10,
-        y,
-        16,
-        LIGHTGRAY
+        )
     );
 }
 
-}
+} // namespace
 
 int main() {
     InitWindow(WindowWidth, WindowHeight, "boids_cpu");
@@ -272,8 +137,8 @@ int main() {
 
     bool paused = false;
     bool showDebug = false;
-    UiMode uiMode = UiMode::Compact;
-    GridDebugMode gridDebugMode = GridDebugMode::None;
+    simfw::ui::UiMode uiMode = simfw::ui::UiMode::Compact;
+    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::size_t selectedParameter = 0;
 
     while (!WindowShouldClose()) {
@@ -281,7 +146,7 @@ int main() {
 
         auto& config = sim.getConfig();
 
-        std::array<TunableParameter, 6> parameters{{
+        std::array<simfw::ui::TunableParameter, 6> parameters{{
             {"alignmentWeight", &config.alignmentWeight, 0.0f, 0.5f, 2.0f},
             {"cohesionWeight", &config.cohesionWeight, 0.0f, 0.5f, 2.0f},
             {"separationWeight", &config.separationWeight, 0.0f, 0.5f, 2.0f},
@@ -303,7 +168,7 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_F1)) {
-            uiMode = nextUiMode(uiMode);
+            uiMode = simfw::ui::nextUiMode(uiMode);
         }
 
         if (IsKeyPressed(KEY_G)) {
@@ -311,7 +176,7 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_H)) {
-            gridDebugMode = nextGridDebugMode(gridDebugMode);
+            gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
         }
 
         if (IsKeyPressed(KEY_TAB)) {
@@ -322,15 +187,14 @@ int main() {
             IsKeyDown(KEY_LEFT_SHIFT) ||
             IsKeyDown(KEY_RIGHT_SHIFT);
 
-        TunableParameter& selected = parameters[selectedParameter];
-        const float step = (fastAdjust ? selected.fastStep : selected.normalStep) * dt;
+        simfw::ui::TunableParameter& selected = parameters[selectedParameter];
 
         if (IsKeyDown(KEY_LEFT)) {
-            *selected.value = clampMin(*selected.value - step, selected.minValue);
+            simfw::ui::adjustTunable(selected, -1.0f, dt, fastAdjust);
         }
 
         if (IsKeyDown(KEY_RIGHT)) {
-            *selected.value = clampMin(*selected.value + step, selected.minValue);
+            simfw::ui::adjustTunable(selected, 1.0f, dt, fastAdjust);
         }
 
         const bool stepFrame = paused && IsKeyPressed(KEY_N);
@@ -342,7 +206,7 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        drawGridDebug(sim, gridDebugMode);
+        simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
 
         for (const auto& b : sim.getBoids()) {
             if (showDebug) {
@@ -352,10 +216,15 @@ int main() {
             drawBoid(b);
         }
 
-        if (uiMode != UiMode::None) {
-            const int nextY = drawCompactUi(paused, sim, selected, gridDebugMode);
+        if (uiMode != simfw::ui::UiMode::None) {
+            const int nextY = drawCompactUi(
+                paused,
+                sim,
+                selected,
+                gridDebugMode
+            );
 
-            if (uiMode == UiMode::Full) {
+            if (uiMode == simfw::ui::UiMode::Full) {
                 drawFullUi(config, nextY + 10);
             }
         }

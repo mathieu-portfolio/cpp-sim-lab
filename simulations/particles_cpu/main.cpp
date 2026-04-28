@@ -2,8 +2,70 @@
 
 #include <math/Vec2.hpp>
 #include <ui/RaylibCamera.hpp>
+#include <ui/RaylibDebugUi.hpp>
 
 #include <raylib.h>
+
+namespace {
+void drawCompactUi(
+    bool paused,
+    const Simulation& sim,
+    const Camera2D& camera
+) {
+    const auto stats = sim.getStats();
+
+    simfw::ui::TextCursor cursor{10, 10, 22};
+
+    cursor.draw(
+        TextFormat(
+            "Particles: %d / %d",
+            static_cast<int>(stats.particleCount),
+            static_cast<int>(stats.maxParticleCount)
+        ),
+        20,
+        GREEN
+    );
+
+    cursor.draw(
+        TextFormat(
+            "Collision checks: %d",
+            static_cast<int>(stats.collisionChecks)
+        ),
+        18,
+        GRAY
+    );
+
+    cursor.draw(
+        TextFormat(
+            "Collisions resolved: %d",
+            static_cast<int>(stats.collisionsResolved)
+        ),
+        18,
+        GRAY
+    );
+
+    cursor.gap(12);
+
+    cursor.draw("Left mouse: spawn", 18, GRAY);
+    cursor.draw("Right mouse: clear", 18, GRAY);
+    cursor.draw("R: reset", 18, GRAY);
+    cursor.draw("Space: pause", 18, GRAY);
+    cursor.draw("N: step", 18, GRAY);
+    cursor.draw("G: toggle grid", 18, GRAY);
+    cursor.draw("Mouse wheel: zoom", 18, GRAY);
+    cursor.draw("Middle mouse: pan", 18, GRAY);
+    cursor.draw("Backspace: reset camera", 18, GRAY);
+
+    cursor.draw(
+        TextFormat("Zoom: %.2fx", camera.zoom),
+        18,
+        GRAY
+    );
+
+    cursor.gap(8);
+    cursor.draw(paused ? "Paused" : "Running", 18, YELLOW);
+}
+} // namespace
 
 int main() {
     SimulationConfig config;
@@ -24,7 +86,7 @@ int main() {
 
     bool paused = false;
     bool step = false;
-    bool showGrid = false;
+    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         config.width,
@@ -39,7 +101,7 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_G)) {
-            showGrid = !showGrid;
+            gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
         }
 
         if (IsKeyPressed(KEY_N)) {
@@ -97,28 +159,13 @@ int main() {
 
         BeginMode2D(camera);
 
-        if (showGrid) {
-            const auto& config = sim.getConfig();
-            const auto& cells = sim.getGrid().getCells();
-
-            for (const auto& [coord, indices] : cells) {
-                const int x = static_cast<int>(coord.x * config.gridCellSize);
-                const int y = static_cast<int>(coord.y * config.gridCellSize);
-                const int size = static_cast<int>(config.gridCellSize);
-
-                DrawRectangleLines(x, y, size, size, YELLOW);
-
-                if (indices.size() > 1) {
-                    DrawText(
-                        TextFormat("%d", static_cast<int>(indices.size())),
-                        x + 2,
-                        y + 2,
-                        10,
-                        ORANGE
-                    );
-                }
-            }
-        }
+        simfw::ui::drawSpatialGridDebug(
+            sim.getGrid(),
+            gridDebugMode,
+            2,
+            YELLOW,
+            ORANGE
+        );
 
         for (const auto& p : sim.getParticles()) {
             DrawCircle(
@@ -131,52 +178,7 @@ int main() {
 
         EndMode2D();
 
-        const auto stats = sim.getStats();
-
-        int y = 10;
-        const int line = 22;
-
-        // --- Stats ---
-        DrawText(
-            TextFormat("Particles: %d / %d",
-                static_cast<int>(stats.particleCount),
-                static_cast<int>(stats.maxParticleCount)),
-            10, y, 20, GREEN
-        );
-        y += line;
-
-        DrawText(
-            TextFormat("Collision checks: %d", static_cast<int>(stats.collisionChecks)),
-            10, y, 18, GRAY
-        );
-        y += line;
-
-        DrawText(
-            TextFormat("Collisions resolved: %d", static_cast<int>(stats.collisionsResolved)),
-            10, y, 18, GRAY
-        );
-        y += line + 12;
-
-        // --- Controls ---
-        DrawText("Left mouse: spawn", 10, y, 18, GRAY); y += line;
-        DrawText("Right mouse: clear", 10, y, 18, GRAY); y += line;
-        DrawText("R: reset", 10, y, 18, GRAY); y += line;
-        DrawText("Space: pause", 10, y, 18, GRAY); y += line;
-        DrawText("N: step", 10, y, 18, GRAY); y += line;
-        DrawText("G: toggle grid", 10, y, 18, GRAY); y += line;
-        DrawText("Mouse wheel: zoom", 10, y, 18, GRAY); y += line;
-        DrawText("Middle mouse: pan", 10, y, 18, GRAY); y += line;
-        DrawText("Backspace: reset camera", 10, y, 18, GRAY); y += line;
-
-        DrawText(
-            TextFormat("Zoom: %.2fx", camera.zoom),
-            10, y, 18, GRAY
-        );
-        y += line;
-
-        // --- State ---
-        y += 8;
-        DrawText(paused ? "Paused" : "Running", 10, y, 18, YELLOW);
+        drawCompactUi(paused, sim, camera);
 
         EndDrawing();
     }
