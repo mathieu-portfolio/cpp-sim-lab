@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <ui/RaylibDebugUi.hpp>
+#include <ui/SimulationControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 #include "SimulationUiTraits.hpp"
 
@@ -50,11 +51,8 @@ int main() {
 
     Simulation sim;
 
-    bool paused = false;
-    bool showDebug = false;
-    simfw::ui::UiMode uiMode = simfw::ui::UiMode::Compact;
+    simfw::ui::SimulationControls controls;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
-    std::size_t selectedParameter = 0;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -64,30 +62,48 @@ int main() {
         constexpr std::size_t paramCount =
             std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
 
-        selectedParameter %= paramCount;
+        simfw::ui::handleCommonSimulationControls(
+            controls,
+            sim,
+            paramCount
+        );
 
-        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) sim.reset();
-        if (IsKeyPressed(KEY_D)) showDebug = !showDebug;
-        if (IsKeyPressed(KEY_F1)) uiMode = simfw::ui::nextUiMode(uiMode);
-        if (IsKeyPressed(KEY_G)) config.useSpatialGrid = !config.useSpatialGrid;
-        if (IsKeyPressed(KEY_H)) gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
-        if (IsKeyPressed(KEY_TAB)) selectedParameter = (selectedParameter + 1) % paramCount;
+        if (IsKeyPressed(KEY_G)) {
+            config.useSpatialGrid = !config.useSpatialGrid;
+        }
+
+        if (IsKeyPressed(KEY_H)) {
+            gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
+        }
 
         const bool fastAdjust =
             IsKeyDown(KEY_LEFT_SHIFT) ||
             IsKeyDown(KEY_RIGHT_SHIFT);
 
         if (IsKeyDown(KEY_LEFT)) {
-            simfw::ui::adjustTunables(config, selectedParameter, -1.0f, dt, fastAdjust);
+            simfw::ui::adjustTunables(
+                config,
+                controls.selectedParameter,
+                -1.0f,
+                dt,
+                fastAdjust
+            );
         }
 
         if (IsKeyDown(KEY_RIGHT)) {
-            simfw::ui::adjustTunables(config, selectedParameter, 1.0f, dt, fastAdjust);
+            simfw::ui::adjustTunables(
+                config,
+                controls.selectedParameter,
+                1.0f,
+                dt,
+                fastAdjust
+            );
         }
 
-        const bool stepFrame = paused && IsKeyPressed(KEY_N);
-        if (!paused || stepFrame) sim.update(dt);
+        if (simfw::ui::shouldAdvanceSimulation(controls)) {
+            sim.update(dt);
+            simfw::ui::finishSimulationStep(controls);
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -95,23 +111,30 @@ int main() {
         simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
 
         for (const auto& b : sim.getBoids()) {
-            if (showDebug) drawDebugRadii(b, config);
+            if (controls.showDebug) {
+                drawDebugRadii(b, config);
+            }
+
             drawBoid(b);
         }
 
-        if (uiMode != simfw::ui::UiMode::None) {
+        if (controls.uiMode != simfw::ui::UiMode::None) {
             simfw::ui::TextCursor cursor{10, 10, 20};
 
             cursor.draw("boids_cpu", 20, RAYWHITE);
-            cursor.draw(paused ? "Paused" : "Running");
+            cursor.draw(controls.paused ? "Paused" : "Running");
 
             simfw::ui::drawStats(cursor, sim.getStats());
 
             cursor.gap(6);
 
-            simfw::ui::drawTunables(cursor, config, selectedParameter);
+            simfw::ui::drawTunables(
+                cursor,
+                config,
+                controls.selectedParameter
+            );
 
-            if (uiMode == simfw::ui::UiMode::Full) {
+            if (controls.uiMode == simfw::ui::UiMode::Full) {
                 cursor.gap(10);
                 cursor.draw("Space: pause | N: step | R: reset | D: debug radii | F1: UI mode");
                 cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
