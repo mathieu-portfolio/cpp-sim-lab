@@ -129,7 +129,7 @@ int main() {
         SimulationConfig config;
         config.agentCount = AgentCount;
         config.entityCount = AgentCount;
-        config.useSpatialGrid = true;
+        config.execution.useSpatialGrid = true;
         config.gridCellSize = config.separationRadius;
 
         const std::uint32_t seed = bench::seedFor(BaseSeed, obstacleCount);
