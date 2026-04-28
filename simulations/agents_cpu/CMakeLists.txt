@@ -1,5 +1,6 @@
 add_library(agents_cpu_core
     src/Simulation.cpp
+    src/SteeringBehaviors.cpp
 )
 
 target_include_directories(agents_cpu_core

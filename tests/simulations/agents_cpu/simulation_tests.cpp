@@ -103,3 +103,22 @@ TEST(AgentsCpuSimulationTest, NaiveObstacleQueryChecksEveryObstacle) {
     EXPECT_EQ(stats.obstacleChecks, 1u);
     EXPECT_EQ(stats.obstacleOverlapChecks, 1u);
 }
+
+TEST(AgentsCpuSimulationTest, SeekBehaviorMovesAgentTowardTarget) {
+    SimulationConfig config = singleAgentConfig();
+    config.maxSpeed = 20.0f;
+    config.maxForce = 10.0f;
+    config.seekWeight = 1.0f;
+    config.useSpatialGrid = false;
+    config.useParallelUpdate = false;
+
+    Simulation simulation{config};
+    simulation.getEntities()[0].position = Vec2{50.0f, 50.0f};
+    simulation.getEntities()[0].velocity = Vec2{};
+    simulation.getEntities()[0].target = Vec2{100.0f, 50.0f};
+
+    simulation.update(1.0f);
+
+    EXPECT_GT(simulation.getEntities()[0].position.x, 50.0f);
+    EXPECT_FLOAT_EQ(simulation.getEntities()[0].position.y, 50.0f);
+}

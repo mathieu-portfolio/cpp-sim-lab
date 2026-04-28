@@ -1,5 +1,6 @@
 #include "Simulation.hpp"
 
+#include "SteeringBehaviors.hpp"
 #include "thread_pool.hpp"
 
 #include <algorithm>
@@ -10,7 +11,6 @@
 
 namespace agents_cpu {
 namespace {
-constexpr float Epsilon = 0.0001f;
 constexpr std::size_t MinItemsPerParallelTask = 256;
 
 Vec2 agentPosition(const Agent& agent) {
@@ -19,140 +19,6 @@ Vec2 agentPosition(const Agent& agent) {
 
 Vec2 obstaclePosition(const Obstacle& obstacle) {
     return obstacle.position;
-}
-
-Vec2 limitLength(Vec2 value, float maxLength) {
-    const float length = value.length();
-
-    if (length <= maxLength || length <= Epsilon) {
-        return value;
-    }
-
-    return value * (maxLength / length);
-}
-
-Vec2 seekForce(
-    const Agent& agent,
-    Vec2 target,
-    float maxSpeed,
-    float maxForce,
-    float arrivalRadius
-) {
-    const Vec2 toTarget = target - agent.position;
-    const float distance = toTarget.length();
-
-    if (distance <= Epsilon) {
-        return Vec2{};
-    }
-
-    float desiredSpeed = maxSpeed;
-
-    if (distance < arrivalRadius) {
-        desiredSpeed *= std::clamp(distance / arrivalRadius, 0.0f, 1.0f);
-    }
-
-    const Vec2 desiredVelocity = toTarget.normalized() * desiredSpeed;
-    return limitLength(desiredVelocity - agent.velocity, maxForce);
-}
-
-Vec2 separationForce(
-    std::size_t agentIndex,
-    const std::vector<Agent>& agents,
-    const std::vector<std::size_t>& candidates,
-    float separationRadius,
-    SimulationStats& stats
-) {
-    Vec2 force{};
-    int neighborCount = 0;
-
-    for (std::size_t candidateIndex : candidates) {
-        if (candidateIndex == agentIndex) {
-            continue;
-        }
-
-        ++stats.neighborChecks;
-
-        const Vec2 away = agents[agentIndex].position - agents[candidateIndex].position;
-        const float distance = away.length();
-
-        if (distance <= Epsilon || distance >= separationRadius) {
-            continue;
-        }
-
-        const float strength = 1.0f - (distance / separationRadius);
-        force += away.normalized() * strength;
-        ++neighborCount;
-    }
-
-    if (neighborCount > 0) {
-        force *= 1.0f / static_cast<float>(neighborCount);
-    }
-
-    return force;
-}
-
-Vec2 obstacleAvoidanceForce(
-    const Agent& agent,
-    const std::vector<Obstacle>& obstacles,
-    const std::vector<std::size_t>& candidates,
-    float avoidanceRadius,
-    SimulationStats& stats
-) {
-    Vec2 force{};
-    int obstacleCount = 0;
-
-    for (std::size_t obstacleIndex : candidates) {
-        ++stats.obstacleChecks;
-
-        const Obstacle& obstacle = obstacles[obstacleIndex];
-        const Vec2 away = agent.position - obstacle.position;
-        const float distance = away.length();
-        const float influenceDistance = obstacle.radius + avoidanceRadius;
-
-        if (distance <= Epsilon || distance >= influenceDistance) {
-            continue;
-        }
-
-        const float strength = 1.0f - (distance / influenceDistance);
-        force += away.normalized() * strength;
-        ++obstacleCount;
-    }
-
-    if (obstacleCount > 0) {
-        force *= 1.0f / static_cast<float>(obstacleCount);
-    }
-
-    return force;
-}
-
-void resolveObstacleOverlap(
-    Agent& agent,
-    const std::vector<Obstacle>& obstacles,
-    const std::vector<std::size_t>& candidates,
-    SimulationStats& stats
-) {
-    for (std::size_t obstacleIndex : candidates) {
-        ++stats.obstacleOverlapChecks;
-
-        const Obstacle& obstacle = obstacles[obstacleIndex];
-        Vec2 away = agent.position - obstacle.position;
-        float distance = away.length();
-
-        const float minDistance = obstacle.radius + agent.radius;
-
-        if (distance <= Epsilon || distance >= minDistance) {
-            continue;
-        }
-
-        Vec2 normal = away * (1.0f / distance);
-        agent.position = obstacle.position + normal * minDistance;
-
-        const float velocityIntoObstacle = Vec2::dot(agent.velocity, normal);
-
-        if (velocityIntoObstacle < 0.0f) {
-            agent.velocity -= normal * velocityIntoObstacle;
-        }
-    }
 }
 
 void collectNaiveCandidates(
@@ -207,6 +73,9 @@ Simulation::Simulation(SimulationConfig config)
 }
 
 Simulation::~Simulation() = default;
+
+Simulation::Simulation(Simulation&&) noexcept = default;
+Simulation& Simulation::operator=(Simulation&&) noexcept = default;
 
 void Simulation::normalizeConfigCounts() {
     constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
@@ -377,42 +246,31 @@ void Simulation::updateAgentRange(
         collectAgentCandidates(i, scratch, stats);
         collectObstacleCandidates(previousAgent, obstacleQueryRadius, scratch, stats);
 
-        const Vec2 seek = seekForce(
-            previousAgent,
-            previousAgent.target,
-            m_config.maxSpeed,
-            m_config.maxForce,
-            m_config.arrivalRadius
-        ) * m_config.seekWeight;
-
-        const Vec2 separation = separationForce(
-            i,
+        steering::BehaviorContext behaviorContext{
+            m_config,
             m_previousAgents,
-            scratch.agentCandidates,
-            m_config.separationRadius,
-            stats
-        ) * (m_config.maxForce * m_config.separationWeight);
-
-        const Vec2 obstacleAvoidance = obstacleAvoidanceForce(
-            previousAgent,
             m_obstacles,
-            scratch.obstacleCandidates,
-            m_config.obstacleAvoidanceRadius,
+            steering::CandidateLists{
+                scratch.agentCandidates,
+                scratch.obstacleCandidates
+            },
             stats
-        ) * (m_config.maxForce * m_config.obstacleAvoidanceWeight);
+        };
 
-        const Vec2 acceleration = limitLength(
-            seek + separation + obstacleAvoidance,
-            m_config.maxForce
-        );
+        const Vec2 acceleration = steering::computeAcceleration(i, behaviorContext);
 
         agent.velocity = previousAgent.velocity + acceleration * dt;
-        agent.velocity = limitLength(agent.velocity, m_config.maxSpeed);
+        agent.velocity = steering::limitLength(agent.velocity, m_config.maxSpeed);
         agent.position = previousAgent.position + agent.velocity * dt;
         agent.target = previousAgent.target;
         agent.radius = previousAgent.radius;
 
-        resolveObstacleOverlap(agent, m_obstacles, scratch.obstacleCandidates, stats);
+        steering::resolveObstacleOverlap(
+            agent,
+            m_obstacles,
+            scratch.obstacleCandidates,
+            stats
+        );
 
         agent.position = clampToWorld(
             agent.position,
