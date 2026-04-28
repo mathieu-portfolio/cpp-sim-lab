@@ -10,6 +10,9 @@ namespace boids_cpu {
 
 struct SimulationConfig;
 struct SimulationStats;
+struct BoidBehaviorContext;
+
+using BoidBehaviorFn = Vec2 (*)(std::size_t boidIndex, BoidBehaviorContext& context);
 
 enum class BoidBehaviorType {
     Alignment,
@@ -26,9 +29,11 @@ enum class BoidBehaviorWeight {
 
 struct WeightedBoidBehavior {
     BoidBehaviorType type = BoidBehaviorType::Alignment;
+    BoidBehaviorFn compute = nullptr;
     BoidBehaviorWeight weight = BoidBehaviorWeight::Fixed;
     float fixedWeight = 1.0f;
     bool enabled = true;
+    const char* name = "";
 };
 
 struct BoidCandidateLists {
@@ -44,6 +49,14 @@ struct BoidBehaviorContext {
 };
 
 std::span<const WeightedBoidBehavior> defaultBoidBehaviors();
+std::vector<WeightedBoidBehavior> makeDefaultBoidBehaviors();
+
+WeightedBoidBehavior makeBoidBehavior(
+    BoidBehaviorType type,
+    BoidBehaviorWeight weight,
+    float fixedWeight = 1.0f,
+    bool enabled = true
+);
 
 Vec2 computeAcceleration(
     std::size_t boidIndex,

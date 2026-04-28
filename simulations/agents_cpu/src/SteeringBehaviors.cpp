@@ -3,6 +3,7 @@
 #include "Simulation.hpp"
 
 #include <algorithm>
+#include <simulation/WeightedBehaviorPipeline.hpp>
 #include <array>
 #include <cmath>
 
@@ -69,6 +70,7 @@ std::span<const WeightedBehavior> defaultBehaviors() {
             &SimulationConfig::seekWeight,
             ForceScale::Unit,
             IntentMask::Moving,
+            true,
             "seek"
         },
         WeightedBehavior{
@@ -77,6 +79,7 @@ std::span<const WeightedBehavior> defaultBehaviors() {
             &SimulationConfig::separationWeight,
             ForceScale::MaxForce,
             IntentMask::All,
+            true,
             "separation"
         },
         WeightedBehavior{
@@ -85,6 +88,7 @@ std::span<const WeightedBehavior> defaultBehaviors() {
             &SimulationConfig::obstacleAvoidanceWeight,
             ForceScale::MaxForce,
             IntentMask::All,
+            true,
             "obstacle avoidance"
         }
     }};
@@ -124,6 +128,7 @@ WeightedBehavior makeBehavior(
         weight,
         scale,
         intents,
+        true,
         behaviorName(type)
     };
 }
@@ -191,27 +196,28 @@ Vec2 computeAcceleration(
     BehaviorContext& context,
     std::span<const WeightedBehavior> behaviors
 ) {
-    Vec2 acceleration{};
+    const Vec2 acceleration = simfw::simulation::computeWeightedBehaviors<
+        WeightedBehavior,
+        BehaviorContext,
+        Vec2
+    >(
+        agentIndex,
+        behaviors,
+        context,
+        [](const WeightedBehavior& behavior, const BehaviorContext& ctx) {
+            if (behavior.weight == nullptr) {
+                return 0.0f;
+            }
 
-    for (const WeightedBehavior& behavior : behaviors) {
-        if (behavior.compute == nullptr || behavior.weight == nullptr) {
-            continue;
+            return ctx.config.*(behavior.weight);
+        },
+        [](const WeightedBehavior& behavior, const BehaviorContext& ctx) {
+            return appliesToIntent(behavior, ctx.intent);
+        },
+        [](const WeightedBehavior& behavior, const BehaviorContext& ctx) {
+            return scaleFactor(ctx.config, behavior.scale);
         }
-
-        if (!appliesToIntent(behavior, context.intent)) {
-            continue;
-        }
-
-        const float weight = context.config.*(behavior.weight);
-
-        // Behaviors still own their instrumentation. When a behavior applies to
-        // the current intent, it is evaluated even at zero weight so candidate
-        // scan stats remain independent from force contribution.
-        const Vec2 force = behavior.compute(agentIndex, context);
-
-        acceleration += force *
-            (weight * scaleFactor(context.config, behavior.scale));
-    }
+    );
 
     return limitLength(acceleration, context.config.maxForce);
 }

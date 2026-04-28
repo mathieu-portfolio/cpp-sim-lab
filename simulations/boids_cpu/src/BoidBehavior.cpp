@@ -1,6 +1,8 @@
 #include "BoidBehavior.hpp"
 #include "Simulation.hpp"
 
+#include <simulation/WeightedBehaviorPipeline.hpp>
+
 #include <array>
 
 namespace boids_cpu {
@@ -33,25 +35,84 @@ float behaviorWeight(
 
     return behavior.fixedWeight;
 }
+
+BoidBehaviorFn behaviorFunction(BoidBehaviorType type) {
+    switch (type) {
+    case BoidBehaviorType::Alignment:
+        return computeAlignment;
+    case BoidBehaviorType::Cohesion:
+        return computeCohesion;
+    case BoidBehaviorType::Separation:
+        return computeSeparation;
+    }
+
+    return nullptr;
+}
+
+const char* behaviorName(BoidBehaviorType type) {
+    switch (type) {
+    case BoidBehaviorType::Alignment:
+        return "alignment";
+    case BoidBehaviorType::Cohesion:
+        return "cohesion";
+    case BoidBehaviorType::Separation:
+        return "separation";
+    }
+
+    return "unknown";
+}
 } // namespace
 
 std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
     static constexpr std::array<WeightedBoidBehavior, 3> Behaviors{{
         WeightedBoidBehavior{
             BoidBehaviorType::Alignment,
-            BoidBehaviorWeight::Alignment
+            computeAlignment,
+            BoidBehaviorWeight::Alignment,
+            1.0f,
+            true,
+            "alignment"
         },
         WeightedBoidBehavior{
             BoidBehaviorType::Cohesion,
-            BoidBehaviorWeight::Cohesion
+            computeCohesion,
+            BoidBehaviorWeight::Cohesion,
+            1.0f,
+            true,
+            "cohesion"
         },
         WeightedBoidBehavior{
             BoidBehaviorType::Separation,
-            BoidBehaviorWeight::Separation
+            computeSeparation,
+            BoidBehaviorWeight::Separation,
+            1.0f,
+            true,
+            "separation"
         }
     }};
 
     return Behaviors;
+}
+
+std::vector<WeightedBoidBehavior> makeDefaultBoidBehaviors() {
+    const auto defaults = defaultBoidBehaviors();
+    return std::vector<WeightedBoidBehavior>{defaults.begin(), defaults.end()};
+}
+
+WeightedBoidBehavior makeBoidBehavior(
+    BoidBehaviorType type,
+    BoidBehaviorWeight weight,
+    float fixedWeight,
+    bool enabled
+) {
+    return WeightedBoidBehavior{
+        type,
+        behaviorFunction(type),
+        weight,
+        fixedWeight,
+        enabled,
+        behaviorName(type)
+    };
 }
 
 Vec2 computeAcceleration(
@@ -59,19 +120,18 @@ Vec2 computeAcceleration(
     BoidBehaviorContext& context,
     std::span<const WeightedBoidBehavior> behaviors
 ) {
-    Vec2 acceleration{};
-
-    for (const WeightedBoidBehavior& behavior : behaviors) {
-        if (!behavior.enabled) {
-            continue;
+    const Vec2 acceleration = simfw::simulation::computeWeightedBehaviors<
+        WeightedBoidBehavior,
+        BoidBehaviorContext,
+        Vec2
+    >(
+        boidIndex,
+        behaviors,
+        context,
+        [](const WeightedBoidBehavior& behavior, const BoidBehaviorContext& ctx) {
+            return behaviorWeight(ctx.config, behavior);
         }
-
-        acceleration += computeBehavior(
-            behavior.type,
-            boidIndex,
-            context
-        ) * behaviorWeight(context.config, behavior);
-    }
+    );
 
     return limitLength(acceleration, context.config.maxForce);
 }
@@ -81,13 +141,8 @@ Vec2 computeBehavior(
     std::size_t boidIndex,
     BoidBehaviorContext& context
 ) {
-    switch (behaviorType) {
-    case BoidBehaviorType::Alignment:
-        return computeAlignment(boidIndex, context);
-    case BoidBehaviorType::Cohesion:
-        return computeCohesion(boidIndex, context);
-    case BoidBehaviorType::Separation:
-        return computeSeparation(boidIndex, context);
+    if (const BoidBehaviorFn fn = behaviorFunction(behaviorType)) {
+        return fn(boidIndex, context);
     }
 
     return {};

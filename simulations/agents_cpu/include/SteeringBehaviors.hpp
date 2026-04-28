@@ -78,6 +78,7 @@ struct WeightedBehavior {
     float SimulationConfig::* weight = nullptr;
     ForceScale scale = ForceScale::Unit;
     IntentMask intents = IntentMask::All;
+    bool enabled = true;
     const char* name = "";
 };
 
