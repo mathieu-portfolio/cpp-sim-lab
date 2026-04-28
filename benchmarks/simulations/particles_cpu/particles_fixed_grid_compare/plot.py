@@ -1,79 +1,59 @@
-import csv
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+sys.path.append(str(Path(__file__).resolve().parents[3] / "common"))
 
-
-def read_rows(path):
-    with open(path, newline="") as f:
-        return list(csv.DictReader(f))
+from Plotting import column, read_rows, require_results_path, save_line_plot
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python plot.py results.csv")
-        return
-
-    input_path = Path(sys.argv[1])
+    input_path, output_dir = require_results_path("Usage: python plot.py results.csv")
     rows = read_rows(input_path)
 
-    particles = [int(r["particles"]) for r in rows]
+    particles = column(rows, "particles", int)
+    unordered_total = column(rows, "unordered_total_ms", float)
+    fixed_total = column(rows, "fixed_total_ms", float)
+    unordered_build = column(rows, "unordered_build_ms", float)
+    fixed_build = column(rows, "fixed_build_ms", float)
+    unordered_query = column(rows, "unordered_query_collision_ms", float)
+    fixed_query = column(rows, "fixed_query_collision_ms", float)
+    speedup = column(rows, "speedup", float)
 
-    unordered_total = [float(r["unordered_total_ms"]) for r in rows]
-    fixed_total = [float(r["fixed_total_ms"]) for r in rows]
+    save_line_plot(
+        particles,
+        [("Unordered grid", unordered_total), ("Fixed grid", fixed_total)],
+        "Particles",
+        "ms per step",
+        "Total time comparison",
+        output_dir / "total_time.png",
+    )
 
-    unordered_build = [float(r["unordered_build_ms"]) for r in rows]
-    fixed_build = [float(r["fixed_build_ms"]) for r in rows]
+    save_line_plot(
+        particles,
+        [("Unordered grid", unordered_build), ("Fixed grid", fixed_build)],
+        "Particles",
+        "ms per step",
+        "Build time comparison",
+        output_dir / "build_time.png",
+    )
 
-    unordered_query = [float(r["unordered_query_collision_ms"]) for r in rows]
-    fixed_query = [float(r["fixed_query_collision_ms"]) for r in rows]
+    save_line_plot(
+        particles,
+        [("Unordered grid", unordered_query), ("Fixed grid", fixed_query)],
+        "Particles",
+        "ms per step",
+        "Query + collision time comparison",
+        output_dir / "query_time.png",
+    )
 
-    speedup = [float(r["speedup"]) for r in rows]
-
-    output_dir = input_path.parent
-
-    # --- Total time ---
-    plt.figure()
-    plt.plot(particles, unordered_total, marker="o", label="Unordered grid")
-    plt.plot(particles, fixed_total, marker="o", label="Fixed grid")
-    plt.xlabel("Particles")
-    plt.ylabel("ms per step")
-    plt.title("Total time comparison")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "total_time.png", dpi=160)
-
-    # --- Build time ---
-    plt.figure()
-    plt.plot(particles, unordered_build, marker="o", label="Unordered grid")
-    plt.plot(particles, fixed_build, marker="o", label="Fixed grid")
-    plt.xlabel("Particles")
-    plt.ylabel("ms per step")
-    plt.title("Build time comparison")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "build_time.png", dpi=160)
-
-    # --- Query time ---
-    plt.figure()
-    plt.plot(particles, unordered_query, marker="o", label="Unordered grid")
-    plt.plot(particles, fixed_query, marker="o", label="Fixed grid")
-    plt.xlabel("Particles")
-    plt.ylabel("ms per step")
-    plt.title("Query + collision time comparison")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "query_time.png", dpi=160)
-
-    # --- Speedup ---
-    plt.figure()
-    plt.plot(particles, speedup, marker="o")
-    plt.xlabel("Particles")
-    plt.ylabel("Speedup (unordered / fixed)")
-    plt.title("Fixed grid speedup over unordered_map")
-    plt.grid(True)
-    plt.savefig(output_dir / "speedup.png", dpi=160)
+    save_line_plot(
+        particles,
+        [(speedup,)],
+        "Particles",
+        "Speedup (unordered / fixed)",
+        "Fixed grid speedup over unordered_map",
+        output_dir / "speedup.png",
+    )
 
     print(f"Wrote plots to {output_dir}")
 

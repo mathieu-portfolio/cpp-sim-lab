@@ -1,59 +1,48 @@
-import csv
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+sys.path.append(str(Path(__file__).resolve().parents[3] / "common"))
 
-
-def read_rows(path: Path):
-    with path.open(newline="") as f:
-        return list(csv.DictReader(f))
+from Plotting import column, read_rows, require_results_path, save_line_plot
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python plot.py results/results.csv")
-        raise SystemExit(1)
-
-    input_path = Path(sys.argv[1])
+    input_path, output_dir = require_results_path()
     rows = read_rows(input_path)
 
-    particle_counts = [int(row["particles"]) for row in rows]
-    naive_ms = [float(row["naive_ms"]) for row in rows]
-    grid_ms = [float(row["grid_ms"]) for row in rows]
-    speedup = [float(row["speedup"]) for row in rows]
-    naive_checks = [int(row["naive_checks"]) for row in rows]
-    grid_checks = [int(row["grid_checks"]) for row in rows]
+    particle_counts = column(rows, "particles", int)
+    naive_ms = column(rows, "naive_ms", float)
+    grid_ms = column(rows, "grid_ms", float)
+    speedup = column(rows, "speedup", float)
+    naive_checks = column(rows, "naive_checks", int)
+    grid_checks = column(rows, "grid_checks", int)
 
-    output_dir = input_path.parent
+    save_line_plot(
+        particle_counts,
+        [("Naive", naive_ms), ("Spatial grid", grid_ms)],
+        "Particles",
+        "Milliseconds per step",
+        "Collision broad phase time",
+        output_dir / "collision_time.png",
+    )
 
-    plt.figure()
-    plt.plot(particle_counts, naive_ms, marker="o", label="Naive")
-    plt.plot(particle_counts, grid_ms, marker="o", label="Spatial grid")
-    plt.xlabel("Particles")
-    plt.ylabel("Milliseconds per step")
-    plt.title("Collision broad phase time")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "collision_time.png", dpi=160)
+    save_line_plot(
+        particle_counts,
+        [("Naive", naive_checks), ("Spatial grid", grid_checks)],
+        "Particles",
+        "Collision checks per step",
+        "Collision checks",
+        output_dir / "collision_checks.png",
+    )
 
-    plt.figure()
-    plt.plot(particle_counts, naive_checks, marker="o", label="Naive")
-    plt.plot(particle_counts, grid_checks, marker="o", label="Spatial grid")
-    plt.xlabel("Particles")
-    plt.ylabel("Collision checks per step")
-    plt.title("Collision checks")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "collision_checks.png", dpi=160)
-
-    plt.figure()
-    plt.plot(particle_counts, speedup, marker="o")
-    plt.xlabel("Particles")
-    plt.ylabel("Speedup")
-    plt.title("Spatial grid speedup over naive")
-    plt.grid(True)
-    plt.savefig(output_dir / "collision_speedup.png", dpi=160)
+    save_line_plot(
+        particle_counts,
+        [(speedup,)],
+        "Particles",
+        "Speedup",
+        "Spatial grid speedup over naive",
+        output_dir / "collision_speedup.png",
+    )
 
     print(f"Wrote plots to {output_dir}")
 

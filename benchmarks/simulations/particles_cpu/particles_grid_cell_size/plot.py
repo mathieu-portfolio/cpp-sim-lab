@@ -1,14 +1,10 @@
-import csv
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+sys.path.append(str(Path(__file__).resolve().parents[3] / "common"))
 
-
-def read_rows(path: Path):
-    with path.open(newline="") as f:
-        return list(csv.DictReader(f))
+from Plotting import read_rows, require_results_path, save_line_plot
 
 
 def group_by_particle_count(rows):
@@ -35,64 +31,61 @@ def sorted_series(points, key):
     )
 
 
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: python plot.py results/results.csv")
-        raise SystemExit(1)
+def save_grouped_plot(by_particle_count, key, ylabel, title, output_path):
+    first_particle_count = next(iter(sorted(by_particle_count)))
+    cell_sizes, _ = sorted_series(by_particle_count[first_particle_count], key)
 
-    input_path = Path(sys.argv[1])
+    series = []
+    for particle_count, points in sorted(by_particle_count.items()):
+        _, values = sorted_series(points, key)
+        series.append((f"{particle_count} particles", values))
+
+    save_line_plot(
+        cell_sizes,
+        series,
+        "Cell size",
+        ylabel,
+        title,
+        output_path,
+    )
+
+
+def main():
+    input_path, output_dir = require_results_path()
     rows = read_rows(input_path)
     by_particle_count = group_by_particle_count(rows)
 
-    output_dir = input_path.parent
+    save_grouped_plot(
+        by_particle_count,
+        "total_ms",
+        "Milliseconds per step",
+        "Spatial grid cell size vs total time",
+        output_dir / "grid_cell_size_total_time.png",
+    )
 
-    plt.figure()
-    for particle_count, points in sorted(by_particle_count.items()):
-        cell_sizes, total_ms = sorted_series(points, "total_ms")
-        plt.plot(cell_sizes, total_ms, marker="o", label=f"{particle_count} particles")
+    save_grouped_plot(
+        by_particle_count,
+        "build_ms",
+        "Milliseconds per step",
+        "Spatial grid build time",
+        output_dir / "grid_cell_size_build_time.png",
+    )
 
-    plt.xlabel("Cell size")
-    plt.ylabel("Milliseconds per step")
-    plt.title("Spatial grid cell size vs total time")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "grid_cell_size_total_time.png", dpi=160)
+    save_grouped_plot(
+        by_particle_count,
+        "query_collision_ms",
+        "Milliseconds per step",
+        "Spatial grid query + collision time",
+        output_dir / "grid_cell_size_query_collision_time.png",
+    )
 
-    plt.figure()
-    for particle_count, points in sorted(by_particle_count.items()):
-        cell_sizes, build_ms = sorted_series(points, "build_ms")
-        plt.plot(cell_sizes, build_ms, marker="o", label=f"{particle_count} particles")
-
-    plt.xlabel("Cell size")
-    plt.ylabel("Milliseconds per step")
-    plt.title("Spatial grid build time")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "grid_cell_size_build_time.png", dpi=160)
-
-    plt.figure()
-    for particle_count, points in sorted(by_particle_count.items()):
-        cell_sizes, query_ms = sorted_series(points, "query_collision_ms")
-        plt.plot(cell_sizes, query_ms, marker="o", label=f"{particle_count} particles")
-
-    plt.xlabel("Cell size")
-    plt.ylabel("Milliseconds per step")
-    plt.title("Spatial grid query + collision time")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "grid_cell_size_query_collision_time.png", dpi=160)
-
-    plt.figure()
-    for particle_count, points in sorted(by_particle_count.items()):
-        cell_sizes, checks = sorted_series(points, "checks")
-        plt.plot(cell_sizes, checks, marker="o", label=f"{particle_count} particles")
-
-    plt.xlabel("Cell size")
-    plt.ylabel("Collision checks per step")
-    plt.title("Spatial grid cell size vs collision checks")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(output_dir / "grid_cell_size_checks.png", dpi=160)
+    save_grouped_plot(
+        by_particle_count,
+        "checks",
+        "Collision checks per step",
+        "Spatial grid cell size vs collision checks",
+        output_dir / "grid_cell_size_checks.png",
+    )
 
     print(f"Wrote plots to {output_dir}")
 

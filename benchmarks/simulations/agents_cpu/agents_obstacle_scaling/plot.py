@@ -1,95 +1,51 @@
-import csv
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+sys.path.append(str(Path(__file__).resolve().parents[3] / "common"))
 
-
-def read_results(path):
-    obstacle_counts = []
-    avg_frame_ms = []
-    obstacle_checks = []
-    neighbor_checks = []
-    neighbor_candidates = []
-
-    with open(path, newline="") as file:
-        reader = csv.DictReader(file)
-
-        for row in reader:
-            obstacle_counts.append(int(row["obstacles"]))
-            avg_frame_ms.append(float(row["avg_frame_ms"]))
-            obstacle_checks.append(int(row["obstacle_checks"]))
-            neighbor_checks.append(int(row["neighbor_checks"]))
-            neighbor_candidates.append(int(row["neighbor_candidates"]))
-
-    return (
-        obstacle_counts,
-        avg_frame_ms,
-        obstacle_checks,
-        neighbor_checks,
-        neighbor_candidates,
-    )
-
-
-def save_plot(x, y, xlabel, ylabel, title, output_path):
-    plt.figure()
-    plt.plot(x, y, marker="o")
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+from Plotting import column, read_rows, require_results_path, save_line_plot
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python plot.py <results.csv>")
-        sys.exit(1)
+    results_path, output_dir = require_results_path()
+    rows = read_rows(results_path)
 
-    results_path = Path(sys.argv[1])
-    output_dir = results_path.parent
-    output_dir.mkdir(parents=True, exist_ok=True)
+    obstacle_counts = column(rows, "obstacles", int)
+    avg_frame_ms = column(rows, "avg_frame_ms", float)
+    obstacle_checks = column(rows, "obstacle_checks", int)
+    neighbor_checks = column(rows, "neighbor_checks", int)
+    neighbor_candidates = column(rows, "neighbor_candidates", int)
 
-    (
+    save_line_plot(
         obstacle_counts,
-        avg_frame_ms,
-        obstacle_checks,
-        neighbor_checks,
-        neighbor_candidates,
-    ) = read_results(results_path)
-
-    save_plot(
-        obstacle_counts,
-        avg_frame_ms,
+        [(avg_frame_ms,)],
         "Obstacle count",
         "Average frame time (ms)",
         "Agents CPU: Obstacle Scaling Frame Time",
         output_dir / "avg_frame_ms.png",
     )
 
-    save_plot(
+    save_line_plot(
         obstacle_counts,
-        obstacle_checks,
+        [(obstacle_checks,)],
         "Obstacle count",
         "Obstacle checks",
         "Agents CPU: Obstacle Checks",
         output_dir / "obstacle_checks.png",
     )
 
-    save_plot(
+    save_line_plot(
         obstacle_counts,
-        neighbor_checks,
+        [(neighbor_checks,)],
         "Obstacle count",
         "Neighbor checks",
         "Agents CPU: Neighbor Checks",
         output_dir / "neighbor_checks.png",
     )
 
-    save_plot(
+    save_line_plot(
         obstacle_counts,
-        neighbor_candidates,
+        [(neighbor_candidates,)],
         "Obstacle count",
         "Neighbor candidates",
         "Agents CPU: Neighbor Candidates",

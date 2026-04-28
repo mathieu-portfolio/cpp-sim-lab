@@ -1,60 +1,31 @@
-import csv
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+sys.path.append(str(Path(__file__).resolve().parents[3] / "common"))
 
-
-def read_results(path):
-    boid_counts = []
-    avg_frame_ms = []
-    neighbor_checks = []
-
-    with open(path, newline="") as file:
-        reader = csv.DictReader(file)
-
-        for row in reader:
-            boid_counts.append(int(row["boid_count"]))
-            avg_frame_ms.append(float(row["avg_frame_ms"]))
-            neighbor_checks.append(int(row["neighbor_checks"]))
-
-    return boid_counts, avg_frame_ms, neighbor_checks
-
-
-def save_plot(x, y, xlabel, ylabel, title, output_path):
-    plt.figure()
-    plt.plot(x, y, marker="o")
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+from Plotting import column, read_rows, require_results_path, save_line_plot
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python plot.py <results.csv>")
-        sys.exit(1)
+    results_path, output_dir = require_results_path()
+    rows = read_rows(results_path)
 
-    results_path = Path(sys.argv[1])
-    output_dir = results_path.parent
+    boid_counts = column(rows, "boid_count", int)
+    avg_frame_ms = column(rows, "avg_frame_ms", float)
+    neighbor_checks = column(rows, "neighbor_checks", int)
 
-    boid_counts, avg_frame_ms, neighbor_checks = read_results(results_path)
-
-    save_plot(
+    save_line_plot(
         boid_counts,
-        avg_frame_ms,
+        [(avg_frame_ms,)],
         "Boid count",
         "Average frame time (ms)",
         "Naive boids average frame time",
         output_dir / "avg_frame_ms.png",
     )
 
-    save_plot(
+    save_line_plot(
         boid_counts,
-        neighbor_checks,
+        [(neighbor_checks,)],
         "Boid count",
         "Neighbor checks",
         "Naive boids neighbor checks",
