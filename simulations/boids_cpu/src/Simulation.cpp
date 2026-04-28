@@ -1,6 +1,8 @@
 #include "Simulation.hpp"
 #include "BoidBehavior.hpp"
 
+#include <simulation/SpatialQuery.hpp>
+
 #include <algorithm>
 #include <random/Random.hpp>
 
@@ -20,10 +22,6 @@ void addNeighborsFromCandidateList(
     separationNeighbors.clear();
 
     for (std::size_t candidateIndex : candidates) {
-        if (candidateIndex == boidIndex) {
-            continue;
-        }
-
         ++stats.neighborChecks;
 
         const float distance =
@@ -35,38 +33,6 @@ void addNeighborsFromCandidateList(
 
         if (distance < separationRadius) {
             separationNeighbors.push_back(candidateIndex);
-        }
-    }
-}
-
-void addNeighborsNaive(
-    std::size_t boidIndex,
-    const std::vector<Boid>& boids,
-    float perceptionRadius,
-    float separationRadius,
-    std::vector<std::size_t>& perceptionNeighbors,
-    std::vector<std::size_t>& separationNeighbors,
-    SimulationStats& stats
-) {
-    perceptionNeighbors.clear();
-    separationNeighbors.clear();
-
-    for (std::size_t i = 0; i < boids.size(); ++i) {
-        if (i == boidIndex) {
-            continue;
-        }
-
-        ++stats.neighborChecks;
-
-        const float distance =
-            (boids[i].position - boids[boidIndex].position).length();
-
-        if (distance < perceptionRadius) {
-            perceptionNeighbors.push_back(i);
-        }
-
-        if (distance < separationRadius) {
-            separationNeighbors.push_back(i);
         }
     }
 }
@@ -144,32 +110,30 @@ void Simulation::update(float dt) {
         std::max(m_config.perceptionRadius, m_config.separationRadius);
 
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_config.useSpatialGrid) {
-            candidates.clear();
-            m_grid.queryRadius(m_entities[i].position, queryRadius, candidates);
-            m_stats.neighborCandidates += candidates.size();
+        simfw::simulation::collectCandidates(
+            m_grid,
+            m_entities[i].position,
+            queryRadius,
+            simfw::simulation::makeSpatialQueryOptionsExcluding(
+                m_config.useSpatialGrid,
+                m_entities.size(),
+                i
+            ),
+            candidates
+        );
 
-            addNeighborsFromCandidateList(
-                i,
-                m_entities,
-                candidates,
-                m_config.perceptionRadius,
-                m_config.separationRadius,
-                perceptionNeighbors,
-                separationNeighbors,
-                m_stats
-            );
-        } else {
-            addNeighborsNaive(
-                i,
-                m_entities,
-                m_config.perceptionRadius,
-                m_config.separationRadius,
-                perceptionNeighbors,
-                separationNeighbors,
-                m_stats
-            );
-        }
+        m_stats.neighborCandidates += candidates.size();
+
+        addNeighborsFromCandidateList(
+            i,
+            m_entities,
+            candidates,
+            m_config.perceptionRadius,
+            m_config.separationRadius,
+            perceptionNeighbors,
+            separationNeighbors,
+            m_stats
+        );
 
         Vec2 align = computeAlignment(
             i,
