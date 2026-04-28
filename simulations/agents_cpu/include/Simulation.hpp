@@ -51,6 +51,8 @@ struct SimulationStats {
 
     std::size_t obstacleCount = 0;
     std::size_t obstacleChecks = 0;
+    std::size_t obstacleCandidates = 0;
+    std::size_t occupiedObstacleGridCells = 0;
 };
 
 class Simulation
@@ -67,7 +69,9 @@ public:
     const std::vector<Agent>& getAgents() const { return m_entities; }
     const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
 
-    const Grid& getGrid() const { return m_grid; }
+    const Grid& getGrid() const { return m_agentGrid; }
+    const Grid& getAgentGrid() const { return m_agentGrid; }
+    const Grid& getObstacleGrid() const { return m_obstacleGrid; }
 
     void setTarget(Vec2 target);
     Vec2 getTarget() const { return m_target; }
@@ -76,13 +80,16 @@ public:
     void clearObstacles();
 
 private:
-    Grid m_grid;
+    Grid m_agentGrid;
+    Grid m_obstacleGrid;
     Vec2 m_target;
     std::vector<Obstacle> m_obstacles;
+    std::vector<Agent> m_previousAgents;
 
     void normalizeConfigCounts();
     void updateStatsCount();
     Vec2 randomPoint() const;
+    float maxObstacleQueryRadius() const;
 };
 
 } // namespace agents_cpu

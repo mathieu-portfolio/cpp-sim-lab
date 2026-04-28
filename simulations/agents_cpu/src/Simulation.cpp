@@ -12,6 +12,10 @@ Vec2 agentPosition(const Agent& agent) {
     return agent.position;
 }
 
+Vec2 obstaclePosition(const Obstacle& obstacle) {
+    return obstacle.position;
+}
+
 Vec2 limitLength(Vec2 value, float maxLength) {
     const float length = value.length();
 
@@ -85,15 +89,17 @@ Vec2 separationForce(
 Vec2 obstacleAvoidanceForce(
     const Agent& agent,
     const std::vector<Obstacle>& obstacles,
+    const std::vector<std::size_t>& candidates,
     float avoidanceRadius,
     SimulationStats& stats
 ) {
     Vec2 force{};
     int obstacleCount = 0;
 
-    for (const Obstacle& obstacle : obstacles) {
+    for (std::size_t obstacleIndex : candidates) {
         ++stats.obstacleChecks;
 
+        const Obstacle& obstacle = obstacles[obstacleIndex];
         const Vec2 away = agent.position - obstacle.position;
         const float distance = away.length();
         const float influenceDistance = obstacle.radius + avoidanceRadius;
@@ -137,17 +143,26 @@ void resolveObstacleOverlap(Agent& agent, const std::vector<Obstacle>& obstacles
 }
 
 void collectNaiveCandidates(
-    std::size_t agentIndex,
-    std::size_t agentCount,
+    std::size_t excludedIndex,
+    std::size_t count,
     std::vector<std::size_t>& out
 ) {
     out.clear();
-    out.reserve(agentCount > 0 ? agentCount - 1 : 0);
+    out.reserve(count > 0 ? count - 1 : 0);
 
-    for (std::size_t i = 0; i < agentCount; ++i) {
-        if (i != agentIndex) {
+    for (std::size_t i = 0; i < count; ++i) {
+        if (i != excludedIndex) {
             out.push_back(i);
         }
+    }
+}
+
+void collectAllCandidates(std::size_t count, std::vector<std::size_t>& out) {
+    out.clear();
+    out.reserve(count);
+
+    for (std::size_t i = 0; i < count; ++i) {
+        out.push_back(i);
     }
 }
 
@@ -160,7 +175,8 @@ Vec2 clampToWorld(Vec2 position, float width, float height) {
 
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
-      m_grid(config.gridCellSize),
+      m_agentGrid(config.gridCellSize),
+      m_obstacleGrid(config.gridCellSize),
       m_target{config.width * 0.5f, config.height * 0.5f} {
     normalizeConfigCounts();
     reset();
@@ -189,11 +205,23 @@ Vec2 Simulation::randomPoint() const {
     };
 }
 
+float Simulation::maxObstacleQueryRadius() const {
+    float maxRadius = 0.0f;
+
+    for (const Obstacle& obstacle : m_obstacles) {
+        maxRadius = std::max(maxRadius, obstacle.radius);
+    }
+
+    return maxRadius + m_config.obstacleAvoidanceRadius;
+}
+
 void Simulation::reset() {
     normalizeConfigCounts();
 
     m_entities.clear();
     m_entities.reserve(m_config.agentCount);
+    m_previousAgents.clear();
+    m_previousAgents.reserve(m_config.agentCount);
 
     m_target = Vec2{m_config.width * 0.5f, m_config.height * 0.5f};
 
@@ -243,31 +271,54 @@ void Simulation::update(float dt) {
     m_stats = {};
     updateStatsCount();
 
-    m_grid.setCellSize(m_config.gridCellSize);
+    m_previousAgents = m_entities;
+
+    m_agentGrid.setCellSize(m_config.gridCellSize);
+    m_obstacleGrid.setCellSize(m_config.gridCellSize);
 
     if (m_config.useSpatialGrid) {
-        m_grid.build(m_entities, agentPosition);
-        m_stats.occupiedGridCells = m_grid.getCells().size();
+        m_agentGrid.build(m_previousAgents, agentPosition);
+        m_obstacleGrid.build(m_obstacles, obstaclePosition);
+        m_stats.occupiedGridCells = m_agentGrid.getCells().size();
+        m_stats.occupiedObstacleGridCells = m_obstacleGrid.getCells().size();
     } else {
-        m_grid.clear();
+        m_agentGrid.clear();
+        m_obstacleGrid.clear();
     }
 
-    std::vector<std::size_t> candidates;
+    const float obstacleQueryRadius = maxObstacleQueryRadius();
+
+    std::vector<std::size_t> agentCandidates;
+    std::vector<std::size_t> obstacleCandidates;
 
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
         Agent& agent = m_entities[i];
+        const Agent& previousAgent = m_previousAgents[i];
 
         if (m_config.useSpatialGrid) {
-            candidates.clear();
-            m_grid.queryRadius(agent.position, m_config.separationRadius, candidates);
-            m_stats.neighborCandidates += candidates.size();
+            agentCandidates.clear();
+            m_agentGrid.queryRadius(
+                previousAgent.position,
+                m_config.separationRadius,
+                agentCandidates
+            );
+            m_stats.neighborCandidates += agentCandidates.size();
+
+            obstacleCandidates.clear();
+            m_obstacleGrid.queryRadius(
+                previousAgent.position,
+                obstacleQueryRadius,
+                obstacleCandidates
+            );
+            m_stats.obstacleCandidates += obstacleCandidates.size();
         } else {
-            collectNaiveCandidates(i, m_entities.size(), candidates);
+            collectNaiveCandidates(i, m_previousAgents.size(), agentCandidates);
+            collectAllCandidates(m_obstacles.size(), obstacleCandidates);
         }
 
         const Vec2 seek = seekForce(
-            agent,
-            agent.target,
+            previousAgent,
+            previousAgent.target,
             m_config.maxSpeed,
             m_config.maxForce,
             m_config.arrivalRadius
@@ -275,15 +326,16 @@ void Simulation::update(float dt) {
 
         const Vec2 separation = separationForce(
             i,
-            m_entities,
-            candidates,
+            m_previousAgents,
+            agentCandidates,
             m_config.separationRadius,
             m_stats
         ) * (m_config.maxForce * m_config.separationWeight);
 
         const Vec2 obstacleAvoidance = obstacleAvoidanceForce(
-            agent,
+            previousAgent,
             m_obstacles,
+            obstacleCandidates,
             m_config.obstacleAvoidanceRadius,
             m_stats
         ) * (m_config.maxForce * m_config.obstacleAvoidanceWeight);
@@ -293,9 +345,11 @@ void Simulation::update(float dt) {
             m_config.maxForce
         );
 
-        agent.velocity += acceleration * dt;
+        agent.velocity = previousAgent.velocity + acceleration * dt;
         agent.velocity = limitLength(agent.velocity, m_config.maxSpeed);
-        agent.position += agent.velocity * dt;
+        agent.position = previousAgent.position + agent.velocity * dt;
+        agent.target = previousAgent.target;
+        agent.radius = previousAgent.radius;
 
         resolveObstacleOverlap(agent, m_obstacles);
 

@@ -4,6 +4,8 @@
 
 #include <cmath>
 
+using namespace particles_cpu;
+
 namespace {
 bool nearlyEqual(float a, float b, float epsilon = 0.0001f) {
     return std::fabs(a - b) <= epsilon;
