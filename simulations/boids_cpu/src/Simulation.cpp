@@ -1,13 +1,20 @@
 #include "Simulation.hpp"
 #include "BoidBehavior.hpp"
 
+#include "thread_pool.hpp"
+
+#include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 
 #include <algorithm>
+#include <memory>
 #include <random/Random.hpp>
+#include <thread>
 
 namespace boids_cpu {
 namespace {
+constexpr std::size_t MinItemsPerParallelTask = 256;
+
 void addNeighborsFromCandidateList(
     std::size_t boidIndex,
     const std::vector<Boid>& boids,
@@ -40,14 +47,30 @@ void addNeighborsFromCandidateList(
 Vec2 boidPosition(const Boid& boid) {
     return boid.position;
 }
+
+std::size_t hardwareWorkerCount() {
+    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
+
+    if (hardwareThreads == 0) {
+        return 1;
+    }
+
+    return static_cast<std::size_t>(hardwareThreads);
+}
 }
 
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
-      m_grid(m_config.gridCellSize) {
+      m_grid(m_config.gridCellSize),
+      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
     normalizeConfigCounts();
     reset();
 }
+
+Simulation::~Simulation() = default;
+
+Simulation::Simulation(Simulation&&) noexcept = default;
+Simulation& Simulation::operator=(Simulation&&) noexcept = default;
 
 void Simulation::normalizeConfigCounts() {
     constexpr std::size_t defaultCount = SimulationConfig::DefaultBoidCount;
@@ -70,6 +93,9 @@ void Simulation::reset() {
     m_entities.clear();
     m_entities.reserve(m_config.boidCount);
 
+    m_previousBoids.clear();
+    m_previousBoids.reserve(m_config.boidCount);
+
     for (std::size_t i = 0; i < m_config.boidCount; ++i) {
         m_entities.push_back({
             Vec2{
@@ -87,72 +113,89 @@ void Simulation::reset() {
     updateStatsCount();
 }
 
-void Simulation::update(float dt) {
+void Simulation::beginFrame() {
     normalizeConfigCounts();
 
     m_stats = {};
     updateStatsCount();
+}
 
+void Simulation::snapshotBoids() {
+    m_previousBoids = m_entities;
+}
+
+void Simulation::buildSpatialIndex() {
     m_grid.setCellSize(m_config.gridCellSize);
 
     if (m_config.useSpatialGrid) {
-        m_grid.build(m_entities, boidPosition);
+        m_grid.build(m_previousBoids, boidPosition);
         m_stats.occupiedGridCells = m_grid.getCells().size();
     } else {
         m_grid.clear();
     }
+}
 
-    std::vector<std::size_t> candidates;
-    std::vector<std::size_t> perceptionNeighbors;
-    std::vector<std::size_t> separationNeighbors;
+void Simulation::collectCandidateBoids(
+    std::size_t boidIndex,
+    float queryRadius,
+    BoidUpdateScratch& scratch,
+    SimulationStats& stats
+) {
+    simfw::simulation::collectCandidates(
+        m_grid,
+        m_previousBoids[boidIndex].position,
+        queryRadius,
+        simfw::simulation::makeSpatialQueryOptionsExcluding(
+            m_config.useSpatialGrid,
+            m_previousBoids.size(),
+            boidIndex
+        ),
+        scratch.candidates
+    );
 
-    const float queryRadius =
-        std::max(m_config.perceptionRadius, m_config.separationRadius);
+    stats.neighborCandidates += scratch.candidates.size();
+}
 
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        simfw::simulation::collectCandidates(
-            m_grid,
-            m_entities[i].position,
-            queryRadius,
-            simfw::simulation::makeSpatialQueryOptionsExcluding(
-                m_config.useSpatialGrid,
-                m_entities.size(),
-                i
-            ),
-            candidates
-        );
-
-        m_stats.neighborCandidates += candidates.size();
+void Simulation::updateBoidRange(
+    std::size_t beginIndex,
+    std::size_t endIndex,
+    float dt,
+    float queryRadius,
+    BoidUpdateScratch& scratch,
+    SimulationStats& stats
+) {
+    for (std::size_t i = beginIndex; i < endIndex; ++i) {
+        collectCandidateBoids(i, queryRadius, scratch, stats);
 
         addNeighborsFromCandidateList(
             i,
-            m_entities,
-            candidates,
+            m_previousBoids,
+            scratch.candidates,
             m_config.perceptionRadius,
             m_config.separationRadius,
-            perceptionNeighbors,
-            separationNeighbors,
-            m_stats
+            scratch.perceptionNeighbors,
+            scratch.separationNeighbors,
+            stats
         );
 
         Vec2 align = computeAlignment(
             i,
-            m_entities,
-            perceptionNeighbors,
+            m_previousBoids,
+            scratch.perceptionNeighbors,
             m_config.maxSpeed
         );
 
         Vec2 coh = computeCohesion(
             i,
-            m_entities,
-            perceptionNeighbors,
+            m_previousBoids,
+            scratch.perceptionNeighbors,
             m_config.maxSpeed
         );
 
         Vec2 sep = computeSeparation(
             i,
-            m_entities,
-            separationNeighbors,
+            m_previousBoids,
+            scratch.separationNeighbors,
             m_config.maxSpeed
         );
 
@@ -163,16 +206,61 @@ void Simulation::update(float dt) {
 
         force = limitLength(force, m_config.maxForce);
 
-        m_entities[i].velocity += force * dt;
-        m_entities[i].velocity = limitLength(m_entities[i].velocity, m_config.maxSpeed);
-        m_entities[i].position += m_entities[i].velocity * dt;
+        Boid& boid = m_entities[i];
+        const Boid& previousBoid = m_previousBoids[i];
 
-        m_entities[i].position = wrapPosition(
-            m_entities[i].position,
+        boid.velocity = previousBoid.velocity + force * dt;
+        boid.velocity = limitLength(boid.velocity, m_config.maxSpeed);
+        boid.position = previousBoid.position + boid.velocity * dt;
+
+        boid.position = wrapPosition(
+            boid.position,
             m_config.width,
             m_config.height
         );
     }
+}
+
+void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
+    m_stats.neighborChecks += workerStats.neighborChecks;
+    m_stats.neighborCandidates += workerStats.neighborCandidates;
+}
+
+void Simulation::updateBoids(float dt) {
+    const float queryRadius =
+        std::max(m_config.perceptionRadius, m_config.separationRadius);
+
+    simfw::runParallelUpdate<ThreadPool, BoidUpdateScratch, SimulationStats>(
+        m_threadPool.get(),
+        m_entities.size(),
+        MinItemsPerParallelTask,
+        m_config.useParallelUpdate,
+        [this, dt, queryRadius](
+            std::size_t beginIndex,
+            std::size_t endIndex,
+            BoidUpdateScratch& scratch,
+            SimulationStats& stats
+        ) {
+            updateBoidRange(
+                beginIndex,
+                endIndex,
+                dt,
+                queryRadius,
+                scratch,
+                stats
+            );
+        },
+        [this](const SimulationStats& stats) {
+            mergeWorkerStats(stats);
+        }
+    );
+}
+
+void Simulation::update(float dt) {
+    beginFrame();
+    snapshotBoids();
+    buildSpatialIndex();
+    updateBoids(dt);
 }
 
 } // namespace boids_cpu

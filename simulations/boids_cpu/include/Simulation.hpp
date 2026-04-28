@@ -6,7 +6,10 @@
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
+#include <memory>
 #include <vector>
+
+class ThreadPool;
 
 namespace boids_cpu {
 
@@ -27,6 +30,7 @@ struct SimulationConfig {
     float separationWeight = 2.0f;
 
     bool useSpatialGrid = false;
+    bool useParallelUpdate = true;
     float gridCellSize = 50.0f;
 
     std::size_t boidCount = DefaultBoidCount;
@@ -49,6 +53,13 @@ public:
     using Grid = simfw::SpatialHashGrid<std::size_t>;
 
     explicit Simulation(SimulationConfig config = {});
+    ~Simulation();
+
+    Simulation(const Simulation&) = delete;
+    Simulation& operator=(const Simulation&) = delete;
+    Simulation(Simulation&&) noexcept;
+    Simulation& operator=(Simulation&&) noexcept;
+
     void update(float dt);
     void reset();
 
@@ -57,10 +68,41 @@ public:
     const Grid& getGrid() const { return m_grid; }
 
 private:
+    struct BoidUpdateScratch {
+        std::vector<std::size_t> candidates;
+        std::vector<std::size_t> perceptionNeighbors;
+        std::vector<std::size_t> separationNeighbors;
+    };
+
     Grid m_grid;
+    std::vector<Boid> m_previousBoids;
+    std::unique_ptr<ThreadPool> m_threadPool;
 
     void normalizeConfigCounts();
     void updateStatsCount();
+
+    void beginFrame();
+    void snapshotBoids();
+    void buildSpatialIndex();
+
+    void updateBoids(float dt);
+    void updateBoidRange(
+        std::size_t beginIndex,
+        std::size_t endIndex,
+        float dt,
+        float queryRadius,
+        BoidUpdateScratch& scratch,
+        SimulationStats& stats
+    );
+
+    void collectCandidateBoids(
+        std::size_t boidIndex,
+        float queryRadius,
+        BoidUpdateScratch& scratch,
+        SimulationStats& stats
+    );
+
+    void mergeWorkerStats(const SimulationStats& workerStats);
 };
 
 } // namespace boids_cpu

@@ -11,6 +11,7 @@ target_include_directories(boids_cpu_core
 target_link_libraries(boids_cpu_core
     PUBLIC
         sim_framework
+        thread_pool
 )
 
 target_compile_features(boids_cpu_core
