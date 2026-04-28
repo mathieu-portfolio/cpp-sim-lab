@@ -2,14 +2,19 @@
 
 #include "Agent.hpp"
 #include "Obstacle.hpp"
-#include "Simulation.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
-namespace agents_cpu::steering {
+namespace agents_cpu {
+
+struct SimulationConfig;
+struct SimulationStats;
+
+namespace steering {
 
 struct CandidateLists {
     std::span<const std::size_t> agents;
@@ -26,6 +31,10 @@ struct BehaviorContext {
 };
 
 using BehaviorFn = Vec2 (*)(std::size_t agentIndex, BehaviorContext& context);
+using IntentRuleFn = std::optional<AgentIntent> (*)(
+    std::size_t agentIndex,
+    BehaviorContext& context
+);
 
 enum class BehaviorType {
     Seek,
@@ -72,7 +81,16 @@ struct WeightedBehavior {
     const char* name = "";
 };
 
+struct IntentRule {
+    IntentRuleFn evaluate = nullptr;
+    const char* name = "";
+};
+
 std::span<const WeightedBehavior> defaultBehaviors();
+std::span<const IntentRule> defaultIntentRules();
+
+std::vector<WeightedBehavior> makeDefaultBehaviors();
+std::vector<IntentRule> makeDefaultIntentRules();
 
 WeightedBehavior makeBehavior(
     BehaviorType type,
@@ -83,17 +101,44 @@ WeightedBehavior makeBehavior(
 
 bool appliesToIntent(const WeightedBehavior& behavior, AgentIntent intent);
 
+AgentIntent selectIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context,
+    std::span<const IntentRule> intentRules
+);
+
+void recordIntentStats(
+    AgentIntent intent,
+    AgentIntent previousIntent,
+    SimulationStats& stats
+);
+
 Vec2 limitLength(Vec2 value, float maxLength);
 
 Vec2 computeAcceleration(
     std::size_t agentIndex,
     BehaviorContext& context,
-    std::span<const WeightedBehavior> behaviors = defaultBehaviors()
+    std::span<const WeightedBehavior> behaviors
 );
 
 Vec2 seek(std::size_t agentIndex, BehaviorContext& context);
 Vec2 separate(std::size_t agentIndex, BehaviorContext& context);
 Vec2 avoidObstacles(std::size_t agentIndex, BehaviorContext& context);
+
+std::optional<AgentIntent> avoidObstacleIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context
+);
+
+std::optional<AgentIntent> idleAtTargetIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context
+);
+
+std::optional<AgentIntent> seekTargetIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context
+);
 
 void resolveObstacleOverlap(
     Agent& agent,
@@ -102,4 +147,5 @@ void resolveObstacleOverlap(
     SimulationStats& stats
 );
 
-} // namespace agents_cpu::steering
+} // namespace steering
+} // namespace agents_cpu

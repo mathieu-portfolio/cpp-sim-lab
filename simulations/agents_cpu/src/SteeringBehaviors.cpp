@@ -1,5 +1,7 @@
 #include "SteeringBehaviors.hpp"
 
+#include "Simulation.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -90,6 +92,26 @@ std::span<const WeightedBehavior> defaultBehaviors() {
     return Behaviors;
 }
 
+std::span<const IntentRule> defaultIntentRules() {
+    static constexpr std::array<IntentRule, 3> Rules{{
+        IntentRule{avoidObstacleIntent, "avoid obstacle"},
+        IntentRule{idleAtTargetIntent, "idle at target"},
+        IntentRule{seekTargetIntent, "seek target"}
+    }};
+
+    return Rules;
+}
+
+std::vector<WeightedBehavior> makeDefaultBehaviors() {
+    const auto defaults = defaultBehaviors();
+    return std::vector<WeightedBehavior>{defaults.begin(), defaults.end()};
+}
+
+std::vector<IntentRule> makeDefaultIntentRules() {
+    const auto defaults = defaultIntentRules();
+    return std::vector<IntentRule>{defaults.begin(), defaults.end()};
+}
+
 WeightedBehavior makeBehavior(
     BehaviorType type,
     float SimulationConfig::* weight,
@@ -108,6 +130,50 @@ WeightedBehavior makeBehavior(
 
 bool appliesToIntent(const WeightedBehavior& behavior, AgentIntent intent) {
     return any(behavior.intents & maskForIntent(intent));
+}
+
+AgentIntent selectIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context,
+    std::span<const IntentRule> intentRules
+) {
+    if (!context.config.useIntent) {
+        return AgentIntent::SeekTarget;
+    }
+
+    for (const IntentRule& rule : intentRules) {
+        if (rule.evaluate == nullptr) {
+            continue;
+        }
+
+        if (std::optional<AgentIntent> intent = rule.evaluate(agentIndex, context)) {
+            return *intent;
+        }
+    }
+
+    return AgentIntent::SeekTarget;
+}
+
+void recordIntentStats(
+    AgentIntent intent,
+    AgentIntent previousIntent,
+    SimulationStats& stats
+) {
+    switch (intent) {
+    case AgentIntent::SeekTarget:
+        ++stats.seekingTargetCount;
+        break;
+    case AgentIntent::AvoidObstacle:
+        ++stats.avoidingObstacleCount;
+        break;
+    case AgentIntent::Idle:
+        ++stats.idleCount;
+        break;
+    }
+
+    if (intent != previousIntent) {
+        ++stats.intentChanges;
+    }
 }
 
 Vec2 limitLength(Vec2 value, float maxLength) {
@@ -239,6 +305,49 @@ Vec2 avoidObstacles(std::size_t agentIndex, BehaviorContext& context) {
     }
 
     return force;
+}
+
+std::optional<AgentIntent> avoidObstacleIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context
+) {
+    const SimulationConfig& config = context.config;
+    const Agent& agent = context.agents[agentIndex];
+
+    for (std::size_t obstacleIndex : context.candidates.obstacles) {
+        const Obstacle& obstacle = context.obstacles[obstacleIndex];
+        const Vec2 away = agent.position - obstacle.position;
+        const float distance = away.length();
+        const float threatDistance = obstacle.radius + agent.radius +
+            config.obstacleIntentRadius;
+
+        if (distance <= threatDistance) {
+            return AgentIntent::AvoidObstacle;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<AgentIntent> idleAtTargetIntent(
+    std::size_t agentIndex,
+    BehaviorContext& context
+) {
+    const SimulationConfig& config = context.config;
+    const Agent& agent = context.agents[agentIndex];
+
+    if ((agent.target - agent.position).length() <= config.targetRadius) {
+        return AgentIntent::Idle;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<AgentIntent> seekTargetIntent(
+    std::size_t,
+    BehaviorContext&
+) {
+    return AgentIntent::SeekTarget;
 }
 
 void resolveObstacleOverlap(

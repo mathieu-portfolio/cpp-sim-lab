@@ -2,6 +2,7 @@
 
 #include "Agent.hpp"
 #include "Obstacle.hpp"
+#include "SteeringBehaviors.hpp"
 
 #include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
@@ -76,6 +77,8 @@ class Simulation
 public:
     using Base = simfw::SimulationBase<SimulationConfig, SimulationStats, Agent>;
     using Grid = simfw::SpatialHashGrid<std::size_t>;
+    using BehaviorList = std::vector<steering::WeightedBehavior>;
+    using IntentRuleList = std::vector<steering::IntentRule>;
 
     explicit Simulation(SimulationConfig config = {});
     ~Simulation();
@@ -95,6 +98,14 @@ public:
     const Grid& getAgentGrid() const { return m_agentGrid; }
     const Grid& getObstacleGrid() const { return m_obstacleGrid; }
 
+    const BehaviorList& getBehaviors() const { return m_behaviors; }
+    void setBehaviors(BehaviorList behaviors);
+    void resetBehaviors();
+
+    const IntentRuleList& getIntentRules() const { return m_intentRules; }
+    void setIntentRules(IntentRuleList intentRules);
+    void resetIntentRules();
+
     void setTarget(Vec2 target);
     Vec2 getTarget() const { return m_target; }
 
@@ -110,6 +121,8 @@ private:
     std::vector<Obstacle> m_obstacles;
     std::vector<Agent> m_previousAgents;
     std::unique_ptr<ThreadPool> m_threadPool;
+    BehaviorList m_behaviors;
+    IntentRuleList m_intentRules;
 
     void normalizeConfigCounts();
     void updateStatsCount();

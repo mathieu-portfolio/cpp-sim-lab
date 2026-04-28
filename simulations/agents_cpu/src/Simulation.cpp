@@ -1,6 +1,5 @@
 #include "Simulation.hpp"
 
-#include "SteeringBehaviors.hpp"
 #include "thread_pool.hpp"
 
 #include <algorithm>
@@ -15,7 +14,6 @@
 namespace agents_cpu {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
-constexpr float Epsilon = 0.0001f;
 
 Vec2 agentPosition(const Agent& agent) {
     return agent.position;
@@ -41,74 +39,6 @@ std::size_t hardwareWorkerCount() {
     return static_cast<std::size_t>(hardwareThreads);
 }
 
-bool hasObstacleThreat(
-    const Agent& agent,
-    const std::vector<Obstacle>& obstacles,
-    const std::vector<std::size_t>& obstacleCandidates,
-    float obstacleIntentRadius
-) {
-    for (std::size_t obstacleIndex : obstacleCandidates) {
-        const Obstacle& obstacle = obstacles[obstacleIndex];
-        const Vec2 away = agent.position - obstacle.position;
-        const float distance = away.length();
-        const float threatDistance = obstacle.radius + agent.radius + obstacleIntentRadius;
-
-        if (distance <= threatDistance) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-AgentIntent decideIntent(
-    const Agent& previousAgent,
-    const SimulationConfig& config,
-    const std::vector<Obstacle>& obstacles,
-    const std::vector<std::size_t>& obstacleCandidates
-) {
-    if (!config.useIntent) {
-        return AgentIntent::SeekTarget;
-    }
-
-    if (hasObstacleThreat(
-            previousAgent,
-            obstacles,
-            obstacleCandidates,
-            config.obstacleIntentRadius
-        )) {
-        return AgentIntent::AvoidObstacle;
-    }
-
-    if ((previousAgent.target - previousAgent.position).length() <= config.targetRadius) {
-        return AgentIntent::Idle;
-    }
-
-    return AgentIntent::SeekTarget;
-}
-
-void recordIntentStats(
-    AgentIntent intent,
-    AgentIntent previousIntent,
-    SimulationStats& stats
-) {
-    switch (intent) {
-    case AgentIntent::SeekTarget:
-        ++stats.seekingTargetCount;
-        break;
-    case AgentIntent::AvoidObstacle:
-        ++stats.avoidingObstacleCount;
-        break;
-    case AgentIntent::Idle:
-        ++stats.idleCount;
-        break;
-    }
-
-    if (intent != previousIntent) {
-        ++stats.intentChanges;
-    }
-}
-
 float dampingFactor(float damping, float dt) {
     if (damping <= 0.0f) {
         return 1.0f;
@@ -123,7 +53,9 @@ Simulation::Simulation(SimulationConfig config)
       m_agentGrid(config.gridCellSize),
       m_obstacleGrid(config.gridCellSize),
       m_target{config.width * 0.5f, config.height * 0.5f},
-      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
+      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())),
+      m_behaviors(steering::makeDefaultBehaviors()),
+      m_intentRules(steering::makeDefaultIntentRules()) {
     normalizeConfigCounts();
     reset();
 }
@@ -132,6 +64,22 @@ Simulation::~Simulation() = default;
 
 Simulation::Simulation(Simulation&&) noexcept = default;
 Simulation& Simulation::operator=(Simulation&&) noexcept = default;
+
+void Simulation::setBehaviors(BehaviorList behaviors) {
+    m_behaviors = std::move(behaviors);
+}
+
+void Simulation::resetBehaviors() {
+    m_behaviors = steering::makeDefaultBehaviors();
+}
+
+void Simulation::setIntentRules(IntentRuleList intentRules) {
+    m_intentRules = std::move(intentRules);
+}
+
+void Simulation::resetIntentRules() {
+    m_intentRules = steering::makeDefaultIntentRules();
+}
 
 void Simulation::normalizeConfigCounts() {
     constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
@@ -313,15 +261,6 @@ void Simulation::updateAgentRange(
         collectAgentCandidates(i, scratch, stats);
         collectObstacleCandidates(previousAgent, obstacleQueryRadius, scratch, stats);
 
-        const AgentIntent intent = decideIntent(
-            previousAgent,
-            m_config,
-            m_obstacles,
-            scratch.secondaryNeighbors
-        );
-
-        recordIntentStats(intent, previousAgent.intent, stats);
-
         steering::BehaviorContext behaviorContext{
             m_config,
             m_previousAgents,
@@ -330,11 +269,24 @@ void Simulation::updateAgentRange(
                 scratch.candidates,
                 scratch.secondaryNeighbors
             },
-            intent,
+            previousAgent.intent,
             stats
         };
 
-        const Vec2 acceleration = steering::computeAcceleration(i, behaviorContext);
+        const AgentIntent intent = steering::selectIntent(
+            i,
+            behaviorContext,
+            m_intentRules
+        );
+
+        steering::recordIntentStats(intent, previousAgent.intent, stats);
+        behaviorContext.intent = intent;
+
+        const Vec2 acceleration = steering::computeAcceleration(
+            i,
+            behaviorContext,
+            m_behaviors
+        );
 
         agent.velocity = previousAgent.velocity + acceleration * dt;
 
@@ -384,7 +336,6 @@ void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
     );
 }
 
-
 void Simulation::updateAgents(float dt) {
     simfw::runParallelUpdate<ThreadPool, AgentUpdateScratch, SimulationStats>(
         m_threadPool.get(),
@@ -411,6 +362,7 @@ void Simulation::updateAgents(float dt) {
         }
     );
 }
+
 void Simulation::update(float dt) {
     beginFrame();
     snapshotAgents();
