@@ -22,6 +22,8 @@ struct ConfigUiTraits<boids_cpu::SimulationConfig> {
         TunableField{"alignment", &boids_cpu::SimulationConfig::alignmentWeight, 0.0f, 0.5f, 2.0f},
         TunableField{"cohesion", &boids_cpu::SimulationConfig::cohesionWeight, 0.0f, 0.5f, 2.0f},
         TunableField{"separation", &boids_cpu::SimulationConfig::separationWeight, 0.0f, 0.5f, 2.0f},
+        TunableField{"wander", &boids_cpu::SimulationConfig::wanderWeight, 0.0f, 0.25f, 1.0f},
+        TunableField{"wander jitter", &boids_cpu::SimulationConfig::wanderJitter, 0.0f, 0.2f, 1.0f},
         TunableField{"perception", &boids_cpu::SimulationConfig::perceptionRadius, 1.0f, 30.0f, 100.0f},
         TunableField{"sep radius", &boids_cpu::SimulationConfig::separationRadius, 1.0f, 30.0f, 100.0f},
         TunableField{"cell size", &boids_cpu::SimulationConfig::gridCellSize, 1.0f, 30.0f, 100.0f}

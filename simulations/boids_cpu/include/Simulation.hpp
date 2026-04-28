@@ -32,6 +32,8 @@ struct SimulationConfig {
     float alignmentWeight = 1.0f;
     float cohesionWeight = 0.4f;
     float separationWeight = 2.0f;
+    float wanderWeight = 0.15f;
+    float wanderJitter = 0.65f;
 
     simfw::simulation::SimulationExecutionConfig execution{false, true};
     float gridCellSize = 50.0f;

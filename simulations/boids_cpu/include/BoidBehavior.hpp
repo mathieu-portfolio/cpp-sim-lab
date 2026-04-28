@@ -17,13 +17,15 @@ using BoidBehaviorFn = Vec2 (*)(std::size_t boidIndex, BoidBehaviorContext& cont
 enum class BoidBehaviorType {
     Alignment,
     Cohesion,
-    Separation
+    Separation,
+    Wander
 };
 
 enum class BoidBehaviorWeight {
     Alignment,
     Cohesion,
     Separation,
+    Wander,
     Fixed
 };
 
@@ -70,10 +72,9 @@ Vec2 computeBehavior(
     BoidBehaviorContext& context
 );
 
-// Runtime pipeline wrappers. These adapt the explicit behavior context to the
-// pure steering helpers declared in BoidSteering.hpp.
 Vec2 computeAlignmentBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
 Vec2 computeCohesionBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
 Vec2 computeSeparationBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
+Vec2 computeWanderBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
 
 } // namespace boids_cpu

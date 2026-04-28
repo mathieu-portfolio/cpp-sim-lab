@@ -103,3 +103,24 @@ TEST(BoidBehaviorTest, SeparationIgnoresDistantNeighbors) {
 
     expectNear(result, Vec2{});
 }
+
+TEST(BoidBehaviorTest, WanderReturnsDeterministicSteering) {
+    std::vector<Boid> boids{
+        Boid{Vec2{25.0f, 40.0f}, Vec2{10.0f, 0.0f}}
+    };
+
+    Vec2 first = computeWander(0, boids, 100.0f, 0.65f);
+    Vec2 second = computeWander(0, boids, 100.0f, 0.65f);
+
+    expectNear(first, second);
+}
+
+TEST(BoidBehaviorTest, WanderRespectsZeroJitter) {
+    std::vector<Boid> boids{
+        Boid{Vec2{25.0f, 40.0f}, Vec2{10.0f, 0.0f}}
+    };
+
+    Vec2 result = computeWander(0, boids, 100.0f, 0.0f);
+
+    expectNear(result, Vec2{90.0f, 0.0f});
+}

@@ -18,6 +18,8 @@ float behaviorWeight(
         return config.cohesionWeight;
     case BoidBehaviorWeight::Separation:
         return config.separationWeight;
+    case BoidBehaviorWeight::Wander:
+        return config.wanderWeight;
     case BoidBehaviorWeight::Fixed:
         return behavior.fixedWeight;
     }
@@ -33,6 +35,8 @@ BoidBehaviorFn behaviorFunction(BoidBehaviorType type) {
         return computeCohesionBehavior;
     case BoidBehaviorType::Separation:
         return computeSeparationBehavior;
+    case BoidBehaviorType::Wander:
+        return computeWanderBehavior;
     }
 
     return nullptr;
@@ -46,6 +50,8 @@ const char* behaviorName(BoidBehaviorType type) {
         return "cohesion";
     case BoidBehaviorType::Separation:
         return "separation";
+    case BoidBehaviorType::Wander:
+        return "wander";
     }
 
     return "unknown";
@@ -53,7 +59,7 @@ const char* behaviorName(BoidBehaviorType type) {
 } // namespace
 
 std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
-    static constexpr std::array<WeightedBoidBehavior, 3> Behaviors{{
+    static constexpr std::array<WeightedBoidBehavior, 4> Behaviors{{
         WeightedBoidBehavior{
             BoidBehaviorType::Alignment,
             computeAlignmentBehavior,
@@ -77,6 +83,14 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
             1.0f,
             true,
             "separation"
+        },
+        WeightedBoidBehavior{
+            BoidBehaviorType::Wander,
+            computeWanderBehavior,
+            BoidBehaviorWeight::Wander,
+            1.0f,
+            true,
+            "wander"
         }
     }};
 
@@ -161,6 +175,15 @@ Vec2 computeSeparationBehavior(std::size_t boidIndex, BoidBehaviorContext& conte
         context.boids,
         context.candidates.separation,
         context.config.maxSpeed
+    );
+}
+
+Vec2 computeWanderBehavior(std::size_t boidIndex, BoidBehaviorContext& context) {
+    return computeWander(
+        boidIndex,
+        context.boids,
+        context.config.maxSpeed,
+        context.config.wanderJitter
     );
 }
 

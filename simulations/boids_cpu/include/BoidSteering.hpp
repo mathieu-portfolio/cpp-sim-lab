@@ -29,6 +29,13 @@ Vec2 computeSeparation(
     float maxSpeed
 );
 
+Vec2 computeWander(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    float maxSpeed,
+    float jitter
+);
+
 Vec2 limitLength(Vec2 value, float maxLength);
 Vec2 wrapPosition(Vec2 position, float width, float height);
 

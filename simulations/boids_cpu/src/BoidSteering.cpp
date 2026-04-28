@@ -1,8 +1,17 @@
 #include "BoidSteering.hpp"
 
+#include <cmath>
+
 namespace boids_cpu {
 namespace {
 constexpr float Epsilon = 0.0001f;
+constexpr float Pi = 3.14159265358979323846f;
+
+float deterministicNoise(std::size_t index, float x, float y) {
+    const float seed = static_cast<float>((index * 747796405u) + 2891336453u);
+    const float value = std::sin(x * 12.9898f + y * 78.233f + seed * 0.000001f) * 43758.5453f;
+    return value - std::floor(value);
+}
 
 Vec2 steerToward(Vec2 desiredDirection, Vec2 currentVelocity, float maxSpeed) {
     if (desiredDirection.length() <= Epsilon) {
@@ -103,6 +112,35 @@ Vec2 computeSeparation(
 
     away *= 1.0f / static_cast<float>(neighborCount);
     return steerToward(away, boid.velocity, maxSpeed);
+}
+
+Vec2 computeWander(
+    std::size_t boidIndex,
+    const std::vector<Boid>& boids,
+    float maxSpeed,
+    float jitter
+) {
+    const Boid& boid = boids[boidIndex];
+    const Vec2 forward = boid.velocity.length() > Epsilon
+        ? boid.velocity.normalized()
+        : Vec2{1.0f, 0.0f};
+
+    const float noise = deterministicNoise(
+        boidIndex,
+        boid.position.x + boid.velocity.x,
+        boid.position.y + boid.velocity.y
+    );
+
+    const float angle = (noise * 2.0f - 1.0f) * Pi * jitter;
+    const float c = std::cos(angle);
+    const float s = std::sin(angle);
+
+    const Vec2 desiredDirection{
+        forward.x * c - forward.y * s,
+        forward.x * s + forward.y * c
+    };
+
+    return steerToward(desiredDirection, boid.velocity, maxSpeed);
 }
 
 Vec2 limitLength(Vec2 value, float maxLength) {
