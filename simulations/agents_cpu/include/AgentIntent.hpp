@@ -21,4 +21,9 @@ constexpr const char* intentName(AgentIntent intent) {
     return "unknown";
 }
 
+constexpr bool isMovingIntent(AgentIntent intent) {
+    return intent == AgentIntent::SeekTarget ||
+        intent == AgentIntent::AvoidObstacle;
+}
+
 } // namespace agents_cpu

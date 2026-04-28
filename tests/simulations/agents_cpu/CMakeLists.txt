@@ -1,5 +1,5 @@
 add_executable(agents_cpu_tests
-    simulation_tests.cpp
+    simulation_intent_tests.cpp
 )
 
 target_link_libraries(agents_cpu_tests

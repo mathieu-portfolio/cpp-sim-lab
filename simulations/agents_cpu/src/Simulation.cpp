@@ -74,7 +74,7 @@ bool hasObstacleThreat(
         const float distance = away.length();
         const float threatDistance = obstacle.radius + agent.radius + obstacleIntentRadius;
 
-        if (distance > Epsilon && distance <= threatDistance) {
+        if (distance <= threatDistance) {
             return true;
         }
     }
