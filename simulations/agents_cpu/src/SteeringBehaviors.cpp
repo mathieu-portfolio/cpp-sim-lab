@@ -46,11 +46,13 @@ Vec2 computeAcceleration(std::size_t agentIndex, BehaviorContext& context) {
     for (const WeightedBehavior& behavior : defaultBehaviors()) {
         const float weight = context.config.*(behavior.weight);
 
-        if (weight == 0.0f) {
-            continue;
-        }
+        // Always evaluate behaviors, even when their weight is zero.
+        // Some behaviors also collect instrumentation stats while scanning
+        // candidates, and those stats should stay independent from the
+        // weighted steering contribution.
+        const Vec2 force = behavior.compute(agentIndex, context);
 
-        acceleration += behavior.compute(agentIndex, context) *
+        acceleration += force *
             (weight * scaleFactor(context.config, behavior.scale));
     }
 
