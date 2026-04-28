@@ -29,10 +29,15 @@ enum class BoidBehaviorWeight {
     Fixed
 };
 
+enum class ForceScale {
+    Unit
+};
+
 struct WeightedBoidBehavior {
     BoidBehaviorType type = BoidBehaviorType::Alignment;
     BoidBehaviorFn compute = nullptr;
     BoidBehaviorWeight weight = BoidBehaviorWeight::Fixed;
+    ForceScale scale = ForceScale::Unit;
     float fixedWeight = 1.0f;
     bool enabled = true;
     const char* name = "";

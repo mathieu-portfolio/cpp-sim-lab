@@ -27,6 +27,15 @@ float behaviorWeight(
     return behavior.fixedWeight;
 }
 
+float scaleFactor(const WeightedBoidBehavior& behavior) {
+    switch (behavior.scale) {
+    case ForceScale::Unit:
+        return 1.0f;
+    }
+
+    return 1.0f;
+}
+
 BoidBehaviorFn behaviorFunction(BoidBehaviorType type) {
     switch (type) {
     case BoidBehaviorType::Alignment:
@@ -64,6 +73,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
             BoidBehaviorType::Alignment,
             computeAlignmentBehavior,
             BoidBehaviorWeight::Alignment,
+            ForceScale::Unit,
             1.0f,
             true,
             "alignment"
@@ -72,6 +82,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
             BoidBehaviorType::Cohesion,
             computeCohesionBehavior,
             BoidBehaviorWeight::Cohesion,
+            ForceScale::Unit,
             1.0f,
             true,
             "cohesion"
@@ -80,6 +91,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
             BoidBehaviorType::Separation,
             computeSeparationBehavior,
             BoidBehaviorWeight::Separation,
+            ForceScale::Unit,
             1.0f,
             true,
             "separation"
@@ -88,6 +100,7 @@ std::span<const WeightedBoidBehavior> defaultBoidBehaviors() {
             BoidBehaviorType::Wander,
             computeWanderBehavior,
             BoidBehaviorWeight::Wander,
+            ForceScale::Unit,
             1.0f,
             true,
             "wander"
@@ -112,6 +125,7 @@ WeightedBoidBehavior makeBoidBehavior(
         type,
         behaviorFunction(type),
         weight,
+        ForceScale::Unit,
         fixedWeight,
         enabled,
         behaviorName(type)
@@ -133,6 +147,10 @@ Vec2 computeAcceleration(
         context,
         [](const WeightedBoidBehavior& behavior, const BoidBehaviorContext& ctx) {
             return behaviorWeight(ctx.config, behavior);
+        },
+        simfw::simulation::AlwaysApplyBehavior{},
+        [](const WeightedBoidBehavior& behavior, const BoidBehaviorContext&) {
+            return scaleFactor(behavior);
         }
     );
 
