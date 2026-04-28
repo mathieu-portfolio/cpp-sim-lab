@@ -19,6 +19,7 @@ struct ConfigUiTraits<SimulationConfig> {
     static constexpr auto fields = std::make_tuple(
         TunableField{"gravity", &SimulationConfig::gravity, 0.0f, 20.0f, 100.0f},
         TunableField{"damping", &SimulationConfig::damping, 0.9f, 0.01f, 0.05f},
+        TunableField{"bounce", &SimulationConfig::bounce, -1.0f, 0.05f, 0.2f},
         TunableField{"cell size", &SimulationConfig::gridCellSize, 1.0f, 10.0f, 40.0f}
     );
 };
