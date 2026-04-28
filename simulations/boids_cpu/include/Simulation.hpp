@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Boid.hpp"
+#include "BoidBehavior.hpp"
 
 #include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
@@ -9,6 +10,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <span>
 #include <vector>
 
 class ThreadPool;
@@ -68,11 +70,16 @@ public:
 
     const Grid& getGrid() const { return m_grid; }
 
+    std::span<const WeightedBoidBehavior> getBehaviors() const { return m_behaviors; }
+    void setBehaviors(std::span<const WeightedBoidBehavior> behaviors);
+    void resetBehaviors();
+
 private:
     using BoidUpdateScratch = simfw::simulation::NeighborScratch<std::size_t>;
 
     Grid m_grid;
     std::vector<Boid> m_previousBoids;
+    std::vector<WeightedBoidBehavior> m_behaviors;
     std::unique_ptr<ThreadPool> m_threadPool;
 
     void normalizeConfigCounts();

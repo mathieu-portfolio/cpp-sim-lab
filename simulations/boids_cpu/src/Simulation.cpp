@@ -58,11 +58,15 @@ std::size_t hardwareWorkerCount() {
 
     return static_cast<std::size_t>(hardwareThreads);
 }
-}
+} // namespace
 
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
       m_grid(m_config.gridCellSize),
+      m_behaviors(
+          defaultBoidBehaviors().begin(),
+          defaultBoidBehaviors().end()
+      ),
       m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
     normalizeConfigCounts();
     reset();
@@ -72,6 +76,14 @@ Simulation::~Simulation() = default;
 
 Simulation::Simulation(Simulation&&) noexcept = default;
 Simulation& Simulation::operator=(Simulation&&) noexcept = default;
+
+void Simulation::setBehaviors(std::span<const WeightedBoidBehavior> behaviors) {
+    m_behaviors.assign(behaviors.begin(), behaviors.end());
+}
+
+void Simulation::resetBehaviors() {
+    setBehaviors(defaultBoidBehaviors());
+}
 
 void Simulation::normalizeConfigCounts() {
     constexpr std::size_t defaultCount = SimulationConfig::DefaultBoidCount;
@@ -179,38 +191,26 @@ void Simulation::updateBoidRange(
             stats
         );
 
-        Vec2 align = computeAlignment(
-            i,
+        BoidBehaviorContext behaviorContext{
+            m_config,
             m_previousBoids,
-            scratch.neighbors,
-            m_config.maxSpeed
-        );
+            BoidCandidateLists{
+                scratch.neighbors,
+                scratch.secondaryNeighbors
+            },
+            stats
+        };
 
-        Vec2 coh = computeCohesion(
+        const Vec2 acceleration = computeAcceleration(
             i,
-            m_previousBoids,
-            scratch.neighbors,
-            m_config.maxSpeed
+            behaviorContext,
+            m_behaviors
         );
-
-        Vec2 sep = computeSeparation(
-            i,
-            m_previousBoids,
-            scratch.secondaryNeighbors,
-            m_config.maxSpeed
-        );
-
-        Vec2 force =
-            align * m_config.alignmentWeight +
-            coh * m_config.cohesionWeight +
-            sep * m_config.separationWeight;
-
-        force = limitLength(force, m_config.maxForce);
 
         Boid& boid = m_entities[i];
         const Boid& previousBoid = m_previousBoids[i];
 
-        boid.velocity = previousBoid.velocity + force * dt;
+        boid.velocity = previousBoid.velocity + acceleration * dt;
         boid.velocity = limitLength(boid.velocity, m_config.maxSpeed);
         boid.position = previousBoid.position + boid.velocity * dt;
 
