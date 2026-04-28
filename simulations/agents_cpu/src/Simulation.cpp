@@ -1,14 +1,17 @@
 #include "Simulation.hpp"
 
+#include "thread_pool.hpp"
+
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <random/Random.hpp>
-
 #include <thread>
 
 namespace agents_cpu {
 namespace {
 constexpr float Epsilon = 0.0001f;
+constexpr std::size_t MinItemsPerParallelTask = 256;
 
 Vec2 agentPosition(const Agent& agent) {
     return agent.position;
@@ -182,22 +185,14 @@ Vec2 clampToWorld(Vec2 position, float width, float height) {
     return position;
 }
 
-std::size_t workerCountFor(std::size_t itemCount) {
-    constexpr std::size_t MinItemsPerWorker = 256;
+std::size_t hardwareWorkerCount() {
+    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
 
-    if (itemCount <= MinItemsPerWorker) {
+    if (hardwareThreads == 0) {
         return 1;
     }
 
-    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
-    const std::size_t availableWorkers = hardwareThreads == 0
-        ? 1
-        : static_cast<std::size_t>(hardwareThreads);
-
-    const std::size_t usefulWorkers =
-        (itemCount + MinItemsPerWorker - 1) / MinItemsPerWorker;
-
-    return std::clamp<std::size_t>(usefulWorkers, 1, availableWorkers);
+    return static_cast<std::size_t>(hardwareThreads);
 }
 } // namespace
 
@@ -205,10 +200,13 @@ Simulation::Simulation(SimulationConfig config)
     : Base(config),
       m_agentGrid(config.gridCellSize),
       m_obstacleGrid(config.gridCellSize),
-      m_target{config.width * 0.5f, config.height * 0.5f} {
+      m_target{config.width * 0.5f, config.height * 0.5f},
+      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
     normalizeConfigCounts();
     reset();
 }
+
+Simulation::~Simulation() = default;
 
 void Simulation::normalizeConfigCounts() {
     constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
@@ -456,54 +454,30 @@ void Simulation::updateAgentsSingleThread(float dt, float obstacleQueryRadius) {
 
 void Simulation::updateAgentsParallel(float dt, float obstacleQueryRadius) {
     const std::size_t agentCount = m_entities.size();
-    const std::size_t workerCount = workerCountFor(agentCount);
+    const std::size_t taskCount =
+        (agentCount + MinItemsPerParallelTask - 1) / MinItemsPerParallelTask;
 
-    std::vector<AgentUpdateScratch> workerScratch(workerCount);
-    std::vector<SimulationStats> workerStats(workerCount);
+    std::vector<AgentUpdateScratch> workerScratch(taskCount);
+    std::vector<SimulationStats> workerStats(taskCount);
 
-    if (workerCount == 1) {
-        updateAgentRange(
-            0,
-            agentCount,
-            dt,
-            obstacleQueryRadius,
-            workerScratch[0],
-            workerStats[0]
-        );
-        mergeWorkerStats(workerStats[0]);
-        return;
-    }
-
-    std::vector<std::thread> workers;
-    workers.reserve(workerCount);
-
-    const std::size_t chunkSize = (agentCount + workerCount - 1) / workerCount;
-
-    for (std::size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
-        const std::size_t beginIndex = workerIndex * chunkSize;
-        const std::size_t endIndex = std::min(beginIndex + chunkSize, agentCount);
-
-        if (beginIndex >= endIndex) {
-            break;
+    m_threadPool->parallel_for(
+        agentCount,
+        MinItemsPerParallelTask,
+        [this, dt, obstacleQueryRadius, &workerScratch, &workerStats](
+            std::size_t beginIndex,
+            std::size_t endIndex,
+            std::size_t taskIndex
+        ) {
+            updateAgentRange(
+                beginIndex,
+                endIndex,
+                dt,
+                obstacleQueryRadius,
+                workerScratch[taskIndex],
+                workerStats[taskIndex]
+            );
         }
-
-        workers.emplace_back(
-            [this, beginIndex, endIndex, dt, obstacleQueryRadius, workerIndex, &workerScratch, &workerStats]() {
-                updateAgentRange(
-                    beginIndex,
-                    endIndex,
-                    dt,
-                    obstacleQueryRadius,
-                    workerScratch[workerIndex],
-                    workerStats[workerIndex]
-                );
-            }
-        );
-    }
-
-    for (std::thread& worker : workers) {
-        worker.join();
-    }
+    );
 
     for (const SimulationStats& stats : workerStats) {
         mergeWorkerStats(stats);

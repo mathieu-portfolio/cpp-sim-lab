@@ -7,7 +7,10 @@
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
+#include <memory>
 #include <vector>
+
+class ThreadPool;
 
 namespace agents_cpu {
 
@@ -64,6 +67,12 @@ public:
     using Grid = simfw::SpatialHashGrid<std::size_t>;
 
     explicit Simulation(SimulationConfig config = {});
+    ~Simulation();
+
+    Simulation(const Simulation&) = delete;
+    Simulation& operator=(const Simulation&) = delete;
+    Simulation(Simulation&&) noexcept;
+    Simulation& operator=(Simulation&&) noexcept;
 
     void update(float dt);
     void reset();
@@ -92,6 +101,7 @@ private:
     Vec2 m_target;
     std::vector<Obstacle> m_obstacles;
     std::vector<Agent> m_previousAgents;
+    std::unique_ptr<ThreadPool> m_threadPool;
 
     void normalizeConfigCounts();
     void updateStatsCount();

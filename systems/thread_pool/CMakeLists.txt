@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(THREAD_POOL_STANDALONE ON)
+else()
+    set(THREAD_POOL_STANDALONE OFF)
+endif()
+
 # -----------------------------
 # Library
 # -----------------------------
@@ -17,16 +23,23 @@ target_include_directories(thread_pool
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+target_compile_features(thread_pool
+    PUBLIC
+        cxx_std_17
+)
+
 # -----------------------------
 # Demo
 # -----------------------------
-add_executable(thread_pool_demo
-    demo/demo.cpp
-)
+if(THREAD_POOL_STANDALONE)
+    add_executable(thread_pool_demo
+        demo/demo.cpp
+    )
 
-target_link_libraries(thread_pool_demo
-    PRIVATE thread_pool
-)
+    target_link_libraries(thread_pool_demo
+        PRIVATE thread_pool
+    )
+endif()
 
 # -----------------------------
 # Testing
@@ -34,15 +47,17 @@ target_link_libraries(thread_pool_demo
 include(CTest)
 
 if(BUILD_TESTING)
-    include(FetchContent)
+    if(THREAD_POOL_STANDALONE)
+        include(FetchContent)
 
-    FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.17.0
-    )
+        FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.17.0
+        )
 
-    FetchContent_MakeAvailable(googletest)
+        FetchContent_MakeAvailable(googletest)
+    endif()
 
     add_executable(thread_pool_tests
         tests/basic_tests.cpp
@@ -71,14 +86,16 @@ endif()
 # -----------------------------
 # Benchmark
 # -----------------------------
-add_executable(thread_pool_bench
-bench/bench.cpp
-)
+if(THREAD_POOL_STANDALONE)
+    add_executable(thread_pool_bench
+        bench/bench.cpp
+    )
 
-target_link_libraries(thread_pool_bench
-PRIVATE thread_pool
-)
+    target_link_libraries(thread_pool_bench
+        PRIVATE thread_pool
+    )
 
-target_include_directories(thread_pool_bench
-PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+    target_include_directories(thread_pool_bench
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+endif()

@@ -20,6 +20,7 @@ endif()
 find_package(raylib CONFIG REQUIRED)
 
 add_subdirectory(framework)
+add_subdirectory(systems/thread_pool)
 
 add_subdirectory(simulations/particles_cpu)
 add_subdirectory(simulations/boids_cpu)
