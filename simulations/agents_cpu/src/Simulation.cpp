@@ -425,14 +425,24 @@ void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
     m_stats.obstacleCandidates += workerStats.obstacleCandidates;
 }
 
-void Simulation::updateAgents(float dt) {
+void Simulation::updateAgentsSingleThread(float dt, float obstacleQueryRadius) {
+    AgentUpdateScratch scratch;
+    SimulationStats stats;
+
+    updateAgentRange(
+        0,
+        m_entities.size(),
+        dt,
+        obstacleQueryRadius,
+        scratch,
+        stats
+    );
+
+    mergeWorkerStats(stats);
+}
+
+void Simulation::updateAgentsParallel(float dt, float obstacleQueryRadius) {
     const std::size_t agentCount = m_entities.size();
-
-    if (agentCount == 0) {
-        return;
-    }
-
-    const float obstacleQueryRadius = maxObstacleQueryRadius();
     const std::size_t workerCount = workerCountFor(agentCount);
 
     std::vector<AgentUpdateScratch> workerScratch(workerCount);
@@ -484,6 +494,20 @@ void Simulation::updateAgents(float dt) {
 
     for (const SimulationStats& stats : workerStats) {
         mergeWorkerStats(stats);
+    }
+}
+
+void Simulation::updateAgents(float dt) {
+    if (m_entities.empty()) {
+        return;
+    }
+
+    const float obstacleQueryRadius = maxObstacleQueryRadius();
+
+    if (m_config.useParallelUpdate) {
+        updateAgentsParallel(dt, obstacleQueryRadius);
+    } else {
+        updateAgentsSingleThread(dt, obstacleQueryRadius);
     }
 }
 

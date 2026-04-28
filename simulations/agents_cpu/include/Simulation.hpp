@@ -37,6 +37,7 @@ struct SimulationConfig {
     float obstacleAvoidanceRadius = 70.0f;
 
     bool useSpatialGrid = true;
+    bool useParallelUpdate = true;
     float gridCellSize = 24.0f;
 };
 
@@ -100,6 +101,8 @@ private:
     void snapshotAgents();
     void buildSpatialIndexes();
     void updateAgents(float dt);
+    void updateAgentsSingleThread(float dt, float obstacleQueryRadius);
+    void updateAgentsParallel(float dt, float obstacleQueryRadius);
     void updateAgentRange(
         std::size_t beginIndex,
         std::size_t endIndex,
