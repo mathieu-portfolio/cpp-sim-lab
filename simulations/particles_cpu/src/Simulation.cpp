@@ -44,19 +44,19 @@ void resolveCollisionsGrid(
 }
 
 Simulation::Simulation(SimulationConfig config)
-    : m_config(config),
-      m_grid(config.gridCellSize) {
+    : Base(config),
+      m_grid(m_config.gridCellSize) {
     m_config.cellSize = m_config.gridCellSize;
     m_config.entityCount = m_config.maxParticleCount;
 
-    m_particles.reserve(m_config.maxParticleCount);
+    m_entities.reserve(m_config.maxParticleCount);
     m_stats.maxParticleCount = m_config.maxParticleCount;
     updateStatsCount();
 }
 
 void Simulation::updateStatsCount() {
-    m_stats.particleCount = m_particles.size();
-    m_stats.entityCount = m_particles.size();
+    m_stats.particleCount = m_entities.size();
+    m_stats.entityCount = m_entities.size();
     m_stats.maxParticleCount = m_config.maxParticleCount;
 }
 
@@ -68,7 +68,7 @@ void Simulation::update(float dt) {
 
     const Vec2 gravity{0.0f, m_config.gravity};
 
-    for (auto& p : m_particles) {
+    for (auto& p : m_entities) {
         p.velocity += gravity * dt;
         p.position += p.velocity * dt;
         p.velocity *= m_config.damping;
@@ -78,13 +78,13 @@ void Simulation::update(float dt) {
 
     if (m_config.useSpatialGrid) {
         m_grid.setCellSize(m_config.gridCellSize);
-        m_grid.build(m_particles, particlePosition);
-        resolveCollisionsGrid(m_particles, m_grid, m_stats, m_config);
+        m_grid.build(m_entities, particlePosition);
+        resolveCollisionsGrid(m_entities, m_grid, m_stats, m_config);
     } else {
         m_grid.clear();
     }
 
-    for (auto& p : m_particles) {
+    for (auto& p : m_entities) {
         solveParticleBounds(p, m_config);
     }
 
@@ -93,13 +93,13 @@ void Simulation::update(float dt) {
 
 void Simulation::spawn(const Vec2& pos) {
     for (int i = 0; i < m_config.spawnCount &&
-                    m_particles.size() < m_config.maxParticleCount; ++i) {
+                    m_entities.size() < m_config.maxParticleCount; ++i) {
         const Vec2 spawnOffset{
             Random::range(-20.0f, 20.0f),
             Random::range(-20.0f, 20.0f)
         };
 
-        m_particles.push_back({
+        m_entities.push_back({
             pos + spawnOffset,
             Vec2{
                 Random::range(-80.0f, 80.0f),
@@ -113,7 +113,7 @@ void Simulation::spawn(const Vec2& pos) {
 }
 
 void Simulation::clear() {
-    m_particles.clear();
+    m_entities.clear();
     m_grid.clear();
 
     m_stats = {};
@@ -127,8 +127,8 @@ void Simulation::reset() {
     constexpr int initialParticleCount = 50;
 
     for (int i = 0; i < initialParticleCount &&
-                    m_particles.size() < m_config.maxParticleCount; ++i) {
-        m_particles.push_back({
+                    m_entities.size() < m_config.maxParticleCount; ++i) {
+        m_entities.push_back({
             Vec2{
                 Random::range(100.0f, m_config.width - 100.0f),
                 Random::range(100.0f, 300.0f)
@@ -142,8 +142,4 @@ void Simulation::reset() {
     }
 
     updateStatsCount();
-}
-
-SimulationStats Simulation::getStats() const {
-    return m_stats;
 }

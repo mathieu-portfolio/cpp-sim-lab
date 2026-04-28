@@ -2,6 +2,7 @@
 
 #include "Particle.hpp"
 
+#include <simulation/SimulationBase.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -35,8 +36,10 @@ struct SimulationStats {
     std::size_t entityCount = 0;
 };
 
-class Simulation {
+class Simulation
+    : public simfw::SimulationBase<SimulationConfig, SimulationStats, Particle> {
 public:
+    using Base = simfw::SimulationBase<SimulationConfig, SimulationStats, Particle>;
     using Grid = simfw::SpatialHashGrid<int>;
 
     explicit Simulation(SimulationConfig config = {});
@@ -46,20 +49,11 @@ public:
     void spawn(const Vec2& pos);
     void clear();
 
-    const std::vector<Particle>& getParticles() const { return m_particles; }
-    const std::vector<Particle>& getEntities() const { return m_particles; }
-
-    SimulationConfig& getConfig() { return m_config; }
-    const SimulationConfig& getConfig() const { return m_config; }
+    const std::vector<Particle>& getParticles() const { return m_entities; }
 
     const Grid& getGrid() const { return m_grid; }
 
-    SimulationStats getStats() const;
-
 private:
-    std::vector<Particle> m_particles;
-    SimulationConfig m_config;
-    SimulationStats m_stats;
     Grid m_grid;
 
     void updateStatsCount();

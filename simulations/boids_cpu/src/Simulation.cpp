@@ -76,8 +76,8 @@ Vec2 boidPosition(const Boid& boid) {
 }
 
 Simulation::Simulation(SimulationConfig config)
-    : m_config(config),
-      m_grid(config.gridCellSize) {
+    : Base(config),
+      m_grid(m_config.gridCellSize) {
     normalizeConfigCounts();
     reset();
 }
@@ -93,18 +93,18 @@ void Simulation::normalizeConfigCounts() {
 }
 
 void Simulation::updateStatsCount() {
-    m_stats.boidCount = m_boids.size();
-    m_stats.entityCount = m_boids.size();
+    m_stats.boidCount = m_entities.size();
+    m_stats.entityCount = m_entities.size();
 }
 
 void Simulation::reset() {
     normalizeConfigCounts();
 
-    m_boids.clear();
-    m_boids.reserve(m_config.boidCount);
+    m_entities.clear();
+    m_entities.reserve(m_config.boidCount);
 
     for (std::size_t i = 0; i < m_config.boidCount; ++i) {
-        m_boids.push_back({
+        m_entities.push_back({
             Vec2{
                 Random::range(0.0f, m_config.width),
                 Random::range(0.0f, m_config.height)
@@ -129,7 +129,7 @@ void Simulation::update(float dt) {
     m_grid.setCellSize(m_config.gridCellSize);
 
     if (m_config.useSpatialGrid) {
-        m_grid.build(m_boids, boidPosition);
+        m_grid.build(m_entities, boidPosition);
         m_stats.occupiedGridCells = m_grid.getCells().size();
     } else {
         m_grid.clear();
@@ -142,15 +142,15 @@ void Simulation::update(float dt) {
     const float queryRadius =
         std::max(m_config.perceptionRadius, m_config.separationRadius);
 
-    for (std::size_t i = 0; i < m_boids.size(); ++i) {
+    for (std::size_t i = 0; i < m_entities.size(); ++i) {
         if (m_config.useSpatialGrid) {
             candidates.clear();
-            m_grid.queryRadius(m_boids[i].position, queryRadius, candidates);
+            m_grid.queryRadius(m_entities[i].position, queryRadius, candidates);
             m_stats.neighborCandidates += candidates.size();
 
             addNeighborsFromCandidateList(
                 i,
-                m_boids,
+                m_entities,
                 candidates,
                 m_config.perceptionRadius,
                 m_config.separationRadius,
@@ -161,7 +161,7 @@ void Simulation::update(float dt) {
         } else {
             addNeighborsNaive(
                 i,
-                m_boids,
+                m_entities,
                 m_config.perceptionRadius,
                 m_config.separationRadius,
                 perceptionNeighbors,
@@ -172,21 +172,21 @@ void Simulation::update(float dt) {
 
         Vec2 align = computeAlignment(
             i,
-            m_boids,
+            m_entities,
             perceptionNeighbors,
             m_config.maxSpeed
         );
 
         Vec2 coh = computeCohesion(
             i,
-            m_boids,
+            m_entities,
             perceptionNeighbors,
             m_config.maxSpeed
         );
 
         Vec2 sep = computeSeparation(
             i,
-            m_boids,
+            m_entities,
             separationNeighbors,
             m_config.maxSpeed
         );
@@ -198,12 +198,12 @@ void Simulation::update(float dt) {
 
         force = limitLength(force, m_config.maxForce);
 
-        m_boids[i].velocity += force * dt;
-        m_boids[i].velocity = limitLength(m_boids[i].velocity, m_config.maxSpeed);
-        m_boids[i].position += m_boids[i].velocity * dt;
+        m_entities[i].velocity += force * dt;
+        m_entities[i].velocity = limitLength(m_entities[i].velocity, m_config.maxSpeed);
+        m_entities[i].position += m_entities[i].velocity * dt;
 
-        m_boids[i].position = wrapPosition(
-            m_boids[i].position,
+        m_entities[i].position = wrapPosition(
+            m_entities[i].position,
             m_config.width,
             m_config.height
         );

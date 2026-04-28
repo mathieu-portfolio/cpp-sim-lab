@@ -2,6 +2,7 @@
 
 #include "Boid.hpp"
 
+#include <simulation/SimulationBase.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -39,28 +40,21 @@ struct SimulationStats {
     std::size_t occupiedGridCells = 0;
 };
 
-class Simulation {
+class Simulation
+    : public simfw::SimulationBase<SimulationConfig, SimulationStats, Boid> {
 public:
+    using Base = simfw::SimulationBase<SimulationConfig, SimulationStats, Boid>;
     using Grid = simfw::SpatialHashGrid<std::size_t>;
 
     explicit Simulation(SimulationConfig config = {});
     void update(float dt);
     void reset();
 
-    const std::vector<Boid>& getBoids() const { return m_boids; }
-    const std::vector<Boid>& getEntities() const { return m_boids; }
-
-    SimulationConfig& getConfig() { return m_config; }
-    const SimulationConfig& getConfig() const { return m_config; }
-
-    SimulationStats getStats() const { return m_stats; }
+    const std::vector<Boid>& getBoids() const { return m_entities; }
 
     const Grid& getGrid() const { return m_grid; }
 
 private:
-    std::vector<Boid> m_boids;
-    SimulationConfig m_config;
-    SimulationStats m_stats;
     Grid m_grid;
 
     void normalizeConfigCounts();
