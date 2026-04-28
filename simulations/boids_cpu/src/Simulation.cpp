@@ -5,6 +5,7 @@
 
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
+#include <simulation/StatsReduction.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -222,8 +223,12 @@ void Simulation::updateBoidRange(
 }
 
 void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
-    m_stats.neighborChecks += workerStats.neighborChecks;
-    m_stats.neighborCandidates += workerStats.neighborCandidates;
+    simfw::sumStatsMembers(
+        m_stats,
+        workerStats,
+        &SimulationStats::neighborChecks,
+        &SimulationStats::neighborCandidates
+    );
 }
 
 void Simulation::updateBoids(float dt) {

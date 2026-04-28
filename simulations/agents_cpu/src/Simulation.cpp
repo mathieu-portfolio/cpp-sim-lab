@@ -9,6 +9,7 @@
 #include <random/Random.hpp>
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
+#include <simulation/StatsReduction.hpp>
 #include <thread>
 
 namespace agents_cpu {
@@ -367,18 +368,20 @@ void Simulation::updateAgentRange(
 }
 
 void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
-    m_stats.neighborChecks += workerStats.neighborChecks;
-    m_stats.neighborCandidates += workerStats.neighborCandidates;
-    m_stats.arrivedCount += workerStats.arrivedCount;
-
-    m_stats.obstacleChecks += workerStats.obstacleChecks;
-    m_stats.obstacleCandidates += workerStats.obstacleCandidates;
-    m_stats.obstacleOverlapChecks += workerStats.obstacleOverlapChecks;
-
-    m_stats.seekingTargetCount += workerStats.seekingTargetCount;
-    m_stats.avoidingObstacleCount += workerStats.avoidingObstacleCount;
-    m_stats.idleCount += workerStats.idleCount;
-    m_stats.intentChanges += workerStats.intentChanges;
+    simfw::sumStatsMembers(
+        m_stats,
+        workerStats,
+        &SimulationStats::neighborChecks,
+        &SimulationStats::neighborCandidates,
+        &SimulationStats::arrivedCount,
+        &SimulationStats::obstacleChecks,
+        &SimulationStats::obstacleCandidates,
+        &SimulationStats::obstacleOverlapChecks,
+        &SimulationStats::seekingTargetCount,
+        &SimulationStats::avoidingObstacleCount,
+        &SimulationStats::idleCount,
+        &SimulationStats::intentChanges
+    );
 }
 
 
