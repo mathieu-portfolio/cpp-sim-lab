@@ -1,2 +1,1 @@
-add_subdirectory(boids_naive_neighbors)
-add_subdirectory(boids_spatial_grid_compare)
+add_subdirectory(boids_execution_matrix)

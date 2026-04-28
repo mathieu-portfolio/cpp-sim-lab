@@ -1,3 +1,1 @@
-add_subdirectory(agents_spatial_grid_compare)
-add_subdirectory(agents_obstacle_scaling)
-add_subdirectory(agents_parallel_compare)
+add_subdirectory(agents_execution_matrix)

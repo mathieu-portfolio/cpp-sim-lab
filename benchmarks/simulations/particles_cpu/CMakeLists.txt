@@ -1,3 +1,1 @@
-add_subdirectory(particles_collision_compare)
-add_subdirectory(particles_grid_cell_size)
-add_subdirectory(particles_fixed_grid_compare)
+add_subdirectory(particles_execution_matrix)
