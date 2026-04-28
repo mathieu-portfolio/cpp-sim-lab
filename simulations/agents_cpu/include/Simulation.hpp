@@ -80,27 +80,29 @@ public:
     void clearObstacles();
 
 private:
+    struct AgentUpdateScratch {
+        std::vector<std::size_t> agentCandidates;
+        std::vector<std::size_t> obstacleCandidates;
+    };
+
     Grid m_agentGrid;
     Grid m_obstacleGrid;
     Vec2 m_target;
     std::vector<Obstacle> m_obstacles;
     std::vector<Agent> m_previousAgents;
+    AgentUpdateScratch m_updateScratch;
 
     void normalizeConfigCounts();
     void updateStatsCount();
+    Vec2 randomPoint() const;
+    float maxObstacleQueryRadius() const;
+
     void beginFrame();
     void snapshotAgents();
     void buildSpatialIndexes();
     void updateAgents(float dt);
-    void updateAgent(
-        std::size_t agentIndex,
-        float dt,
-        std::vector<std::size_t>& agentCandidates,
-        std::vector<std::size_t>& obstacleCandidates
-    );
-
-    Vec2 randomPoint() const;
-    float maxObstacleQueryRadius() const;
+    void collectAgentCandidates(std::size_t agentIndex, AgentUpdateScratch& scratch);
+    void collectObstacleCandidates(const Agent& previousAgent, float obstacleQueryRadius, AgentUpdateScratch& scratch);
 };
 
 } // namespace agents_cpu
