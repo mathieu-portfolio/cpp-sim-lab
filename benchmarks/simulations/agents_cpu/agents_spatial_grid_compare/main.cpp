@@ -130,13 +130,14 @@ int main() {
         SimulationConfig baseConfig;
         baseConfig.agentCount = agentCount;
         baseConfig.entityCount = agentCount;
+        baseConfig.execution.useParallelUpdate = false;
         baseConfig.gridCellSize = baseConfig.separationRadius;
 
         SimulationConfig naiveConfig = baseConfig;
-        naiveConfig.useSpatialGrid = false;
+        naiveConfig.execution.useSpatialGrid = false;
 
         SimulationConfig gridConfig = baseConfig;
-        gridConfig.useSpatialGrid = true;
+        gridConfig.execution.useSpatialGrid = true;
 
         const std::uint32_t seed = bench::seedFor(BaseSeed, agentCount);
 
