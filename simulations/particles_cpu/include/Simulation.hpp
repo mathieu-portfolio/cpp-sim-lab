@@ -6,7 +6,10 @@
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
+#include <memory>
 #include <vector>
+
+class ThreadPool;
 
 namespace particles_cpu {
 
@@ -27,6 +30,7 @@ struct SimulationConfig {
 
     float cellSize = 16.0f;
     bool useSpatialGrid = true;
+    bool useParallelUpdate = true;
     std::size_t entityCount = 0;
 };
 
@@ -45,6 +49,12 @@ public:
     using Grid = simfw::SpatialHashGrid<int>;
 
     explicit Simulation(SimulationConfig config = {});
+    ~Simulation();
+
+    Simulation(const Simulation&) = delete;
+    Simulation& operator=(const Simulation&) = delete;
+    Simulation(Simulation&&) noexcept;
+    Simulation& operator=(Simulation&&) noexcept;
 
     void update(float dt);
     void reset();
@@ -56,9 +66,20 @@ public:
     const Grid& getGrid() const { return m_grid; }
 
 private:
+    struct ParticleUpdateScratch {};
+
     Grid m_grid;
+    std::unique_ptr<ThreadPool> m_threadPool;
 
     void updateStatsCount();
+    void integrateParticles(float dt);
+    void integrateParticleRange(
+        std::size_t beginIndex,
+        std::size_t endIndex,
+        float dt
+    );
+    void buildSpatialIndex();
+    void resolveCollisions();
 };
 
 } // namespace particles_cpu

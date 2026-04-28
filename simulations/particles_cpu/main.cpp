@@ -51,7 +51,15 @@ int main() {
         );
 
         if (IsKeyPressed(KEY_G)) {
+            config.useSpatialGrid = !config.useSpatialGrid;
+        }
+
+        if (IsKeyPressed(KEY_H)) {
             gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
+        }
+
+        if (IsKeyPressed(KEY_P)) {
+            config.useParallelUpdate = !config.useParallelUpdate;
         }
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -125,7 +133,7 @@ int main() {
 
         BeginMode2D(camera);
 
-        if (controls.showDebug) {
+        if (controls.showDebug && config.useSpatialGrid) {
             simfw::ui::drawSpatialGridDebug(
                 sim.getGrid(),
                 gridDebugMode,
@@ -154,6 +162,25 @@ int main() {
 
             simfw::ui::drawStats(cursor, sim.getStats());
 
+            cursor.draw(
+                config.useSpatialGrid ? "Backend: spatial grid" : "Backend: naive",
+                16,
+                config.useSpatialGrid ? GREEN : LIGHTGRAY
+            );
+
+            cursor.draw(
+                config.useParallelUpdate ? "Update: parallel integration" : "Update: single-thread integration",
+                16,
+                config.useParallelUpdate ? GREEN : LIGHTGRAY
+            );
+
+            cursor.draw(
+                TextFormat(
+                    "Grid debug: %s",
+                    simfw::ui::gridDebugModeName(gridDebugMode)
+                )
+            );
+
             cursor.gap(6);
 
             simfw::ui::drawTunables(
@@ -167,7 +194,8 @@ int main() {
                 cursor.draw("Space: pause | N: step | R: reset | D: debug grid | F1: UI mode");
                 cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
                 cursor.draw("Mouse: spawn | Right: clear | Wheel: zoom | Middle: pan");
-                cursor.draw("G: grid debug mode | Backspace: reset camera");
+                cursor.draw("G: toggle grid backend | H: grid debug mode | P: parallel update");
+                cursor.draw("Backspace: reset camera");
             }
 
             cursor.gap(8);

@@ -13,21 +13,8 @@ namespace {
 constexpr int WindowWidth = 800;
 constexpr int WindowHeight = 800;
 
-Color intentColor(AgentIntent intent) {
-    switch (intent) {
-    case AgentIntent::SeekTarget:
-        return WHITE;
-    case AgentIntent::AvoidObstacle:
-        return ORANGE;
-    case AgentIntent::Idle:
-        return SKYBLUE;
-    }
-
-    return WHITE;
-}
-
 void drawAgent(const Agent& agent) {
-    DrawCircleV(simfw::ui::toRaylib(agent.position), 3.0f, intentColor(agent.intent));
+    DrawCircleV(simfw::ui::toRaylib(agent.position), 3.0f, WHITE);
 
     Vec2 dir = agent.velocity.length() > 0.001f
         ? agent.velocity.normalized()
@@ -64,13 +51,6 @@ void drawDebugObstacle(const Obstacle& obstacle, const SimulationConfig& config)
         static_cast<int>(obstacle.position.y),
         obstacle.radius + config.obstacleAvoidanceRadius,
         DARKGRAY
-    );
-
-    DrawCircleLines(
-        static_cast<int>(obstacle.position.x),
-        static_cast<int>(obstacle.position.y),
-        obstacle.radius + config.obstacleIntentRadius,
-        ORANGE
     );
 }
 
@@ -150,8 +130,8 @@ int main() {
             gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
         }
 
-        if (IsKeyPressed(KEY_I)) {
-            config.useIntent = !config.useIntent;
+        if (IsKeyPressed(KEY_P)) {
+            config.useParallelUpdate = !config.useParallelUpdate;
         }
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -200,7 +180,9 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
+        if (config.useSpatialGrid) {
+            simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
+        }
 
         drawTarget(sim.getTarget(), config);
 
@@ -235,9 +217,9 @@ int main() {
             );
 
             cursor.draw(
-                config.useIntent ? "Intent: enabled" : "Intent: disabled",
+                config.useParallelUpdate ? "Update: parallel" : "Update: single-thread",
                 16,
-                config.useIntent ? GREEN : LIGHTGRAY
+                config.useParallelUpdate ? GREEN : LIGHTGRAY
             );
 
             cursor.draw(
@@ -257,11 +239,10 @@ int main() {
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 cursor.gap(10);
-                cursor.draw("Intent colors: white seek | orange avoid | blue idle");
                 cursor.draw("Left mouse: set target | Right mouse: add obstacle | C: clear obstacles");
                 cursor.draw("Space: pause | N: step | R: reset | D: debug | F1: UI mode");
                 cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
-                cursor.draw("G: toggle grid backend | H: grid debug mode | I: toggle intent");
+                cursor.draw("G: toggle grid backend | H: grid debug mode | P: parallel update");
             }
         }
 

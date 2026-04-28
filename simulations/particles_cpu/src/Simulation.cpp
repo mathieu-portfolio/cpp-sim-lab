@@ -1,67 +1,39 @@
 #include "Simulation.hpp"
 #include "ParticlePhysics.hpp"
+#include "thread_pool.hpp"
 
 #include <simulation/CollisionPairs.hpp>
+#include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 
 #include <algorithm>
+#include <memory>
 #include <random/Random.hpp>
+#include <thread>
 
 namespace particles_cpu {
 namespace {
+constexpr std::size_t MinItemsPerParallelTask = 256;
+
 Vec2 particlePosition(const Particle& particle) {
     return particle.position;
 }
 
-void resolveCollisions(
-    std::vector<Particle>& particles,
-    Simulation::Grid& grid,
-    SimulationStats& stats,
-    const SimulationConfig& config
-) {
-    std::vector<int> candidates;
+std::size_t hardwareWorkerCount() {
+    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
 
-    const float queryRadius = config.gridCellSize;
-    const int particleCount = static_cast<int>(particles.size());
+    if (hardwareThreads == 0) {
+        return 1;
+    }
 
-    simfw::simulation::forEachUniqueCandidatePair<int>(
-        particles.size(),
-        candidates,
-        [&](int particleIndex, std::vector<int>& out) {
-            const Particle& particle = particles[particleIndex];
-
-            simfw::simulation::collectCandidates(
-                grid,
-                particle.position,
-                queryRadius,
-                simfw::simulation::makeSpatialQueryOptionsExcluding<int>(
-                    config.useSpatialGrid,
-                    static_cast<std::size_t>(particleCount),
-                    particleIndex
-                ),
-                out
-            );
-        },
-        [&](int aIndex, int bIndex) {
-            ++stats.collisionChecks;
-
-            Particle& a = particles[aIndex];
-            Particle& b = particles[bIndex];
-
-            if (resolveParticleCollision(a, b, config)) {
-                ++stats.collisionsResolved;
-
-                solveParticleBounds(a, config);
-                solveParticleBounds(b, config);
-            }
-        }
-    );
+    return static_cast<std::size_t>(hardwareThreads);
 }
-}
+} // namespace
 
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
-      m_grid(m_config.gridCellSize) {
+      m_grid(m_config.gridCellSize),
+      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
     m_config.cellSize = m_config.gridCellSize;
     m_config.entityCount = m_config.maxParticleCount;
 
@@ -70,10 +42,98 @@ Simulation::Simulation(SimulationConfig config)
     updateStatsCount();
 }
 
+Simulation::~Simulation() = default;
+
+Simulation::Simulation(Simulation&&) noexcept = default;
+Simulation& Simulation::operator=(Simulation&&) noexcept = default;
+
 void Simulation::updateStatsCount() {
     m_stats.particleCount = m_entities.size();
     m_stats.entityCount = m_entities.size();
     m_stats.maxParticleCount = m_config.maxParticleCount;
+}
+
+void Simulation::integrateParticleRange(
+    std::size_t beginIndex,
+    std::size_t endIndex,
+    float dt
+) {
+    const Vec2 gravity{0.0f, m_config.gravity};
+
+    for (std::size_t i = beginIndex; i < endIndex; ++i) {
+        Particle& particle = m_entities[i];
+
+        particle.velocity += gravity * dt;
+        particle.position += particle.velocity * dt;
+        particle.velocity *= m_config.damping;
+
+        solveParticleBounds(particle, m_config);
+    }
+}
+
+void Simulation::integrateParticles(float dt) {
+    simfw::runParallelUpdate<
+        ThreadPool,
+        ParticleUpdateScratch,
+        SimulationStats
+    >(
+        m_threadPool.get(),
+        m_entities.size(),
+        MinItemsPerParallelTask,
+        m_config.useParallelUpdate,
+        [this, dt](
+            std::size_t beginIndex,
+            std::size_t endIndex,
+            ParticleUpdateScratch&,
+            SimulationStats&
+        ) {
+            integrateParticleRange(beginIndex, endIndex, dt);
+        },
+        [](const SimulationStats&) {}
+    );
+}
+
+void Simulation::buildSpatialIndex() {
+    m_grid.setCellSize(m_config.gridCellSize);
+
+    if (m_config.useSpatialGrid) {
+        m_grid.build(m_entities, particlePosition);
+    } else {
+        m_grid.clear();
+    }
+}
+
+void Simulation::resolveCollisions() {
+    const float queryRadius = m_config.particleRadius * 2.0f;
+
+    simfw::simulation::forEachUniqueCandidatePair<int>(
+        m_entities.size(),
+        [this, queryRadius](std::size_t particleIndex, std::vector<int>& candidates) {
+            simfw::simulation::collectCandidates(
+                m_grid,
+                m_entities[particleIndex].position,
+                queryRadius,
+                simfw::simulation::makeSpatialQueryOptions<int>(
+                    m_config.useSpatialGrid,
+                    m_entities.size()
+                ),
+                candidates
+            );
+        },
+        [this](int firstIndex, int secondIndex) {
+            ++m_stats.collisionChecks;
+
+            Particle& first = m_entities[static_cast<std::size_t>(firstIndex)];
+            Particle& second = m_entities[static_cast<std::size_t>(secondIndex)];
+
+            if (resolveParticleCollision(first, second, m_config)) {
+                ++m_stats.collisionsResolved;
+
+                solveParticleBounds(first, m_config);
+                solveParticleBounds(second, m_config);
+            }
+        }
+    );
 }
 
 void Simulation::update(float dt) {
@@ -82,28 +142,12 @@ void Simulation::update(float dt) {
 
     dt = std::min(dt, 1.0f / 30.0f);
 
-    const Vec2 gravity{0.0f, m_config.gravity};
+    integrateParticles(dt);
+    buildSpatialIndex();
+    resolveCollisions();
 
-    for (auto& p : m_entities) {
-        p.velocity += gravity * dt;
-        p.position += p.velocity * dt;
-        p.velocity *= m_config.damping;
-
-        solveParticleBounds(p, m_config);
-    }
-
-    m_grid.setCellSize(m_config.gridCellSize);
-
-    if (m_config.useSpatialGrid) {
-        m_grid.build(m_entities, particlePosition);
-    } else {
-        m_grid.clear();
-    }
-
-    resolveCollisions(m_entities, m_grid, m_stats, m_config);
-
-    for (auto& p : m_entities) {
-        solveParticleBounds(p, m_config);
+    for (auto& particle : m_entities) {
+        solveParticleBounds(particle, m_config);
     }
 
     updateStatsCount();

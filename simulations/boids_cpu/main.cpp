@@ -74,12 +74,12 @@ int main() {
             config.useSpatialGrid = !config.useSpatialGrid;
         }
 
-        if (IsKeyPressed(KEY_P)) {
-            config.useParallelUpdate = !config.useParallelUpdate;
-        }
-
         if (IsKeyPressed(KEY_H)) {
             gridDebugMode = simfw::ui::nextGridDebugMode(gridDebugMode);
+        }
+
+        if (IsKeyPressed(KEY_P)) {
+            config.useParallelUpdate = !config.useParallelUpdate;
         }
 
         const bool fastAdjust =
@@ -114,7 +114,9 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
+        if (config.useSpatialGrid) {
+            simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
+        }
 
         for (const auto& b : sim.getBoids()) {
             if (controls.showDebug) {
@@ -144,6 +146,13 @@ int main() {
                 config.useParallelUpdate ? GREEN : LIGHTGRAY
             );
 
+            cursor.draw(
+                TextFormat(
+                    "Grid debug: %s",
+                    simfw::ui::gridDebugModeName(gridDebugMode)
+                )
+            );
+
             cursor.gap(6);
 
             simfw::ui::drawTunables(
@@ -156,7 +165,7 @@ int main() {
                 cursor.gap(10);
                 cursor.draw("Space: pause | N: step | R: reset | D: debug radii | F1: UI mode");
                 cursor.draw("Tab: select | Left/Right: adjust | Shift: fast");
-                cursor.draw("G: toggle grid backend | P: toggle parallel update | H: grid debug mode");
+                cursor.draw("G: toggle grid backend | H: grid debug mode | P: parallel update");
             }
         }
 

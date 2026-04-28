@@ -5,31 +5,27 @@
 
 namespace simfw::simulation {
 
-// Iterates unique unordered pairs produced from a per-item candidate query.
-//
-// The caller owns candidate collection and pair mutation. This helper only
-// centralizes the common pair traversal rule used by collision simulations:
-// query candidates for each item, skip already-visited pairs, and visit each
-// remaining pair once as (lowerIndex, higherIndex).
-template <typename Index = std::size_t, typename CollectCandidatesFn, typename VisitPairFn>
+// Iterates unique candidate pairs where the first index owns the query and the
+// second index comes from a caller-provided candidate list. Pair mutation stays
+// in the caller-provided lambda so this helper does not know about physics,
+// particles, or collision resolution policy.
+template <typename Index, typename CollectCandidatesFn, typename PairFn>
 void forEachUniqueCandidatePair(
     std::size_t itemCount,
-    std::vector<Index>& candidates,
     CollectCandidatesFn&& collectCandidates,
-    VisitPairFn&& visitPair
+    PairFn&& visitPair
 ) {
-    for (std::size_t source = 0; source < itemCount; ++source) {
-        const Index sourceIndex = static_cast<Index>(source);
+    std::vector<Index> candidates;
 
-        candidates.clear();
-        collectCandidates(sourceIndex, candidates);
+    for (std::size_t i = 0; i < itemCount; ++i) {
+        collectCandidates(i, candidates);
 
         for (Index candidateIndex : candidates) {
-            if (candidateIndex <= sourceIndex) {
+            if (candidateIndex <= static_cast<Index>(i)) {
                 continue;
             }
 
-            visitPair(sourceIndex, candidateIndex);
+            visitPair(static_cast<Index>(i), candidateIndex);
         }
     }
 }

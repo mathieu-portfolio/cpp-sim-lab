@@ -9,10 +9,6 @@ namespace simfw {
 // Runs a chunked update over [0, itemCount), optionally using the supplied
 // thread pool. Each chunk receives isolated scratch and stats objects, then
 // the caller-provided reducer merges those stats after all work is complete.
-//
-// This keeps simulation-specific behavior in the caller while centralizing the
-// common orchestration pattern shared by CPU simulations: grain sizing,
-// per-worker temporary storage, and deterministic stats reduction.
 template <typename ThreadPoolT, typename ScratchT, typename StatsT, typename WorkFn, typename ReduceFn>
 void runParallelUpdate(
     ThreadPoolT* threadPool,
