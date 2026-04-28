@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 #include "ParticlePhysics.hpp"
 
+#include <simulation/CollisionPairs.hpp>
 #include <simulation/SpatialQuery.hpp>
 
 #include <algorithm>
@@ -23,29 +24,29 @@ void resolveCollisions(
     const float queryRadius = config.gridCellSize;
     const int particleCount = static_cast<int>(particles.size());
 
-    for (int i = 0; i < particleCount; ++i) {
-        Particle& a = particles[i];
+    simfw::simulation::forEachUniqueCandidatePair<int>(
+        particles.size(),
+        candidates,
+        [&](int particleIndex, std::vector<int>& out) {
+            const Particle& particle = particles[particleIndex];
 
-        simfw::simulation::collectCandidates(
-            grid,
-            a.position,
-            queryRadius,
-            simfw::simulation::makeSpatialQueryOptionsExcluding<int>(
-                config.useSpatialGrid,
-                particles.size(),
-                i
-            ),
-            candidates
-        );
-
-        for (int j : candidates) {
-            if (j <= i) {
-                continue;
-            }
-
+            simfw::simulation::collectCandidates(
+                grid,
+                particle.position,
+                queryRadius,
+                simfw::simulation::makeSpatialQueryOptionsExcluding<int>(
+                    config.useSpatialGrid,
+                    static_cast<std::size_t>(particleCount),
+                    particleIndex
+                ),
+                out
+            );
+        },
+        [&](int aIndex, int bIndex) {
             ++stats.collisionChecks;
 
-            Particle& b = particles[j];
+            Particle& a = particles[aIndex];
+            Particle& b = particles[bIndex];
 
             if (resolveParticleCollision(a, b, config)) {
                 ++stats.collisionsResolved;
@@ -54,7 +55,7 @@ void resolveCollisions(
                 solveParticleBounds(b, config);
             }
         }
-    }
+    );
 }
 }
 
