@@ -4,6 +4,8 @@
 #include <cmath>
 #include <random/Random.hpp>
 
+#include <thread>
+
 namespace agents_cpu {
 namespace {
 constexpr float Epsilon = 0.0001f;
@@ -171,6 +173,24 @@ Vec2 clampToWorld(Vec2 position, float width, float height) {
     position.y = std::clamp(position.y, 0.0f, height);
     return position;
 }
+
+std::size_t workerCountFor(std::size_t itemCount) {
+    constexpr std::size_t MinItemsPerWorker = 256;
+
+    if (itemCount <= MinItemsPerWorker) {
+        return 1;
+    }
+
+    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
+    const std::size_t availableWorkers = hardwareThreads == 0
+        ? 1
+        : static_cast<std::size_t>(hardwareThreads);
+
+    const std::size_t usefulWorkers =
+        (itemCount + MinItemsPerWorker - 1) / MinItemsPerWorker;
+
+    return std::clamp<std::size_t>(usefulWorkers, 1, availableWorkers);
+}
 } // namespace
 
 Simulation::Simulation(SimulationConfig config)
@@ -293,7 +313,8 @@ void Simulation::buildSpatialIndexes() {
 
 void Simulation::collectAgentCandidates(
     std::size_t agentIndex,
-    AgentUpdateScratch& scratch
+    AgentUpdateScratch& scratch,
+    SimulationStats& stats
 ) {
     auto& candidates = scratch.agentCandidates;
 
@@ -304,7 +325,7 @@ void Simulation::collectAgentCandidates(
             m_config.separationRadius,
             candidates
         );
-        m_stats.neighborCandidates += candidates.size();
+        stats.neighborCandidates += candidates.size();
     } else {
         collectNaiveCandidates(agentIndex, m_previousAgents.size(), candidates);
     }
@@ -313,7 +334,8 @@ void Simulation::collectAgentCandidates(
 void Simulation::collectObstacleCandidates(
     const Agent& previousAgent,
     float obstacleQueryRadius,
-    AgentUpdateScratch& scratch
+    AgentUpdateScratch& scratch,
+    SimulationStats& stats
 ) {
     auto& candidates = scratch.obstacleCandidates;
 
@@ -324,21 +346,26 @@ void Simulation::collectObstacleCandidates(
             obstacleQueryRadius,
             candidates
         );
-        m_stats.obstacleCandidates += candidates.size();
+        stats.obstacleCandidates += candidates.size();
     } else {
         collectAllCandidates(m_obstacles.size(), candidates);
     }
 }
 
-void Simulation::updateAgents(float dt) {
-    const float obstacleQueryRadius = maxObstacleQueryRadius();
-
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
+void Simulation::updateAgentRange(
+    std::size_t beginIndex,
+    std::size_t endIndex,
+    float dt,
+    float obstacleQueryRadius,
+    AgentUpdateScratch& scratch,
+    SimulationStats& stats
+) {
+    for (std::size_t i = beginIndex; i < endIndex; ++i) {
         Agent& agent = m_entities[i];
         const Agent& previousAgent = m_previousAgents[i];
 
-        collectAgentCandidates(i, m_updateScratch);
-        collectObstacleCandidates(previousAgent, obstacleQueryRadius, m_updateScratch);
+        collectAgentCandidates(i, scratch, stats);
+        collectObstacleCandidates(previousAgent, obstacleQueryRadius, scratch, stats);
 
         const Vec2 seek = seekForce(
             previousAgent,
@@ -351,17 +378,17 @@ void Simulation::updateAgents(float dt) {
         const Vec2 separation = separationForce(
             i,
             m_previousAgents,
-            m_updateScratch.agentCandidates,
+            scratch.agentCandidates,
             m_config.separationRadius,
-            m_stats
+            stats
         ) * (m_config.maxForce * m_config.separationWeight);
 
         const Vec2 obstacleAvoidance = obstacleAvoidanceForce(
             previousAgent,
             m_obstacles,
-            m_updateScratch.obstacleCandidates,
+            scratch.obstacleCandidates,
             m_config.obstacleAvoidanceRadius,
-            m_stats
+            stats
         ) * (m_config.maxForce * m_config.obstacleAvoidanceWeight);
 
         const Vec2 acceleration = limitLength(
@@ -384,8 +411,79 @@ void Simulation::updateAgents(float dt) {
         );
 
         if ((agent.target - agent.position).length() <= m_config.targetRadius) {
-            ++m_stats.arrivedCount;
+            ++stats.arrivedCount;
         }
+    }
+}
+
+void Simulation::mergeWorkerStats(const SimulationStats& workerStats) {
+    m_stats.neighborChecks += workerStats.neighborChecks;
+    m_stats.neighborCandidates += workerStats.neighborCandidates;
+    m_stats.arrivedCount += workerStats.arrivedCount;
+
+    m_stats.obstacleChecks += workerStats.obstacleChecks;
+    m_stats.obstacleCandidates += workerStats.obstacleCandidates;
+}
+
+void Simulation::updateAgents(float dt) {
+    const std::size_t agentCount = m_entities.size();
+
+    if (agentCount == 0) {
+        return;
+    }
+
+    const float obstacleQueryRadius = maxObstacleQueryRadius();
+    const std::size_t workerCount = workerCountFor(agentCount);
+
+    std::vector<AgentUpdateScratch> workerScratch(workerCount);
+    std::vector<SimulationStats> workerStats(workerCount);
+
+    if (workerCount == 1) {
+        updateAgentRange(
+            0,
+            agentCount,
+            dt,
+            obstacleQueryRadius,
+            workerScratch[0],
+            workerStats[0]
+        );
+        mergeWorkerStats(workerStats[0]);
+        return;
+    }
+
+    std::vector<std::thread> workers;
+    workers.reserve(workerCount);
+
+    const std::size_t chunkSize = (agentCount + workerCount - 1) / workerCount;
+
+    for (std::size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+        const std::size_t beginIndex = workerIndex * chunkSize;
+        const std::size_t endIndex = std::min(beginIndex + chunkSize, agentCount);
+
+        if (beginIndex >= endIndex) {
+            break;
+        }
+
+        workers.emplace_back(
+            [this, beginIndex, endIndex, dt, obstacleQueryRadius, workerIndex, &workerScratch, &workerStats]() {
+                updateAgentRange(
+                    beginIndex,
+                    endIndex,
+                    dt,
+                    obstacleQueryRadius,
+                    workerScratch[workerIndex],
+                    workerStats[workerIndex]
+                );
+            }
+        );
+    }
+
+    for (std::thread& worker : workers) {
+        worker.join();
+    }
+
+    for (const SimulationStats& stats : workerStats) {
+        mergeWorkerStats(stats);
     }
 }
 

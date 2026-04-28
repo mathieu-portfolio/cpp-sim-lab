@@ -90,7 +90,6 @@ private:
     Vec2 m_target;
     std::vector<Obstacle> m_obstacles;
     std::vector<Agent> m_previousAgents;
-    AgentUpdateScratch m_updateScratch;
 
     void normalizeConfigCounts();
     void updateStatsCount();
@@ -101,8 +100,26 @@ private:
     void snapshotAgents();
     void buildSpatialIndexes();
     void updateAgents(float dt);
-    void collectAgentCandidates(std::size_t agentIndex, AgentUpdateScratch& scratch);
-    void collectObstacleCandidates(const Agent& previousAgent, float obstacleQueryRadius, AgentUpdateScratch& scratch);
+    void updateAgentRange(
+        std::size_t beginIndex,
+        std::size_t endIndex,
+        float dt,
+        float obstacleQueryRadius,
+        AgentUpdateScratch& scratch,
+        SimulationStats& stats
+    );
+    void collectAgentCandidates(
+        std::size_t agentIndex,
+        AgentUpdateScratch& scratch,
+        SimulationStats& stats
+    );
+    void collectObstacleCandidates(
+        const Agent& previousAgent,
+        float obstacleQueryRadius,
+        AgentUpdateScratch& scratch,
+        SimulationStats& stats
+    );
+    void mergeWorkerStats(const SimulationStats& workerStats);
 };
 
 } // namespace agents_cpu
