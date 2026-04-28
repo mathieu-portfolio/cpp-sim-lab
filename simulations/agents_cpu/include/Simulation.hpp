@@ -88,6 +88,17 @@ private:
 
     void normalizeConfigCounts();
     void updateStatsCount();
+    void beginFrame();
+    void snapshotAgents();
+    void buildSpatialIndexes();
+    void updateAgents(float dt);
+    void updateAgent(
+        std::size_t agentIndex,
+        float dt,
+        std::vector<std::size_t>& agentCandidates,
+        std::vector<std::size_t>& obstacleCandidates
+    );
+
     Vec2 randomPoint() const;
     float maxObstacleQueryRadius() const;
 };
