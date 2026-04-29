@@ -13,10 +13,29 @@ if [[ $# -lt 1 ]]; then
 fi
 
 SIM_NAME="$1"
-PRESET="${2:-debug}"
-BUILD_FIRST="${3:-}"
+PRESET="debug"
+BUILD_FIRST=false
 
-if [[ "$BUILD_FIRST" == "--build" ]]; then
+for arg in "${@:2}"; do
+    case "$arg" in
+    --build)
+        BUILD_FIRST=true
+        ;;
+    debug|release|relwithdebinfo|minsizerel)
+        PRESET="$arg"
+        ;;
+    -debug|-release|-relwithdebinfo|-minsizerel)
+        PRESET="${arg#-}"
+        ;;
+    *)
+        echo "Error: unknown argument '$arg'"
+        echo "Usage: ./scripts/run_sim.sh <simulation_name> [preset] [--build]"
+        exit 1
+        ;;
+    esac
+done
+
+if [[ "$BUILD_FIRST" == true ]]; then
     ./scripts/build.sh "$PRESET" "$SIM_NAME"
 else
     echo "Skipping build (pass --build to compile $SIM_NAME first)."
