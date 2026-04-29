@@ -84,13 +84,22 @@ void Simulation::updateAgents(float dt) {
     const float obstacleQueryRadius = m_config.obstacleAvoidanceRadius + m_config.obstacleRadius;
     auto worker = [&](std::size_t begin, std::size_t end, Scratch& s, SimulationStats& st){
         for(std::size_t i=begin;i<end;++i){
-            simfw::simulation::collectCandidates(m_agentGrid, m_previousAgents[i].position, m_config.separationRadius,
-                simfw::simulation::makeSpatialQueryOptionsExcluding(m_config.execution.useSpatialGrid,m_previousAgents.size(),i), s.candidates);
+            simfw::simulation::collectCandidates(
+                m_agentGrid,
+                m_previousAgents[i].position,
+                m_config.separationRadius,
+                simfw::simulation::makeSpatialQueryOptionsExcluding(
+                    m_config.execution.useSpatialGrid,
+                    m_previousAgents.size(),
+                    i
+                ),
+                s.candidates
+            );
             st.neighborCandidates += s.candidates.size();
             simfw::simulation::collectCandidates(m_obstacleGrid, m_previousAgents[i].position, obstacleQueryRadius,
-                simfw::simulation::makeSpatialQueryOptions(m_config.execution.useSpatialGrid,m_obstacles.size()), s.secondaryCandidates);
-            st.obstacleCandidates += s.secondaryCandidates.size();
-            BehaviorContext ctx{m_config,m_previousAgents,m_obstacles,m_flowField,{s.candidates,s.secondaryCandidates},st};
+                simfw::simulation::makeSpatialQueryOptions(m_config.execution.useSpatialGrid,m_obstacles.size()), s.secondaryNeighbors);
+            st.obstacleCandidates += s.secondaryNeighbors.size();
+            BehaviorContext ctx{m_config,m_previousAgents,m_obstacles,m_flowField,{s.candidates,s.secondaryNeighbors},st};
             Vec2 acc = computeAcceleration(i, ctx, m_behaviors);
             Agent& a=m_entities[i]; const Agent& p=m_previousAgents[i];
             a.velocity = limitLength(p.velocity + acc*dt, m_config.maxSpeed);
@@ -99,7 +108,24 @@ void Simulation::updateAgents(float dt) {
             if ((a.position - m_goal).length() <= m_config.goalRadius) ++st.reachedGoalCount;
         }
     };
-    simfw::simulation::parallelUpdateRanges<Scratch, SimulationStats>(m_entities.size(), m_config.execution, *m_threadPool, MinItemsPerParallelTask, worker, [this](const SimulationStats& s){ simfw::simulation::accumulateStats(m_stats,s); });
+    simfw::runParallelUpdate<ThreadPool, Scratch, SimulationStats>(
+        m_threadPool.get(),
+        m_entities.size(),
+        MinItemsPerParallelTask,
+        m_config.execution.useParallelUpdate,
+        worker,
+        [this](const SimulationStats& s) {
+            simfw::sumStatsMembers(
+                m_stats,
+                s,
+                &SimulationStats::neighborCandidates,
+                &SimulationStats::neighborChecks,
+                &SimulationStats::obstacleCandidates,
+                &SimulationStats::obstacleChecks,
+                &SimulationStats::reachedGoalCount
+            );
+        }
+    );
 }
 
 void Simulation::update(float dt) {
