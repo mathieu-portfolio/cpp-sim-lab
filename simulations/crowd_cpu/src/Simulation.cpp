@@ -19,6 +19,16 @@ constexpr std::size_t MinItemsPerParallelTask = 256;
 Vec2 agentPosition(const Agent& a) { return a.position; }
 Vec2 obstaclePosition(const Obstacle& o) { return o.position; }
 std::size_t workers(){ unsigned int n=std::thread::hardware_concurrency(); return n==0?1:static_cast<std::size_t>(n); }
+void normalizeConfigCounts(SimulationConfig& config) {
+    constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
+
+    if (config.agentCount == defaultCount && config.entityCount != defaultCount) {
+        config.agentCount = config.entityCount;
+    } else {
+        config.entityCount = config.agentCount;
+    }
+}
+
 }
 
 Simulation::Simulation(SimulationConfig config)
@@ -29,12 +39,13 @@ Simulation::~Simulation() = default;
 Simulation::Simulation(Simulation&&) noexcept = default;
 Simulation& Simulation::operator=(Simulation&&) noexcept = default;
 
-void Simulation::beginFrame(){ m_stats={}; m_stats.agentCount=m_entities.size(); m_stats.entityCount=m_entities.size(); m_stats.obstacleCount=m_obstacles.size(); }
+void Simulation::beginFrame(){ normalizeConfigCounts(m_config); m_stats={}; m_stats.agentCount=m_entities.size(); m_stats.entityCount=m_entities.size(); m_stats.obstacleCount=m_obstacles.size(); }
 void Simulation::setGoal(Vec2 g){ m_goal = g; }
 void Simulation::addObstacle(Vec2 p){ m_obstacles.push_back({p, m_config.obstacleRadius}); }
 void Simulation::clearObstacles(){ m_obstacles.clear(); }
 
 void Simulation::reset() {
+    normalizeConfigCounts(m_config);
     m_entities.clear(); m_entities.reserve(m_config.agentCount);
     m_previousAgents.clear(); m_previousAgents.reserve(m_config.agentCount);
     for (std::size_t i=0;i<m_config.agentCount;++i){
