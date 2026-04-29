@@ -74,7 +74,7 @@ public:
     const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
     const std::vector<float>& getCostField() const { return m_costField; }
     const std::vector<float>& getIntegrationField() const { return m_integrationField; }
-    const std::vector<Vec2>& getFlowField() const { return m_flowField; }
+    Vec2 sampleFlow(Vec2 worldPos) const;
 
 private:
     using Scratch = simfw::simulation::NeighborScratch<std::size_t>;
@@ -90,8 +90,6 @@ private:
     std::size_t m_gridHeight = 0;
     std::vector<float> m_costField;
     std::vector<float> m_integrationField;
-    std::vector<Vec2> m_flowField;
-
     void beginFrame();
     void buildSpatialIndexes();
     void buildFlowField();

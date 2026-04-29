@@ -98,7 +98,6 @@ void Simulation::buildFlowField() {
     const std::size_t count = m_gridWidth * m_gridHeight;
     m_costField.assign(count, 1.0f);
     m_integrationField.assign(count, std::numeric_limits<float>::infinity());
-    m_flowField.assign(count, Vec2{});
     for (std::size_t y=0; y<m_gridHeight; ++y) for (std::size_t x=0; x<m_gridWidth; ++x) {
         Vec2 c{(x+0.5f)*m_config.gridCellSize,(y+0.5f)*m_config.gridCellSize};
         for (const Obstacle& o: m_obstacles) if ((c-o.position).length() < o.radius) { m_costField[y*m_gridWidth+x]=255.0f; break; }
@@ -114,12 +113,39 @@ void Simulation::buildFlowField() {
             std::size_t ni=static_cast<std::size_t>(ny)*m_gridWidth+static_cast<std::size_t>(nx); if(m_costField[ni]>=255.0f) continue;
             float nd = m_integrationField[i] + m_costField[ni]; if(nd < m_integrationField[ni]) { m_integrationField[ni]=nd; q.push(ni);} }
     }
-    for (std::size_t y=0; y<m_gridHeight; ++y) for (std::size_t x=0; x<m_gridWidth; ++x) {
-        std::size_t i=y*m_gridWidth+x; if(!std::isfinite(m_integrationField[i])) continue;
-        float best = m_integrationField[i]; std::size_t bestI=i;
-        for(int oy=-1;oy<=1;++oy) for(int ox=-1;ox<=1;++ox){ if(!ox&&!oy) continue; int nx=static_cast<int>(x)+ox, ny=static_cast<int>(y)+oy; if(nx<0||ny<0||nx>=static_cast<int>(m_gridWidth)||ny>=static_cast<int>(m_gridHeight)) continue; std::size_t ni=static_cast<std::size_t>(ny)*m_gridWidth+static_cast<std::size_t>(nx); if(m_integrationField[ni]<best){best=m_integrationField[ni];bestI=ni;}}
-        if(bestI!=i){ std::size_t bx=bestI%m_gridWidth; std::size_t by=bestI/m_gridWidth; m_flowField[i]=Vec2{static_cast<float>(bx)-static_cast<float>(x), static_cast<float>(by)-static_cast<float>(y)}.normalized(); }
-    }
+}
+
+Vec2 Simulation::sampleFlow(Vec2 worldPos) const {
+    if (m_integrationField.empty() || m_gridWidth == 0 || m_gridHeight == 0) return Vec2{};
+    const float cellSize = m_config.gridCellSize;
+    auto sample = [&](Vec2 p) {
+        const float gx = std::clamp(p.x / cellSize, 0.0f, static_cast<float>(m_gridWidth - 1));
+        const float gy = std::clamp(p.y / cellSize, 0.0f, static_cast<float>(m_gridHeight - 1));
+        const std::size_t x0 = static_cast<std::size_t>(gx);
+        const std::size_t y0 = static_cast<std::size_t>(gy);
+        const std::size_t x1 = std::min(x0 + 1, m_gridWidth - 1);
+        const std::size_t y1 = std::min(y0 + 1, m_gridHeight - 1);
+        const float tx = gx - static_cast<float>(x0);
+        const float ty = gy - static_cast<float>(y0);
+        const float i00 = m_integrationField[y0 * m_gridWidth + x0];
+        const float i10 = m_integrationField[y0 * m_gridWidth + x1];
+        const float i01 = m_integrationField[y1 * m_gridWidth + x0];
+        const float i11 = m_integrationField[y1 * m_gridWidth + x1];
+        if (!std::isfinite(i00) || !std::isfinite(i10) || !std::isfinite(i01) || !std::isfinite(i11)) {
+            return std::numeric_limits<float>::infinity();
+        }
+        const float top = i00 + (i10 - i00) * tx;
+        const float bottom = i01 + (i11 - i01) * tx;
+        return top + (bottom - top) * ty;
+    };
+    const float h = cellSize;
+    const float fxm = sample(Vec2{worldPos.x - h, worldPos.y});
+    const float fxp = sample(Vec2{worldPos.x + h, worldPos.y});
+    const float fym = sample(Vec2{worldPos.x, worldPos.y - h});
+    const float fyp = sample(Vec2{worldPos.x, worldPos.y + h});
+    if (!std::isfinite(fxm) || !std::isfinite(fxp) || !std::isfinite(fym) || !std::isfinite(fyp)) return Vec2{};
+    const float inv2h = 0.5f / h;
+    return Vec2{-(fxp - fxm) * inv2h, -(fyp - fym) * inv2h};
 }
 
 void Simulation::updateAgents(float dt) {
@@ -141,7 +167,7 @@ void Simulation::updateAgents(float dt) {
             simfw::simulation::collectCandidates(m_obstacleGrid, m_previousAgents[i].position, obstacleQueryRadius,
                 simfw::simulation::makeSpatialQueryOptions(m_config.execution.useSpatialGrid,m_obstacles.size()), s.secondaryNeighbors);
             st.obstacleCandidates += s.secondaryNeighbors.size();
-            BehaviorContext ctx{m_config,m_previousAgents,m_obstacles,m_flowField,{s.candidates,s.secondaryNeighbors},st};
+            BehaviorContext ctx{m_config,m_previousAgents,m_obstacles,m_integrationField,m_gridWidth,m_gridHeight,{s.candidates,s.secondaryNeighbors},st};
             Vec2 acc = computeAcceleration(i, ctx, m_behaviors);
             Agent& a=m_entities[i]; const Agent& p=m_previousAgents[i];
             a.velocity = limitLength(p.velocity + acc*dt, m_config.maxSpeed);

@@ -21,7 +21,9 @@ struct BehaviorContext {
     const SimulationConfig& config;
     const std::vector<Agent>& agents;
     const std::vector<Obstacle>& obstacles;
-    const std::vector<Vec2>& flowVectors;
+    const std::vector<float>& integrationField;
+    std::size_t gridWidth = 0;
+    std::size_t gridHeight = 0;
     CandidateLists candidates;
     SimulationStats& stats;
 };
