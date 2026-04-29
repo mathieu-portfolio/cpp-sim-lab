@@ -47,6 +47,7 @@ struct SimulationStats {
     std::size_t neighborChecks = 0;
     std::size_t obstacleCandidates = 0;
     std::size_t obstacleChecks = 0;
+    std::size_t obstacleOverlapChecks = 0;
     std::size_t reachedGoalCount = 0;
 };
 
@@ -71,6 +72,7 @@ public:
     const Grid& getGrid() const { return m_agentGrid; }
     const Grid& getObstacleGrid() const { return m_obstacleGrid; }
     const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
+    const std::vector<float>& getCostField() const { return m_costField; }
     const std::vector<float>& getIntegrationField() const { return m_integrationField; }
     const std::vector<Vec2>& getFlowField() const { return m_flowField; }
 
