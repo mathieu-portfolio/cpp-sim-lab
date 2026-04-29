@@ -1,0 +1,59 @@
+#pragma once
+
+#include "Agent.hpp"
+#include "Obstacle.hpp"
+
+#include <cstddef>
+#include <span>
+#include <vector>
+
+namespace crowd_cpu {
+
+struct SimulationConfig;
+struct SimulationStats;
+
+struct CandidateLists {
+    std::span<const std::size_t> agents;
+    std::span<const std::size_t> obstacles;
+};
+
+struct BehaviorContext {
+    const SimulationConfig& config;
+    const std::vector<Agent>& agents;
+    const std::vector<Obstacle>& obstacles;
+    const std::vector<Vec2>& flowVectors;
+    CandidateLists candidates;
+    SimulationStats& stats;
+};
+
+enum class BehaviorType {
+    FlowFollow,
+    Separation,
+    ObstacleAvoidance
+};
+
+enum class ForceScale {
+    Unit,
+    MaxForce
+};
+
+using BehaviorFn = Vec2 (*)(std::size_t, BehaviorContext&);
+
+struct WeightedBehavior {
+    BehaviorType type = BehaviorType::FlowFollow;
+    BehaviorFn compute = nullptr;
+    float SimulationConfig::* weight = nullptr;
+    ForceScale scale = ForceScale::Unit;
+    bool enabled = true;
+    const char* name = "";
+};
+
+std::vector<WeightedBehavior> makeDefaultBehaviors();
+Vec2 computeAcceleration(std::size_t index, BehaviorContext& context, std::span<const WeightedBehavior> behaviors);
+Vec2 limitLength(Vec2 value, float maxLen);
+
+Vec2 followFlow(std::size_t index, BehaviorContext& context);
+Vec2 separate(std::size_t index, BehaviorContext& context);
+Vec2 avoidObstacles(std::size_t index, BehaviorContext& context);
+
+} // namespace crowd_cpu
