@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <simulation_name>"
     echo "Example: $0 boids_cpu"
@@ -26,66 +29,7 @@ mkdir -p "$BENCH_DIR"
 cat > "$SIM_DIR/CMakeLists.txt" << EOF
 add_library(${SIM_NAME}_core
     src/Simulation.cpp
-)
-
-target_include_directories(${SIM_NAME}_core
-    PUBLIC
-        \${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(${SIM_NAME}_core
-    PUBLIC
-        sim_framework
-)
-
-target_compile_features(${SIM_NAME}_core
-    PUBLIC
-        cxx_std_20
-)
-
-add_executable(${SIM_NAME}
-    main.cpp
-)
-
-target_link_libraries(${SIM_NAME}
-    PRIVATE
-        ${SIM_NAME}_core
-        raylib
-)
-EOF
-
-cat > "$SIM_DIR/include/Simulation.hpp" << EOF
-#pragma once
-
-class Simulation {
-public:
-    void update(float dt);
-};
-EOF
-
-cat > "$SIM_DIR/src/Simulation.cpp" << EOF
-#include "Simulation.hpp"
-
-void Simulation::update(float dt) {
-    (void)dt;
-}
-EOF
-
-cat > "$SIM_DIR/main.cpp" << EOF
-#include "Simulation.hpp"
-
-#include <raylib.h>
-
-int main() {
-    InitWindow(800, 800, "${SIM_NAME}");
-    SetTargetFPS(60);
-
-    Simulation simulation;
-
-    while (!WindowShouldClose()) {
-        simulation.update(GetFrameTime());
-
-        BeginDrawing();
+@@ -89,46 +92,54 @@ int main() {
         ClearBackground(BLACK);
         EndDrawing();
     }
@@ -111,9 +55,17 @@ TODO: describe the simulation.
 TODO
 EOF
 
+cat > "$TEST_DIR/smoke_test.cpp" << EOF
+#include <gtest/gtest.h>
+
+TEST(${SIM_NAME}, smoke) {
+    SUCCEED();
+}
+EOF
+
 cat > "$TEST_DIR/CMakeLists.txt" << EOF
 add_executable(${SIM_NAME}_tests
-    # TODO: add tests here
+    smoke_test.cpp
 )
 
 target_link_libraries(${SIM_NAME}_tests

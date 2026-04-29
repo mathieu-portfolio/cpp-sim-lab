@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $# -lt 1 ]; then
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+if [[ $# -lt 1 ]]; then
     echo "Usage: ./scripts/run_and_plot.sh <benchmark_name> [preset]"
     echo "Example: ./scripts/run_and_plot.sh boids_spatial_grid_compare release"
     exit 1
