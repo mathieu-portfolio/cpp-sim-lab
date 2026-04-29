@@ -8,18 +8,16 @@ PRESET=${1:-release}
 
 echo "Running all benchmarks with preset: $PRESET"
 
-while IFS= read -r cmake_file; do
-    BENCH_DIR=$(dirname "$cmake_file")
-    BENCH_NAME=$(basename "$BENCH_DIR")
+for bench_dir in benchmarks/simulations/*; do
+    [[ -d "$bench_dir" ]] || continue
+    [[ -f "$bench_dir/main.cpp" ]] || continue
 
-    if [[ ! -f "$BENCH_DIR/main.cpp" ]]; then
-        continue
-    fi
+    BENCH_NAME="${bench_dir##*/}"
 
     echo "----------------------------------"
     echo "Benchmark: $BENCH_NAME"
 
     ./scripts/run_and_plot.sh "$BENCH_NAME" "$PRESET"
-done < <(find benchmarks -type f -name CMakeLists.txt | sort)
+done
 
 echo "All benchmarks done."

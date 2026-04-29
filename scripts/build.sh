@@ -6,13 +6,10 @@ cd "$ROOT_DIR"
 
 PRESET=${1:-debug}
 
-if ! cmake --list-presets | rg -q "\"$PRESET\""; then
-    echo "Error: unknown CMake preset '$PRESET'"
+if ! cmake --preset "$PRESET" >/dev/null; then
+    echo "Error: unknown or invalid CMake preset '$PRESET'"
     exit 1
 fi
-
-echo "Configuring: $PRESET"
-cmake --preset "$PRESET"
 
 echo "Building: $PRESET"
 cmake --build --preset "$PRESET"

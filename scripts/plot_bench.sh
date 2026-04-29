@@ -10,9 +10,9 @@ if [[ $# -lt 1 ]]; then
 fi
 
 BENCH_NAME=$1
-BENCH_DIR=$(find benchmarks -type d -path "*/$BENCH_NAME" | head -n 1)
+BENCH_DIR="benchmarks/simulations/$BENCH_NAME"
 
-if [[ -z "$BENCH_DIR" ]]; then
+if [[ ! -d "$BENCH_DIR" ]]; then
     echo "Error: benchmark directory not found for $BENCH_NAME"
     exit 1
 fi

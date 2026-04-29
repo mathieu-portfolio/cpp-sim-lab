@@ -13,10 +13,10 @@ fi
 BENCH_NAME=$1
 PRESET=${2:-release}
 BUILD_DIR="build/$PRESET"
+OUT_DIR="benchmarks/simulations/$BENCH_NAME/results"
+OUT="$OUT_DIR/results.csv"
 
-BENCH_DIR=$(find benchmarks -type d -path "*/$BENCH_NAME" | head -n 1)
-
-if [[ -z "$BENCH_DIR" ]]; then
+if [[ ! -d "benchmarks/simulations/$BENCH_NAME" ]]; then
     echo "Error: benchmark directory not found for $BENCH_NAME"
     exit 1
 fi
@@ -24,16 +24,15 @@ fi
 echo "Building ($PRESET)..."
 cmake --build --preset "$PRESET"
 
-echo "Locating benchmark binary..."
-BIN=$(find "$BUILD_DIR" -type f \( -name "${BENCH_NAME}_bench" -o -name "${BENCH_NAME}_bench.exe" \) | head -n 1)
-
-if [[ -z "$BIN" ]]; then
-    echo "Error: could not find benchmark binary for $BENCH_NAME"
-    exit 1
+BIN="$BUILD_DIR/benchmarks/simulations/$BENCH_NAME/${BENCH_NAME}_bench"
+if [[ ! -x "$BIN" ]]; then
+    BIN="$BIN.exe"
 fi
 
-OUT_DIR="$BENCH_DIR/results"
-OUT="$OUT_DIR/results.csv"
+if [[ ! -x "$BIN" ]]; then
+    echo "Error: could not find benchmark binary at expected path: $BIN"
+    exit 1
+fi
 
 mkdir -p "$OUT_DIR"
 
