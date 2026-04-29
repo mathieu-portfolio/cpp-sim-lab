@@ -1,0 +1,4 @@
+add_subdirectory(particles_cpu)
+add_subdirectory(boids_cpu)
+add_subdirectory(agents_cpu)
+add_subdirectory(crowd_cpu)

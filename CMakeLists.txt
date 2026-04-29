@@ -21,15 +21,6 @@ find_package(raylib CONFIG REQUIRED)
 
 add_subdirectory(framework)
 add_subdirectory(systems/thread_pool)
-
-add_subdirectory(simulations/particles_cpu)
-add_subdirectory(simulations/boids_cpu)
-add_subdirectory(simulations/agents_cpu)
-add_subdirectory(simulations/crowd_cpu)
-
-add_subdirectory(tests/framework)
-add_subdirectory(tests/simulations/particles_cpu)
-add_subdirectory(tests/simulations/boids_cpu)
-add_subdirectory(tests/simulations/agents_cpu)
-
+add_subdirectory(simulations)
+add_subdirectory(tests)
 add_subdirectory(benchmarks)
