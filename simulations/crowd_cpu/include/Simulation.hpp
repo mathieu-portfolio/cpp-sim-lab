@@ -47,6 +47,7 @@ struct SimulationStats {
     std::size_t neighborChecks = 0;
     std::size_t obstacleCandidates = 0;
     std::size_t obstacleChecks = 0;
+    std::size_t obstacleOverlapChecks = 0;
     std::size_t reachedGoalCount = 0;
 };
 

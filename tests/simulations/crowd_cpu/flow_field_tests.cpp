@@ -100,5 +100,30 @@ TEST(CrowdCpuFlowField, AgentMotionFollowsFlowInsteadOfDirectGoalVector) {
     EXPECT_GT(agent.velocity.length(), 0.01f);
 }
 
+TEST(CrowdCpuFlowField, ObstaclesAreCollidableAndResolveOverlap) {
+    SimulationConfig config = baseConfig();
+    config.flowWeight = 0.0f;
+    config.separationWeight = 0.0f;
+    config.obstacleAvoidanceWeight = 0.0f;
+
+    Simulation sim{config};
+    sim.addObstacle(Vec2{50.0f, 50.0f});
+
+    auto& entities = sim.getEntities();
+    ASSERT_EQ(entities.size(), 1u);
+    entities[0].position = Vec2{50.0f, 50.0f};
+    entities[0].velocity = Vec2{};
+
+    sim.update(1.0f / 60.0f);
+
+    const Agent& agent = sim.getEntities()[0];
+    const Obstacle& obstacle = sim.getObstacles()[0];
+    const float minDistance = obstacle.radius + agent.radius;
+    const float distance = (agent.position - obstacle.position).length();
+
+    EXPECT_GE(distance, minDistance - 0.01f);
+    EXPECT_GT(sim.getStats().obstacleOverlapChecks, 0u);
+}
+
 } // namespace
 } // namespace crowd_cpu

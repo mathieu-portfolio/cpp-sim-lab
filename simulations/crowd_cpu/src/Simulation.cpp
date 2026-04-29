@@ -29,6 +29,37 @@ void normalizeConfigCounts(SimulationConfig& config) {
     }
 }
 
+void resolveObstacleOverlap(
+    Agent& agent,
+    const std::vector<Obstacle>& obstacles,
+    std::span<const std::size_t> candidates,
+    SimulationStats& stats
+) {
+    constexpr float epsilon = 0.0001f;
+
+    for (std::size_t obstacleIndex : candidates) {
+        ++stats.obstacleOverlapChecks;
+
+        const Obstacle& obstacle = obstacles[obstacleIndex];
+        Vec2 away = agent.position - obstacle.position;
+        const float distance = away.length();
+        const float minDistance = obstacle.radius + agent.radius;
+
+        if (distance <= epsilon || distance >= minDistance) {
+            continue;
+        }
+
+        const Vec2 normal = away * (1.0f / distance);
+        agent.position = obstacle.position + normal * minDistance;
+
+        const float velocityAlongNormal = Vec2::dot(agent.velocity, normal);
+
+        if (velocityAlongNormal < 0.0f) {
+            agent.velocity -= normal * velocityAlongNormal;
+        }
+    }
+}
+
 }
 
 Simulation::Simulation(SimulationConfig config)
@@ -115,6 +146,7 @@ void Simulation::updateAgents(float dt) {
             Agent& a=m_entities[i]; const Agent& p=m_previousAgents[i];
             a.velocity = limitLength(p.velocity + acc*dt, m_config.maxSpeed);
             a.position = p.position + a.velocity*dt;
+            resolveObstacleOverlap(a, m_obstacles, s.secondaryNeighbors, st);
             a.position.x = std::clamp(a.position.x, 0.0f, m_config.width); a.position.y = std::clamp(a.position.y, 0.0f, m_config.height);
             if ((a.position - m_goal).length() <= m_config.goalRadius) ++st.reachedGoalCount;
         }
@@ -133,6 +165,7 @@ void Simulation::updateAgents(float dt) {
                 &SimulationStats::neighborChecks,
                 &SimulationStats::obstacleCandidates,
                 &SimulationStats::obstacleChecks,
+                &SimulationStats::obstacleOverlapChecks,
                 &SimulationStats::reachedGoalCount
             );
         }
