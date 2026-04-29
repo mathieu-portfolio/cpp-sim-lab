@@ -31,4 +31,4 @@ if [[ ! -f "$PLOT" ]]; then
 fi
 
 echo "Plotting $BENCH_NAME..."
-python3 "$PLOT" "$CSV"
+python "$PLOT" "$CSV"
