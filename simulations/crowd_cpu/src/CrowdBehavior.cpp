@@ -55,16 +55,28 @@ Vec2 followFlow(std::size_t index, BehaviorContext& context) {
 }
 
 Vec2 separate(std::size_t index, BehaviorContext& c) {
-    Vec2 out{}; int count=0;
+    Vec2 out{};
+    float totalWeight = 0.0f;
     for (std::size_t n : c.candidates.agents) {
+        if (n == index) {
+            continue;
+        }
+
         ++c.stats.neighborChecks;
         Vec2 away = c.agents[index].position - c.agents[n].position;
         float d = away.length();
         if (d <= Epsilon || d >= c.config.separationRadius) continue;
-        out += away.normalized() * (1.0f - d / c.config.separationRadius);
-        ++count;
+
+        const float distanceRatio = d / c.config.separationRadius;
+        const float weight = (1.0f - distanceRatio) / std::max(d, Epsilon);
+        out += away.normalized() * weight;
+        totalWeight += weight;
     }
-    if (count > 0) out *= 1.0f / static_cast<float>(count);
+
+    if (totalWeight > Epsilon) {
+        out *= 1.0f / totalWeight;
+    }
+
     return out;
 }
 
