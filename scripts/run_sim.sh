@@ -21,9 +21,12 @@ if [[ ! -d "$SIM_BUILD_DIR" ]]; then
     exit 1
 fi
 
-BIN=$(find "$SIM_BUILD_DIR" -type f \( -name "$SIM_NAME" -o -name "$SIM_NAME.exe" \) | head -n 1)
+BIN="$SIM_BUILD_DIR/$SIM_NAME"
+if [[ ! -x "$BIN" ]]; then
+    BIN="$SIM_BUILD_DIR/$SIM_NAME.exe"
+fi
 
-if [[ -z "$BIN" ]]; then
+if [[ ! -x "$BIN" ]]; then
     echo "Error: could not find simulation binary for $SIM_NAME in $SIM_BUILD_DIR"
     exit 1
 fi
