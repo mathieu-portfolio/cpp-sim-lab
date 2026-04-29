@@ -43,6 +43,10 @@ struct Vec2 {
         return std::sqrt(x * x + y * y);
     }
 
+    float lengthSquared() const {
+        return x * x + y * y;
+    }
+
     Vec2 normalized() const {
         float len = length();
         return len > 0.0f ? Vec2{x / len, y / len} : Vec2{};
