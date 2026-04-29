@@ -5,13 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: ./scripts/run_and_plot.sh <benchmark_name> [preset]"
-    echo "Example: ./scripts/run_and_plot.sh boids_spatial_grid_compare release"
+    echo "Usage: ./scripts/run_and_plot.sh <benchmark_name> [preset] [--build]"
+    echo "Example: ./scripts/run_and_plot.sh boids_spatial_grid_compare release --build"
     exit 1
 fi
 
 BENCH_NAME=$1
 PRESET=${2:-release}
+BUILD_FIRST="${3:-}"
 
-./scripts/run_bench.sh "$BENCH_NAME" "$PRESET"
+./scripts/run_bench.sh "$BENCH_NAME" "$PRESET" "$BUILD_FIRST"
 ./scripts/plot_bench.sh "$BENCH_NAME"

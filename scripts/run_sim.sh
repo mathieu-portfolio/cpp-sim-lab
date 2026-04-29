@@ -7,15 +7,20 @@ cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/find_bin.sh"
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: ./scripts/run_sim.sh <simulation_name> [preset]"
-    echo "Example: ./scripts/run_sim.sh particles_cpu debug"
+    echo "Usage: ./scripts/run_sim.sh <simulation_name> [preset] [--build]"
+    echo "Example: ./scripts/run_sim.sh particles_cpu debug --build"
     exit 1
 fi
 
 SIM_NAME="$1"
 PRESET="${2:-debug}"
+BUILD_FIRST="${3:-}"
 
-./scripts/build.sh "$PRESET"
+if [[ "$BUILD_FIRST" == "--build" ]]; then
+    ./scripts/build.sh "$PRESET" "$SIM_NAME"
+else
+    echo "Skipping build (pass --build to compile $SIM_NAME first)."
+fi
 
 BUILD_DIR="build/$PRESET"
 
