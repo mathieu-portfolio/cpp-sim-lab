@@ -39,22 +39,6 @@ add_library(${SIM_NAME}_core
 }
 EOF
 
-cat > "$SIM_DIR/README.md" << EOF
-# ${SIM_NAME}
-
-TODO: describe the simulation.
-
-## Goals
-
-- Correctness first
-- Simple baseline implementation
-- Measurements before optimization
-
-## Controls
-
-TODO
-EOF
-
 cat > "$TEST_DIR/smoke_test.cpp" << EOF
 #include <gtest/gtest.h>
 
