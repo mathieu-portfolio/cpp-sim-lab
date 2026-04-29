@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 PRESET=${1:-release}
+BUILD_FIRST="${2:-}"
 
 echo "Running all benchmarks with preset: $PRESET"
 
@@ -17,7 +18,7 @@ for bench_dir in benchmarks/simulations/*; do
     echo "----------------------------------"
     echo "Benchmark: $BENCH_NAME"
 
-    ./scripts/run_and_plot.sh "$BENCH_NAME" "$PRESET"
+    ./scripts/run_and_plot.sh "$BENCH_NAME" "$PRESET" "$BUILD_FIRST"
 done
 
 echo "All benchmarks done."

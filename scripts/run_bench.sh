@@ -7,13 +7,14 @@ cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/find_bin.sh"
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: ./scripts/run_bench.sh <benchmark_name> [preset]"
-    echo "Example: ./scripts/run_bench.sh boids_naive_neighbors release"
+    echo "Usage: ./scripts/run_bench.sh <benchmark_name> [preset] [--build]"
+    echo "Example: ./scripts/run_bench.sh boids_naive_neighbors release --build"
     exit 1
 fi
 
 BENCH_NAME="$1"
 PRESET="${2:-release}"
+BUILD_FIRST="${3:-}"
 
 BUILD_DIR="build/$PRESET"
 BENCH_SRC_DIR="benchmarks/simulations/$BENCH_NAME"
@@ -26,8 +27,12 @@ if [[ ! -d "$BENCH_SRC_DIR" ]]; then
     exit 1
 fi
 
-echo "Building ($PRESET)..."
-cmake --build --preset "$PRESET"
+if [[ "$BUILD_FIRST" == "--build" ]]; then
+    echo "Building benchmark target ($PRESET): $BENCH_EXE"
+    cmake --build --preset "$PRESET" --target "$BENCH_EXE"
+else
+    echo "Skipping build (pass --build to compile $BENCH_EXE first)."
+fi
 
 if [[ ! -d "$BUILD_DIR" ]]; then
     echo "Error: build directory not found: $BUILD_DIR"
