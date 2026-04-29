@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <simulation/WeightedBehaviorPipeline.hpp>
 
 namespace crowd_cpu {
@@ -14,11 +15,56 @@ float scaleFactor(const SimulationConfig& config, ForceScale scale) {
     return scale == ForceScale::MaxForce ? config.maxForce : 1.0f;
 }
 
-std::size_t flowCellIndex(const SimulationConfig& config, Vec2 p, std::size_t w, std::size_t h) {
-    const float invCell = 1.0f / config.gridCellSize;
-    const auto cx = static_cast<std::size_t>(std::clamp(static_cast<int>(p.x * invCell), 0, static_cast<int>(w - 1)));
-    const auto cy = static_cast<std::size_t>(std::clamp(static_cast<int>(p.y * invCell), 0, static_cast<int>(h - 1)));
-    return cy * w + cx;
+float sampleIntegrationBilinear(
+    const std::vector<float>& integration,
+    std::size_t gridWidth,
+    std::size_t gridHeight,
+    float cellSize,
+    Vec2 worldPos
+) {
+    if (integration.empty() || gridWidth == 0 || gridHeight == 0) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const float gx = std::clamp(worldPos.x / cellSize, 0.0f, static_cast<float>(gridWidth - 1));
+    const float gy = std::clamp(worldPos.y / cellSize, 0.0f, static_cast<float>(gridHeight - 1));
+    const std::size_t x0 = static_cast<std::size_t>(gx);
+    const std::size_t y0 = static_cast<std::size_t>(gy);
+    const std::size_t x1 = std::min(x0 + 1, gridWidth - 1);
+    const std::size_t y1 = std::min(y0 + 1, gridHeight - 1);
+    const float tx = gx - static_cast<float>(x0);
+    const float ty = gy - static_cast<float>(y0);
+
+    const float i00 = integration[y0 * gridWidth + x0];
+    const float i10 = integration[y0 * gridWidth + x1];
+    const float i01 = integration[y1 * gridWidth + x0];
+    const float i11 = integration[y1 * gridWidth + x1];
+    if (!std::isfinite(i00) || !std::isfinite(i10) || !std::isfinite(i01) || !std::isfinite(i11)) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const float top = i00 + (i10 - i00) * tx;
+    const float bottom = i01 + (i11 - i01) * tx;
+    return top + (bottom - top) * ty;
+}
+
+Vec2 sampleFlowFromIntegration(
+    const std::vector<float>& integration,
+    std::size_t gridWidth,
+    std::size_t gridHeight,
+    float cellSize,
+    Vec2 worldPos
+) {
+    const float h = cellSize;
+    const float fxm = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x - h, worldPos.y});
+    const float fxp = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x + h, worldPos.y});
+    const float fym = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x, worldPos.y - h});
+    const float fyp = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x, worldPos.y + h});
+    if (!std::isfinite(fxm) || !std::isfinite(fxp) || !std::isfinite(fym) || !std::isfinite(fyp)) {
+        return Vec2{};
+    }
+    const float inv2h = 0.5f / h;
+    return Vec2{-(fxp - fxm) * inv2h, -(fyp - fym) * inv2h};
 }
 }
 
@@ -44,12 +90,14 @@ Vec2 computeAcceleration(std::size_t i, BehaviorContext& c, std::span<const Weig
 
 Vec2 followFlow(std::size_t index, BehaviorContext& context) {
     const Agent& a = context.agents[index];
-    if (context.flowVectors.empty()) return Vec2{};
-    const std::size_t total = context.flowVectors.size();
-    const std::size_t w = static_cast<std::size_t>(context.config.width / context.config.gridCellSize) + 1;
-    const std::size_t h = std::max<std::size_t>(1, total / std::max<std::size_t>(1, w));
-    Vec2 dir = context.flowVectors[std::min(total - 1, flowCellIndex(context.config, a.position, w, h))];
-    if (dir.length() <= Epsilon) return Vec2{};
+    Vec2 dir = sampleFlowFromIntegration(
+        context.integrationField,
+        context.gridWidth,
+        context.gridHeight,
+        context.config.gridCellSize,
+        a.position
+    );
+    if (dir.lengthSquared() <= Epsilon * Epsilon) return Vec2{};
     Vec2 desired = dir.normalized() * context.config.maxSpeed;
     return limitLength(desired - a.velocity, context.config.maxForce);
 }

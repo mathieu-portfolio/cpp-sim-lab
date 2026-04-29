@@ -171,7 +171,6 @@ int main() {
         if (controls.showDebug) {
             const auto& cost = sim.getCostField();
             const auto& integration = sim.getIntegrationField();
-            const auto& flow = sim.getFlowField();
             const std::size_t gridWidth = static_cast<std::size_t>(config.width / config.gridCellSize) + 1;
             const std::size_t gridHeight = static_cast<std::size_t>(config.height / config.gridCellSize) + 1;
             const int goalCellX = std::clamp(
@@ -213,7 +212,7 @@ int main() {
                         );
                     }
 
-                    const Vec2 direction = flow[cellIndex];
+                    const Vec2 direction = sim.sampleFlow(cellCenter);
                     DrawLineV(
                         simfw::ui::toRaylib(cellCenter),
                         simfw::ui::toRaylib(cellCenter + direction * 8.0f),
