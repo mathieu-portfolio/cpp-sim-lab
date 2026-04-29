@@ -10,6 +10,7 @@
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 
+#include <cmath>
 #include <optional>
 
 using namespace crowd_cpu;
@@ -39,6 +40,7 @@ int main() {
     simfw::ui::SimulationControls controls;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::optional<std::size_t> selectedAgent;
+    bool showIntegrationValues = false;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
@@ -82,6 +84,10 @@ int main() {
 
         if (IsKeyPressed(KEY_C)) {
             sim.clearObstacles();
+        }
+
+        if (IsKeyPressed(KEY_I)) {
+            showIntegrationValues = !showIntegrationValues;
         }
 
         const bool fastAdjust =
@@ -163,23 +169,66 @@ int main() {
         }
 
         if (controls.showDebug) {
+            const auto& cost = sim.getCostField();
+            const auto& integration = sim.getIntegrationField();
             const auto& flow = sim.getFlowField();
             const std::size_t gridWidth = static_cast<std::size_t>(config.width / config.gridCellSize) + 1;
             const std::size_t gridHeight = static_cast<std::size_t>(config.height / config.gridCellSize) + 1;
+            const int goalCellX = std::clamp(
+                static_cast<int>(sim.getGoal().x / config.gridCellSize),
+                0,
+                static_cast<int>(gridWidth - 1)
+            );
+            const int goalCellY = std::clamp(
+                static_cast<int>(sim.getGoal().y / config.gridCellSize),
+                0,
+                static_cast<int>(gridHeight - 1)
+            );
 
             for (std::size_t y = 0; y < gridHeight; ++y) {
                 for (std::size_t x = 0; x < gridWidth; ++x) {
-                    const Vec2 direction = flow[y * gridWidth + x];
+                    const std::size_t cellIndex = y * gridWidth + x;
+                    const Vec2 cellMin{
+                        static_cast<float>(x) * config.gridCellSize,
+                        static_cast<float>(y) * config.gridCellSize
+                    };
                     const Vec2 cellCenter{
                         (static_cast<float>(x) + 0.5f) * config.gridCellSize,
                         (static_cast<float>(y) + 0.5f) * config.gridCellSize
                     };
 
+                    if (cellIndex < cost.size() && cost[cellIndex] >= 255.0f) {
+                        DrawRectangleV(
+                            simfw::ui::toRaylib(cellMin),
+                            Vector2{config.gridCellSize, config.gridCellSize},
+                            Fade(DARKGRAY, 0.5f)
+                        );
+                    }
+
+                    if (static_cast<int>(x) == goalCellX && static_cast<int>(y) == goalCellY) {
+                        DrawRectangleLinesEx(
+                            Rectangle{cellMin.x, cellMin.y, config.gridCellSize, config.gridCellSize},
+                            2.0f,
+                            GREEN
+                        );
+                    }
+
+                    const Vec2 direction = flow[cellIndex];
                     DrawLineV(
                         simfw::ui::toRaylib(cellCenter),
                         simfw::ui::toRaylib(cellCenter + direction * 8.0f),
                         SKYBLUE
                     );
+
+                    if (showIntegrationValues && cellIndex < integration.size() && std::isfinite(integration[cellIndex])) {
+                        DrawText(
+                            TextFormat("%.0f", integration[cellIndex]),
+                            static_cast<int>(cellMin.x + 2.0f),
+                            static_cast<int>(cellMin.y + 2.0f),
+                            10,
+                            GRAY
+                        );
+                    }
                 }
             }
         }
@@ -246,7 +295,8 @@ int main() {
                         "Shift: fast adjust",
                         "G: toggle grid backend",
                         "H: grid debug mode",
-                        "P: parallel update"
+                        "P: parallel update",
+                        "I: integration values"
                     }
                 );
             }
