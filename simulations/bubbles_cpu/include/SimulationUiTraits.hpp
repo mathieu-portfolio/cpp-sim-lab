@@ -25,6 +25,7 @@ struct ConfigUiTraits<bubbles_cpu::SimulationConfig> {
         TunableField{"pressure", &bubbles_cpu::SimulationConfig::pressureStrength, 0.0f, 2.0f, 120.0f},
         TunableField{"tension", &bubbles_cpu::SimulationConfig::surfaceTension, 0.0f, 2.0f, 160.0f},
         TunableField{"collision", &bubbles_cpu::SimulationConfig::collisionStiffness, 0.0f, 2.0f, 120.0f},
+        TunableField{"burst stress", &bubbles_cpu::SimulationConfig::burstStressThreshold, 0.1f, 0.1f, 8.0f},
         TunableField{"cell size", &bubbles_cpu::SimulationConfig::gridCellSize, 2.0f, 4.0f, 40.0f}
     );
 };

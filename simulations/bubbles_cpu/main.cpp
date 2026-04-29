@@ -130,6 +130,7 @@ int main() {
                     "Space: pause",
                     "N: step",
                     "R: reset",
+                    "B: toggle burst",
                     "Tab: select tunable",
                     "Left/Right: adjust",
                     "Shift: fast adjust",
