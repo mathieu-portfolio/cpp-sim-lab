@@ -13,8 +13,27 @@ if [[ $# -lt 1 ]]; then
 fi
 
 BENCH_NAME="$1"
-PRESET="${2:-release}"
-BUILD_FIRST="${3:-}"
+PRESET="release"
+BUILD_FIRST=false
+
+for arg in "${@:2}"; do
+    case "$arg" in
+    --build)
+        BUILD_FIRST=true
+        ;;
+    debug|release|relwithdebinfo|minsizerel)
+        PRESET="$arg"
+        ;;
+    -debug|-release|-relwithdebinfo|-minsizerel)
+        PRESET="${arg#-}"
+        ;;
+    *)
+        echo "Error: unknown argument '$arg'"
+        echo "Usage: ./scripts/run_bench.sh <benchmark_name> [preset] [--build]"
+        exit 1
+        ;;
+    esac
+done
 
 BUILD_DIR="build/$PRESET"
 BENCH_SRC_DIR="benchmarks/simulations/$BENCH_NAME"
@@ -27,7 +46,7 @@ if [[ ! -d "$BENCH_SRC_DIR" ]]; then
     exit 1
 fi
 
-if [[ "$BUILD_FIRST" == "--build" ]]; then
+if [[ "$BUILD_FIRST" == true ]]; then
     echo "Building benchmark target ($PRESET): $BENCH_EXE"
     cmake --build --preset "$PRESET" --target "$BENCH_EXE"
 else
