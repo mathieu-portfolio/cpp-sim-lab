@@ -71,6 +71,7 @@ public:
     const Grid& getGrid() const { return m_agentGrid; }
     const Grid& getObstacleGrid() const { return m_obstacleGrid; }
     const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
+    const std::vector<float>& getCostField() const { return m_costField; }
     const std::vector<float>& getIntegrationField() const { return m_integrationField; }
     const std::vector<Vec2>& getFlowField() const { return m_flowField; }
 
