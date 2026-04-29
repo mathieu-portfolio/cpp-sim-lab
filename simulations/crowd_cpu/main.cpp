@@ -226,7 +226,29 @@ int main() {
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 simfw::ui::TextCursor controlsCursor =
                     simfw::ui::makeRightSideControlCursor(350, 10, 20);
-                simfw::ui::drawControlHints(controlsCursor);
+                simfw::ui::drawControlHints(
+                    controlsCursor,
+                    {
+                        "Left mouse: set goal",
+                        "Ctrl + Left mouse: select agent",
+                        "Right mouse: add obstacle",
+                        "C: clear obstacles",
+                        "Wheel: zoom",
+                        "Middle mouse: pan",
+                        "Backspace: reset camera",
+                        "Space: pause",
+                        "N: step",
+                        "R: reset",
+                        "D: debug",
+                        "F1: UI mode",
+                        "Tab: select tunable",
+                        "Left/Right: adjust",
+                        "Shift: fast adjust",
+                        "G: toggle grid backend",
+                        "H: grid debug mode",
+                        "P: parallel update"
+                    }
+                );
             }
         }
 
