@@ -63,6 +63,10 @@ int main() {
             selectedBubble.reset();
         }
 
+        if (IsKeyPressed(KEY_B)) {
+            liveConfig.enableBurst = !liveConfig.enableBurst;
+        }
+
         const bool fastAdjust = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
         if (IsKeyDown(KEY_LEFT)) {
             simfw::ui::adjustTunables(liveConfig, controls.selectedParameter, -1.0f, dt, fastAdjust);
@@ -108,6 +112,7 @@ int main() {
             simfw::ui::TextCursor cursor{10, 10, 22};
             cursor.draw("bubbles_cpu", 20, RAYWHITE);
             cursor.draw(controls.paused ? "Paused" : "Running");
+            cursor.draw(TextFormat("Bursting: %s", liveConfig.enableBurst ? "ON" : "OFF"));
             simfw::ui::drawStats(cursor, sim.getStats());
             simfw::ui::drawSimulationBackendStatus(cursor, liveConfig, gridDebugMode);
             cursor.gap(6);
