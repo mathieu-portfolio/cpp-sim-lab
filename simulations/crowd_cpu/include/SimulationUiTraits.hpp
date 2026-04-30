@@ -13,7 +13,7 @@ struct StatsUiTraits<crowd_cpu::SimulationStats> {
         StatField{"Reached", &crowd_cpu::SimulationStats::reachedGoalCount},
         StatField{"Neighbor checks", &crowd_cpu::SimulationStats::neighborChecks},
         StatField{"Candidates", &crowd_cpu::SimulationStats::neighborCandidates},
-        StatField{"Agent grid cells", &crowd_cpu::SimulationStats::occupiedGridCells},
+        StatField{"Agent grid cells", &crowd_cpu::SimulationStats::occupiedGridCells}
     );
 };
 
