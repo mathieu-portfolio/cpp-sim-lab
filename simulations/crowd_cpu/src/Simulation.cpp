@@ -13,22 +13,23 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
-#include <thread>
+#include <simulation/SimulationUtils.hpp>
 
 namespace crowd_cpu {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
 Vec2 agentPosition(const Agent& a) { return a.position; }
-std::size_t workers(){ unsigned int n=std::thread::hardware_concurrency(); return n==0?1:static_cast<std::size_t>(n); }
 void normalizeConfigCounts(SimulationConfig& config) {
-    constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
-    if (config.agentCount == defaultCount && config.entityCount != defaultCount) config.agentCount = config.entityCount;
-    else config.entityCount = config.agentCount;
+    simfw::simulation::syncEntityCount(
+        SimulationConfig::DefaultAgentCount,
+        config.agentCount,
+        config
+    );
 }
 }
 
 Simulation::Simulation(SimulationConfig config)
-    : Base(config), m_agentGrid(config.gridCellSize), m_goal{config.width * 0.85f, config.height * 0.5f}, m_threadPool(std::make_unique<ThreadPool>(workers())), m_behaviors(makeDefaultBehaviors()) { reset(); }
+    : Base(config), m_agentGrid(config.gridCellSize), m_goal{config.width * 0.85f, config.height * 0.5f}, m_threadPool(std::make_unique<ThreadPool>(simfw::simulation::hardwareWorkerCount())), m_behaviors(makeDefaultBehaviors()) { reset(); }
 Simulation::~Simulation() = default;
 Simulation::Simulation(Simulation&&) noexcept = default;
 Simulation& Simulation::operator=(Simulation&&) noexcept = default;
