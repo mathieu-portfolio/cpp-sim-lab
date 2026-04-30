@@ -226,41 +226,52 @@ void Simulation::buildFlowField() {
 }
 
 Vec2 Simulation::sampleFlow(Vec2 worldPos) const {
-    if (m_integrationField.empty() || m_gridWidth == 0 || m_gridHeight == 0) return Vec2{};
-    const float cellSize = m_config.gridCellSize;
-    auto sample = [&](Vec2 p) {
-        const float gx = std::clamp(p.x / cellSize, 0.0f, static_cast<float>(m_gridWidth - 1));
-        const float gy = std::clamp(p.y / cellSize, 0.0f, static_cast<float>(m_gridHeight - 1));
-        const std::size_t x0 = static_cast<std::size_t>(gx), y0 = static_cast<std::size_t>(gy);
-        const std::size_t x1 = std::min(x0 + 1, m_gridWidth - 1), y1 = std::min(y0 + 1, m_gridHeight - 1);
-        const float tx = gx - static_cast<float>(x0), ty = gy - static_cast<float>(y0);
-        const float i00 = m_integrationField[y0 * m_gridWidth + x0], i10 = m_integrationField[y0 * m_gridWidth + x1];
-        const float i01 = m_integrationField[y1 * m_gridWidth + x0], i11 = m_integrationField[y1 * m_gridWidth + x1];
-        if (!std::isfinite(i00) || !std::isfinite(i10) || !std::isfinite(i01) || !std::isfinite(i11)) {
-            return std::numeric_limits<float>::infinity();
-        }
-        return (i00 + (i10 - i00) * tx) + ((i01 + (i11 - i01) * tx) - (i00 + (i10 - i00) * tx)) * ty;
+    if (m_integrationField.empty() || m_gridWidth == 0 || m_gridHeight == 0) {
+        return Vec2{};
+    }
+
+    const int cx = std::clamp(
+        static_cast<int>(worldPos.x / m_config.gridCellSize),
+        0,
+        static_cast<int>(m_gridWidth - 1)
+    );
+    const int cy = std::clamp(
+        static_cast<int>(worldPos.y / m_config.gridCellSize),
+        0,
+        static_cast<int>(m_gridHeight - 1)
+    );
+
+    const std::size_t centerIndex = static_cast<std::size_t>(cy) * m_gridWidth + static_cast<std::size_t>(cx);
+    const float centerIntegration = m_integrationField[centerIndex];
+    if (!std::isfinite(centerIntegration)) {
+        return Vec2{};
+    }
+
+    float bestIntegration = centerIntegration;
+    Vec2 bestDirection{};
+    constexpr int offsets[8][2] = {
+        {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+        {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
 
-    const float h = cellSize;
-    const float fxc = sample(worldPos);
-    const float fxm = sample({worldPos.x - h, worldPos.y});
-    const float fxp = sample({worldPos.x + h, worldPos.y});
-    const float fym = sample({worldPos.x, worldPos.y - h});
-    const float fyp = sample({worldPos.x, worldPos.y + h});
-    if (!std::isfinite(fxc)) return Vec2{};
+    for (const auto& offset : offsets) {
+        const int nx = cx + offset[0];
+        const int ny = cy + offset[1];
+        if (nx < 0 || ny < 0 || nx >= static_cast<int>(m_gridWidth) || ny >= static_cast<int>(m_gridHeight)) {
+            continue;
+        }
 
-    float ddx = 0.0f;
-    if (std::isfinite(fxp) && std::isfinite(fxm)) ddx = (fxp - fxm) / (2.0f * h);
-    else if (std::isfinite(fxp)) ddx = (fxp - fxc) / h;
-    else if (std::isfinite(fxm)) ddx = (fxc - fxm) / h;
+        const std::size_t neighborIndex = static_cast<std::size_t>(ny) * m_gridWidth + static_cast<std::size_t>(nx);
+        const float integration = m_integrationField[neighborIndex];
+        if (!std::isfinite(integration) || integration >= bestIntegration) {
+            continue;
+        }
 
-    float ddy = 0.0f;
-    if (std::isfinite(fyp) && std::isfinite(fym)) ddy = (fyp - fym) / (2.0f * h);
-    else if (std::isfinite(fyp)) ddy = (fyp - fxc) / h;
-    else if (std::isfinite(fym)) ddy = (fxc - fym) / h;
+        bestIntegration = integration;
+        bestDirection = Vec2{static_cast<float>(offset[0]), static_cast<float>(offset[1])};
+    }
 
-    return Vec2{-ddx, -ddy};
+    return bestDirection.normalized();
 }
 
 void Simulation::updateAgents(float dt) {
