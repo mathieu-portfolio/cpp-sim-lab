@@ -5,6 +5,7 @@
 #include <simulation/CollisionPairs.hpp>
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
+#include <simulation/EntityBrush.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -181,7 +182,7 @@ void Simulation::spawn(const Vec2& position) {
     for (int i = 0; i < m_config.spawnCount && m_entities.size() < m_config.maxBubbleCount; ++i) {
         const float radius = Random::range(m_config.baseRadius * 0.75f, m_config.baseRadius * 1.35f);
         m_entities.push_back({
-            position + Vec2{Random::range(-m_config.spawnJitter, m_config.spawnJitter), Random::range(-m_config.spawnJitter, m_config.spawnJitter)},
+            position + simfw::simulation::randomDiscOffset(m_config.brushRadius),
             Vec2{Random::range(-20.0f, 20.0f), Random::range(-40.0f, 20.0f)},
             radius,
             radius,

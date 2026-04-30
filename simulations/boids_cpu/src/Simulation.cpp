@@ -6,6 +6,7 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
+#include <simulation/EntityBrush.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -98,6 +99,7 @@ void Simulation::normalizeConfigCounts() {
 void Simulation::updateStatsCount() {
     m_stats.boidCount = m_entities.size();
     m_stats.entityCount = m_entities.size();
+    m_config.entityCount = m_entities.size();
 }
 
 void Simulation::reset() {
@@ -123,6 +125,22 @@ void Simulation::reset() {
     }
 
     m_stats = {};
+    updateStatsCount();
+}
+
+
+void Simulation::spawn(const Vec2& position) {
+    simfw::simulation::spawnBrush(
+        m_entities.size(),
+        m_config.maxBoidCount,
+        m_config.spawnCount,
+        [this, position]() {
+            m_entities.push_back({
+                position + simfw::simulation::randomDiscOffset(m_config.brushRadius),
+                Vec2{Random::range(-50.0f, 50.0f), Random::range(-50.0f, 50.0f)}
+            });
+        }
+    );
     updateStatsCount();
 }
 

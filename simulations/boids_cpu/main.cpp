@@ -118,6 +118,10 @@ int main() {
             );
         }
 
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !isSelectionModifierDown()) {
+            sim.spawn(simfw::ui::screenToWorld(GetMousePosition(), camera));
+        }
+
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && isSelectionModifierDown()) {
             selectedBoid = simfw::ui::findClosestEntity(
                 sim.getBoids(),

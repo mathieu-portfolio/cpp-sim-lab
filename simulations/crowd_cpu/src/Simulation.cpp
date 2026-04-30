@@ -11,6 +11,7 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
+#include <simulation/EntityBrush.hpp>
 #include <thread>
 
 namespace crowd_cpu {
@@ -70,10 +71,19 @@ Simulation::~Simulation() = default;
 Simulation::Simulation(Simulation&&) noexcept = default;
 Simulation& Simulation::operator=(Simulation&&) noexcept = default;
 
-void Simulation::beginFrame(){ normalizeConfigCounts(m_config); m_stats={}; m_stats.agentCount=m_entities.size(); m_stats.entityCount=m_entities.size(); m_stats.obstacleCount=m_obstacles.size(); }
+void Simulation::beginFrame(){ normalizeConfigCounts(m_config); m_stats={}; m_stats.agentCount=m_entities.size(); m_stats.entityCount=m_entities.size(); m_stats.obstacleCount=m_obstacles.size(); m_config.entityCount=m_entities.size(); }
 void Simulation::setGoal(Vec2 g){ m_goal = g; }
 void Simulation::addObstacle(Vec2 p){ m_obstacles.push_back({p, m_config.obstacleRadius}); }
 void Simulation::clearObstacles(){ m_obstacles.clear(); }
+void Simulation::spawn(const Vec2& position){
+    simfw::simulation::spawnBrush(m_entities.size(), m_config.maxAgentCount, m_config.spawnCount, [this, position](){
+        Vec2 spawnPos = position + simfw::simulation::randomDiscOffset(m_config.brushRadius);
+        spawnPos.x = std::clamp(spawnPos.x, 0.0f, m_config.width);
+        spawnPos.y = std::clamp(spawnPos.y, 0.0f, m_config.height);
+        m_entities.push_back({spawnPos, Vec2{}, m_config.agentRadius});
+    });
+}
+
 
 void Simulation::reset() {
     normalizeConfigCounts(m_config);

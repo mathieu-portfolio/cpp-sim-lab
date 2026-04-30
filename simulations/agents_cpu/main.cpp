@@ -157,6 +157,8 @@ int main() {
                     SelectionPickRadius / camera.zoom,
                     agentPosition
                 );
+            } else if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
+                sim.spawn(mouseWorld);
             } else {
                 sim.setTarget(mouseWorld);
             }

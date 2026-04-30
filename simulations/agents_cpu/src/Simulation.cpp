@@ -9,6 +9,7 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
+#include <simulation/EntityBrush.hpp>
 #include <thread>
 
 namespace agents_cpu {
@@ -94,6 +95,7 @@ void Simulation::normalizeConfigCounts() {
 void Simulation::updateStatsCount() {
     m_stats.agentCount = m_entities.size();
     m_stats.entityCount = m_entities.size();
+    m_config.entityCount = m_entities.size();
     m_stats.obstacleCount = m_obstacles.size();
 }
 
@@ -160,6 +162,16 @@ void Simulation::setTarget(Vec2 target) {
             agent.intent = AgentIntent::SeekTarget;
         }
     }
+}
+
+
+void Simulation::spawn(Vec2 position) {
+    const Vec2 clamped = clampToWorld(position, m_config.width, m_config.height);
+    simfw::simulation::spawnBrush(m_entities.size(), m_config.maxAgentCount, m_config.spawnCount, [this, clamped]() {
+        const Vec2 spawnPos = clampToWorld(clamped + simfw::simulation::randomDiscOffset(m_config.brushRadius), m_config.width, m_config.height);
+        m_entities.push_back({spawnPos, Vec2{Random::range(-20.0f, 20.0f), Random::range(-20.0f, 20.0f)}, m_target, m_config.agentRadius, AgentIntent::SeekTarget});
+    });
+    updateStatsCount();
 }
 
 void Simulation::addObstacle(Vec2 position) {

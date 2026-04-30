@@ -24,6 +24,9 @@ struct SimulationConfig {
     float height = 800.0f;
 
     std::size_t agentCount = DefaultAgentCount;
+    std::size_t maxAgentCount = 2500;
+    int spawnCount = 6;
+    float brushRadius = 20.0f;
     std::size_t entityCount = DefaultAgentCount;
 
     float agentRadius = 4.0f;
@@ -107,6 +110,7 @@ public:
     void resetIntentRules();
 
     void setTarget(Vec2 target);
+    void spawn(const Vec2& position);
     Vec2 getTarget() const { return m_target; }
 
     void addObstacle(Vec2 position);
