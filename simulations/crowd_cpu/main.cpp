@@ -267,11 +267,14 @@ int main() {
                     }
 
                     const Vec2 direction = sim.sampleFlow(cellCenter);
-                    DrawLineV(
-                        simfw::ui::toRaylib(cellCenter),
-                        simfw::ui::toRaylib(cellCenter + direction * 8.0f),
-                        SKYBLUE
-                    );
+                    if (direction.lengthSquared() > 0.000001f) {
+                        const Vec2 debugDir = direction.normalized() * (config.gridCellSize * 0.45f);
+                        DrawLineV(
+                            simfw::ui::toRaylib(cellCenter),
+                            simfw::ui::toRaylib(cellCenter + debugDir),
+                            SKYBLUE
+                        );
+                    }
 
                     if (showIntegrationValues && cellIndex < integration.size() && std::isfinite(integration[cellIndex])) {
                         DrawText(

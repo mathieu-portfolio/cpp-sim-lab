@@ -56,15 +56,35 @@ Vec2 sampleFlowFromIntegration(
     Vec2 worldPos
 ) {
     const float h = cellSize;
+    const float fxc = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, worldPos);
     const float fxm = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x - h, worldPos.y});
     const float fxp = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x + h, worldPos.y});
     const float fym = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x, worldPos.y - h});
     const float fyp = sampleIntegrationBilinear(integration, gridWidth, gridHeight, cellSize, Vec2{worldPos.x, worldPos.y + h});
-    if (!std::isfinite(fxm) || !std::isfinite(fxp) || !std::isfinite(fym) || !std::isfinite(fyp)) {
+
+    if (!std::isfinite(fxc)) {
         return Vec2{};
     }
-    const float inv2h = 0.5f / h;
-    return Vec2{-(fxp - fxm) * inv2h, -(fyp - fym) * inv2h};
+
+    float ddx = 0.0f;
+    if (std::isfinite(fxp) && std::isfinite(fxm)) {
+        ddx = (fxp - fxm) / (2.0f * h);
+    } else if (std::isfinite(fxp)) {
+        ddx = (fxp - fxc) / h;
+    } else if (std::isfinite(fxm)) {
+        ddx = (fxc - fxm) / h;
+    }
+
+    float ddy = 0.0f;
+    if (std::isfinite(fyp) && std::isfinite(fym)) {
+        ddy = (fyp - fym) / (2.0f * h);
+    } else if (std::isfinite(fyp)) {
+        ddy = (fyp - fxc) / h;
+    } else if (std::isfinite(fym)) {
+        ddy = (fxc - fym) / h;
+    }
+
+    return Vec2{-ddx, -ddy};
 }
 }
 

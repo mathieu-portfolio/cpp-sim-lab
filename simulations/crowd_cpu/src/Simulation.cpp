@@ -225,7 +225,43 @@ void Simulation::buildFlowField() {
     }
 }
 
-Vec2 Simulation::sampleFlow(Vec2 worldPos) const { if (m_integrationField.empty() || m_gridWidth == 0 || m_gridHeight == 0) return Vec2{}; const float cellSize=m_config.gridCellSize; auto sample=[&](Vec2 p){ const float gx=std::clamp(p.x/cellSize,0.0f,static_cast<float>(m_gridWidth-1)); const float gy=std::clamp(p.y/cellSize,0.0f,static_cast<float>(m_gridHeight-1)); const std::size_t x0=static_cast<std::size_t>(gx), y0=static_cast<std::size_t>(gy); const std::size_t x1=std::min(x0+1,m_gridWidth-1), y1=std::min(y0+1,m_gridHeight-1); const float tx=gx-static_cast<float>(x0), ty=gy-static_cast<float>(y0); const float i00=m_integrationField[y0*m_gridWidth+x0], i10=m_integrationField[y0*m_gridWidth+x1], i01=m_integrationField[y1*m_gridWidth+x0], i11=m_integrationField[y1*m_gridWidth+x1]; if(!std::isfinite(i00)||!std::isfinite(i10)||!std::isfinite(i01)||!std::isfinite(i11)) return std::numeric_limits<float>::infinity(); return (i00+(i10-i00)*tx)+((i01+(i11-i01)*tx)-(i00+(i10-i00)*tx))*ty;}; const float h=cellSize; const float fxm=sample({worldPos.x-h,worldPos.y}), fxp=sample({worldPos.x+h,worldPos.y}), fym=sample({worldPos.x,worldPos.y-h}), fyp=sample({worldPos.x,worldPos.y+h}); if(!std::isfinite(fxm)||!std::isfinite(fxp)||!std::isfinite(fym)||!std::isfinite(fyp)) return Vec2{}; const float inv2h=0.5f/h; return Vec2{-(fxp-fxm)*inv2h, -(fyp-fym)*inv2h}; }
+Vec2 Simulation::sampleFlow(Vec2 worldPos) const {
+    if (m_integrationField.empty() || m_gridWidth == 0 || m_gridHeight == 0) return Vec2{};
+    const float cellSize = m_config.gridCellSize;
+    auto sample = [&](Vec2 p) {
+        const float gx = std::clamp(p.x / cellSize, 0.0f, static_cast<float>(m_gridWidth - 1));
+        const float gy = std::clamp(p.y / cellSize, 0.0f, static_cast<float>(m_gridHeight - 1));
+        const std::size_t x0 = static_cast<std::size_t>(gx), y0 = static_cast<std::size_t>(gy);
+        const std::size_t x1 = std::min(x0 + 1, m_gridWidth - 1), y1 = std::min(y0 + 1, m_gridHeight - 1);
+        const float tx = gx - static_cast<float>(x0), ty = gy - static_cast<float>(y0);
+        const float i00 = m_integrationField[y0 * m_gridWidth + x0], i10 = m_integrationField[y0 * m_gridWidth + x1];
+        const float i01 = m_integrationField[y1 * m_gridWidth + x0], i11 = m_integrationField[y1 * m_gridWidth + x1];
+        if (!std::isfinite(i00) || !std::isfinite(i10) || !std::isfinite(i01) || !std::isfinite(i11)) {
+            return std::numeric_limits<float>::infinity();
+        }
+        return (i00 + (i10 - i00) * tx) + ((i01 + (i11 - i01) * tx) - (i00 + (i10 - i00) * tx)) * ty;
+    };
+
+    const float h = cellSize;
+    const float fxc = sample(worldPos);
+    const float fxm = sample({worldPos.x - h, worldPos.y});
+    const float fxp = sample({worldPos.x + h, worldPos.y});
+    const float fym = sample({worldPos.x, worldPos.y - h});
+    const float fyp = sample({worldPos.x, worldPos.y + h});
+    if (!std::isfinite(fxc)) return Vec2{};
+
+    float ddx = 0.0f;
+    if (std::isfinite(fxp) && std::isfinite(fxm)) ddx = (fxp - fxm) / (2.0f * h);
+    else if (std::isfinite(fxp)) ddx = (fxp - fxc) / h;
+    else if (std::isfinite(fxm)) ddx = (fxc - fxm) / h;
+
+    float ddy = 0.0f;
+    if (std::isfinite(fyp) && std::isfinite(fym)) ddy = (fyp - fym) / (2.0f * h);
+    else if (std::isfinite(fyp)) ddy = (fyp - fxc) / h;
+    else if (std::isfinite(fym)) ddy = (fxc - fym) / h;
+
+    return Vec2{-ddx, -ddy};
+}
 
 void Simulation::updateAgents(float dt) {
     auto worker = [&](std::size_t begin, std::size_t end, Scratch& s, SimulationStats& st){
