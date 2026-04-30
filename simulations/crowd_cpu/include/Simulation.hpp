@@ -70,6 +70,7 @@ public:
     void setGoal(Vec2 goal);
     void spawn(const Vec2& position);
     void addObstacle(Vec2 pos);
+    void addObstacle(Vec2 pos, float radius);
     void clearObstacles();
 
     Vec2 getGoal() const { return m_goal; }

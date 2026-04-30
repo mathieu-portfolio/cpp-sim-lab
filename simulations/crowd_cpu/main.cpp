@@ -3,6 +3,7 @@
 
 #include <raylib.h>
 #include <ui/EntitySelection.hpp>
+#include <ui/ObstacleMapPng.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationBackendControls.hpp>
@@ -10,8 +11,11 @@
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
+#include <string>
+#include <vector>
 
 using namespace crowd_cpu;
 
@@ -21,6 +25,9 @@ constexpr int WindowHeight = 800;
 constexpr float AgentDrawRadius = 3.0f;
 constexpr float SelectionPickRadius = 14.0f;
 constexpr float SelectionRingRadius = 10.0f;
+constexpr float ObstacleBrushRadius = 16.0f;
+constexpr const char* ScenarioObstacleMapPath = "scenarios/crowd_obstacles.png";
+constexpr unsigned char ObstacleThreshold = 128u;
 
 bool isSelectionModifierDown() {
     return IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
@@ -29,6 +36,7 @@ bool isSelectionModifierDown() {
 Vec2 agentPosition(const Agent& agent) {
     return agent.position;
 }
+
 } // namespace
 
 int main() {
@@ -41,6 +49,11 @@ int main() {
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::optional<std::size_t> selectedAgent;
     bool showIntegrationValues = false;
+    std::vector<uint8_t> obstaclePaintMask(
+        static_cast<std::size_t>(WindowWidth * WindowHeight),
+        0u
+    );
+    bool obstacleMaskDirty = false;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
@@ -80,16 +93,61 @@ int main() {
             }
         }
 
-        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-            sim.addObstacle(simfw::ui::screenToWorld(GetMousePosition(), camera));
+        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+            const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
+            if (simfw::ui::paintObstacleMaskCircle(
+                    obstaclePaintMask,
+                    WindowWidth,
+                    WindowHeight,
+                    mouseWorld,
+                    ObstacleBrushRadius / camera.zoom
+                )) {
+                obstacleMaskDirty = true;
+            }
         }
 
         if (IsKeyPressed(KEY_C)) {
             sim.clearObstacles();
+            std::fill(obstaclePaintMask.begin(), obstaclePaintMask.end(), 0u);
+            obstacleMaskDirty = false;
+        }
+        if (IsKeyPressed(KEY_L)) {
+            simfw::ui::loadObstacleShapesFromPng(
+                ScenarioObstacleMapPath,
+                ObstacleThreshold,
+                [&sim]() { sim.clearObstacles(); },
+                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
+            );
+        }
+        if (IsKeyPressed(KEY_O)) {
+            std::vector<std::pair<Vec2, float>> circles;
+            circles.reserve(sim.getObstacles().size());
+            for (const auto& obstacle : sim.getObstacles()) {
+                circles.push_back({obstacle.position, obstacle.radius});
+            }
+            simfw::ui::exportObstacleShapesToPng(
+                ScenarioObstacleMapPath,
+                static_cast<int>(config.width),
+                static_cast<int>(config.height),
+                circles
+            );
         }
 
         if (IsKeyPressed(KEY_I)) {
             showIntegrationValues = !showIntegrationValues;
+        }
+
+        if (obstacleMaskDirty) {
+            sim.clearObstacles();
+            const auto circles = simfw::ui::buildObstacleCirclesFromMask(
+                obstaclePaintMask,
+                WindowWidth,
+                WindowHeight
+            );
+            for (const auto& [position, radius] : circles) {
+                sim.addObstacle(position, radius);
+            }
+            obstacleMaskDirty = false;
         }
 
         const bool fastAdjust =
@@ -265,6 +323,7 @@ int main() {
 
             cursor.gap(8);
             cursor.draw(TextFormat("Zoom: %.2fx", camera.zoom), 18, GRAY);
+            cursor.draw("Obstacle brush: Right mouse", 16, ORANGE);
 
             if (selectedAgent) {
                 const Agent& agent = sim.getEntities()[*selectedAgent];
@@ -281,8 +340,10 @@ int main() {
                     {
                         "Left mouse: set goal",
                         "Ctrl + Left mouse: select agent",
-                        "Right mouse: add obstacle",
+                        "Right mouse: paint obstacles",
                         "C: clear obstacles",
+                        "L: load obstacle PNG",
+                        "O: export obstacle PNG",
                         "Wheel: zoom",
                         "Middle mouse: pan",
                         "Backspace: reset camera",
