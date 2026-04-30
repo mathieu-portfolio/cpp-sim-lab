@@ -62,6 +62,10 @@ struct Vec2 {
         return len > 0.0f ? Vec2{x / len, y / len} : Vec2{};
     }
 
+    float dot(const Vec2& other) {
+        return x * other.x + y * other.y;
+    }
+
     static constexpr float dot(const Vec2& a, const Vec2& b) {
         return a.x * b.x + a.y * b.y;
     }
