@@ -2,7 +2,7 @@
 #include "SimulationUiTraits.hpp"
 
 #include <ui/EntitySelection.hpp>
-#include <ui/ObstacleMapPng.hpp>
+#include <ui/ObstacleBrush.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
@@ -11,7 +11,6 @@
 #include <ui/SimulationUiRenderer.hpp>
 
 #include <raylib.h>
-
 #include <algorithm>
 #include <optional>
 #include <vector>
@@ -129,11 +128,7 @@ int main() {
     simfw::ui::SimulationControls controls;
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::optional<std::size_t> selectedAgent;
-    std::vector<uint8_t> obstaclePaintMask(
-        static_cast<std::size_t>(WindowWidth * WindowHeight),
-        0u
-    );
-    bool obstacleMaskDirty = false;
+    simfw::ui::ObstacleBrush obstacleBrush;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         config.width,
@@ -173,37 +168,18 @@ int main() {
             }
         }
 
-        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+        {
             const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
-            if (simfw::ui::paintObstacleMaskCircle(
-                    obstaclePaintMask,
-                    WindowWidth,
-                    WindowHeight,
-                    mouseWorld,
-                    ObstacleBrushRadius / camera.zoom
-                )) {
-                obstacleMaskDirty = true;
-            }
+            obstacleBrush.paint(
+                IsMouseButtonDown(MOUSE_RIGHT_BUTTON),
+                mouseWorld,
+                ObstacleBrushRadius / camera.zoom,
+                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
+            );
         }
 
         if (IsKeyPressed(KEY_C)) {
             sim.clearObstacles();
-            std::fill(obstaclePaintMask.begin(), obstaclePaintMask.end(), 0u);
-            obstacleMaskDirty = false;
-        }
-
-        if (obstacleMaskDirty) {
-            sim.clearObstacles();
-            const auto circles = simfw::ui::buildObstacleCirclesFromMask(
-                obstaclePaintMask,
-                WindowWidth,
-                WindowHeight
-            );
-            for (const auto& [position, radius] : circles) {
-                (void)radius;
-                sim.addObstacle(position);
-            }
-            obstacleMaskDirty = false;
         }
 
         const bool fastAdjust =
