@@ -5,6 +5,50 @@ A collection of CPU-based simulations used to explore:
 - parallel update patterns
 - steering behaviors and agent systems
 
+## Setup
+
+### Requirements
+
+- CMake 3.16+
+- C++20 compatible compiler
+- vcpkg
+- Ninja (recommended on Windows / Git Bash)
+
+### Dependencies
+
+Dependencies are managed through vcpkg.json.
+
+Current dependencies:
+- raylib
+
+Set VCPKG_ROOT before configuring:
+
+export VCPKG_ROOT=/c/Users/Mathieu/vcpkg
+
+On Windows (Git Bash), prefer Ninja:
+
+cmake --preset debug-ninja
+cmake --build --preset debug-ninja
+
+### Build & Run
+
+Build and run a simulation:
+
+scripts/run_sim.sh crowd_cpu debug-ninja --build
+
+Or using default preset:
+
+scripts/run_sim.sh crowd_cpu --build
+
+If raylib is not found:
+
+"$VCPKG_ROOT/vcpkg.exe" install raylib:x64-windows
+
+Then clean and reconfigure:
+
+rm -rf build/debug-ninja
+cmake --preset debug-ninja
+
 ## Structure
 
 - framework/
@@ -55,15 +99,15 @@ All simulations support:
 
 ## How to Navigate
 
-- Start with a simulation in `simulations/`
-- Look at its `Simulation.cpp`
+- Start with a simulation in simulations/
+- Look at its Simulation.cpp
 - Then check corresponding behaviors (if any)
-- Framework utilities are in `framework/`
+- Framework utilities are in framework/
 
 ## For AI / New Readers
 
 If you're exploring:
-- Entry point: `simulations/*/main.cpp`
-- Simulation loop: `Simulation::update`
-- Behavior logic: `*Behavior*.cpp`
-- Shared systems: `framework/simulation/`
+- Entry point: simulations/*/main.cpp
+- Simulation loop: Simulation::update
+- Behavior logic: *Behavior*.cpp
+- Shared systems: framework/simulation/

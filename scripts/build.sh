@@ -7,30 +7,50 @@ cd "$ROOT_DIR"
 PRESET="debug"
 TARGET=""
 
+usage() {
+    echo "Usage: ./scripts/build.sh [preset] [target]"
+    echo "Example: ./scripts/build.sh debug-ninja crowd_cpu"
+}
+
+preset_exists() {
+    local preset="$1"
+    cmake --list-presets=configure 2>/dev/null | grep -Eq "^[[:space:]]*\"${preset}\""
+}
+
 for arg in "$@"; do
     case "$arg" in
-    debug|release|relwithdebinfo|minsizerel)
-        PRESET="$arg"
-        ;;
-    -debug|-release|-relwithdebinfo|-minsizerel)
-        PRESET="${arg#-}"
+    -*)
+        candidate="${arg#-}"
+        if preset_exists "$candidate"; then
+            PRESET="$candidate"
+        else
+            echo "Error: unknown argument '$arg'"
+            usage
+            exit 1
+        fi
         ;;
     *)
-        if [[ -z "$TARGET" ]]; then
+        if preset_exists "$arg"; then
+            PRESET="$arg"
+        elif [[ -z "$TARGET" ]]; then
             TARGET="$arg"
         else
             echo "Error: unknown or duplicate argument '$arg'"
-            echo "Usage: ./scripts/build.sh [preset] [target]"
+            usage
             exit 1
         fi
         ;;
     esac
 done
 
-if ! cmake --preset "$PRESET" >/dev/null; then
-    echo "Error: unknown or invalid CMake preset '$PRESET'"
+if ! preset_exists "$PRESET"; then
+    echo "Error: unknown or invalid CMake configure preset '$PRESET'"
+    echo "Available configure presets:"
+    cmake --list-presets=configure || true
     exit 1
 fi
+
+cmake --preset "$PRESET"
 
 echo "Building: $PRESET"
 if [[ -n "$TARGET" ]]; then
