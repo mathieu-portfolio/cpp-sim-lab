@@ -74,6 +74,7 @@ Simulation& Simulation::operator=(Simulation&&) noexcept = default;
 void Simulation::beginFrame(){ normalizeConfigCounts(m_config); m_stats={}; m_stats.agentCount=m_entities.size(); m_stats.entityCount=m_entities.size(); m_stats.obstacleCount=m_obstacles.size(); m_config.entityCount=m_entities.size(); }
 void Simulation::setGoal(Vec2 g){ m_goal = g; }
 void Simulation::addObstacle(Vec2 p){ m_obstacles.push_back({p, m_config.obstacleRadius}); }
+void Simulation::addObstacle(Vec2 p, float radius){ m_obstacles.push_back({p, radius}); }
 void Simulation::clearObstacles(){ m_obstacles.clear(); }
 void Simulation::spawn(const Vec2& position){
     simfw::simulation::spawnBrush(m_entities.size(), m_config.maxAgentCount, m_config.spawnCount, [this, position](){
