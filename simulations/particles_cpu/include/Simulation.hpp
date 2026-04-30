@@ -25,6 +25,7 @@ struct SimulationConfig {
 
     float particleRadius = 4.0f;
     int spawnCount = 8;
+    float brushRadius = 20.0f;
     std::size_t maxParticleCount = 1000;
 
     float gridCellSize = 16.0f;

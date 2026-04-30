@@ -39,6 +39,9 @@ struct SimulationConfig {
     float gridCellSize = 50.0f;
 
     std::size_t boidCount = DefaultBoidCount;
+    std::size_t maxBoidCount = 2000;
+    int spawnCount = 8;
+    float brushRadius = 24.0f;
     std::size_t entityCount = DefaultBoidCount;
 };
 
@@ -67,6 +70,7 @@ public:
 
     void update(float dt);
     void reset();
+    void spawn(const Vec2& position);
 
     const std::vector<Boid>& getBoids() const { return m_entities; }
 

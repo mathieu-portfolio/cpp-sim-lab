@@ -29,6 +29,7 @@ struct SimulationConfig {
     float baseRadius = 8.0f;
     float spawnJitter = 16.0f;
     int spawnCount = 4;
+    float brushRadius = 16.0f;
     std::size_t maxBubbleCount = 1200;
 
     bool enableMerge = true;

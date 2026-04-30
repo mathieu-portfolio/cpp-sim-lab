@@ -5,6 +5,7 @@
 #include <simulation/CollisionPairs.hpp>
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
+#include <simulation/EntityBrush.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -156,10 +157,7 @@ void Simulation::update(float dt) {
 void Simulation::spawn(const Vec2& pos) {
     for (int i = 0; i < m_config.spawnCount &&
                     m_entities.size() < m_config.maxParticleCount; ++i) {
-        const Vec2 spawnOffset{
-            Random::range(-20.0f, 20.0f),
-            Random::range(-20.0f, 20.0f)
-        };
+        const Vec2 spawnOffset = simfw::simulation::randomDiscOffset(m_config.brushRadius);
 
         m_entities.push_back({
             pos + spawnOffset,
