@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -49,11 +50,7 @@ int main() {
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::optional<std::size_t> selectedAgent;
     bool showIntegrationValues = false;
-    std::vector<uint8_t> obstaclePaintMask(
-        static_cast<std::size_t>(WindowWidth * WindowHeight),
-        0u
-    );
-    bool obstacleMaskDirty = false;
+    std::optional<Vec2> previousObstaclePaintPos;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
@@ -95,21 +92,35 @@ int main() {
 
         if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
             const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
-            if (simfw::ui::paintObstacleMaskCircle(
-                    obstaclePaintMask,
-                    WindowWidth,
-                    WindowHeight,
-                    mouseWorld,
-                    ObstacleBrushRadius / camera.zoom
-                )) {
-                obstacleMaskDirty = true;
+            const float obstacleRadius = ObstacleBrushRadius / camera.zoom;
+            const float stampSpacing = std::max(1.0f, obstacleRadius * 0.6f);
+
+            if (!previousObstaclePaintPos.has_value()) {
+                sim.addObstacle(mouseWorld, obstacleRadius);
+                previousObstaclePaintPos = mouseWorld;
+            } else {
+                const Vec2 delta = mouseWorld - *previousObstaclePaintPos;
+                const float distance = delta.length();
+
+                if (distance >= std::numeric_limits<float>::epsilon()) {
+                    const Vec2 direction = delta / distance;
+                    for (float traveled = stampSpacing; traveled <= distance; traveled += stampSpacing) {
+                        sim.addObstacle(*previousObstaclePaintPos + direction * traveled, obstacleRadius);
+                    }
+
+                    if (distance < stampSpacing) {
+                        sim.addObstacle(mouseWorld, obstacleRadius);
+                    }
+                }
+
+                previousObstaclePaintPos = mouseWorld;
             }
+        } else {
+            previousObstaclePaintPos.reset();
         }
 
         if (IsKeyPressed(KEY_C)) {
             sim.clearObstacles();
-            std::fill(obstaclePaintMask.begin(), obstaclePaintMask.end(), 0u);
-            obstacleMaskDirty = false;
         }
         if (IsKeyPressed(KEY_L)) {
             simfw::ui::loadObstacleShapesFromPng(
@@ -135,19 +146,6 @@ int main() {
 
         if (IsKeyPressed(KEY_I)) {
             showIntegrationValues = !showIntegrationValues;
-        }
-
-        if (obstacleMaskDirty) {
-            sim.clearObstacles();
-            const auto circles = simfw::ui::buildObstacleCirclesFromMask(
-                obstaclePaintMask,
-                WindowWidth,
-                WindowHeight
-            );
-            for (const auto& [position, radius] : circles) {
-                sim.addObstacle(position, radius);
-            }
-            obstacleMaskDirty = false;
         }
 
         const bool fastAdjust =
