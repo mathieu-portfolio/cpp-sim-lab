@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SimulationUiTraits.hpp"
-#include "RaylibDebugUi.hpp"
+#include "UiHelpers.hpp"
 
 #include <cmath>
 #include <tuple>

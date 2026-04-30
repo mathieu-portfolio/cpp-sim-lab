@@ -5,7 +5,8 @@
 #include <ui/ObstacleBrush.hpp>
 #include <ui/ObstacleMapPng.hpp>
 #include <ui/RaylibCamera.hpp>
-#include <ui/RaylibDebugUi.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
+#include <ui/UiHelpers.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationBackendControls.hpp>
 #include <ui/SimulationControlHints.hpp>

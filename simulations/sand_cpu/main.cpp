@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
-#include <ui/RaylibDebugUi.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
+#include <ui/UiHelpers.hpp>
 #include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
