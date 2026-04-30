@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Agent.hpp"
-#include "Obstacle.hpp"
+#include <simulation/ObstacleMask.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -18,13 +18,12 @@ namespace steering {
 
 struct CandidateLists {
     std::span<const std::size_t> agents;
-    std::span<const std::size_t> obstacles;
 };
 
 struct BehaviorContext {
     const SimulationConfig& config;
     const std::vector<Agent>& agents;
-    const std::vector<Obstacle>& obstacles;
+    const simfw::simulation::ObstacleMask& obstacleMask;
     CandidateLists candidates;
     AgentIntent intent = AgentIntent::SeekTarget;
     SimulationStats& stats;
@@ -143,8 +142,7 @@ std::optional<AgentIntent> seekTargetIntent(
 
 void resolveObstacleOverlap(
     Agent& agent,
-    const std::vector<Obstacle>& obstacles,
-    std::span<const std::size_t> obstacleCandidates,
+    const simfw::simulation::ObstacleMask& obstacleMask,
     SimulationStats& stats
 );
 

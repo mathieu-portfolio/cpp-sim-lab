@@ -3,6 +3,7 @@
 
 #include <ui/EntitySelection.hpp>
 #include <ui/ObstacleBrush.hpp>
+#include <ui/ObstacleMapPng.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
 #include <ui/SimulationControls.hpp>
@@ -41,29 +42,10 @@ void drawAgent(const Agent& agent) {
     );
 }
 
-void drawObstacle(const Obstacle& obstacle) {
-    DrawCircle(
-        static_cast<int>(obstacle.position.x),
-        static_cast<int>(obstacle.position.y),
-        obstacle.radius,
-        DARKGRAY
-    );
-
-    DrawCircleLines(
-        static_cast<int>(obstacle.position.x),
-        static_cast<int>(obstacle.position.y),
-        obstacle.radius,
-        GRAY
-    );
-}
-
-void drawDebugObstacle(const Obstacle& obstacle, const SimulationConfig& config) {
-    DrawCircleLines(
-        static_cast<int>(obstacle.position.x),
-        static_cast<int>(obstacle.position.y),
-        obstacle.radius + config.obstacleAvoidanceRadius,
-        DARKGRAY
-    );
+void drawObstacleMask(const simfw::simulation::ObstacleMask& mask) {
+    for (int y = 0; y < mask.height(); ++y) for (int x = 0; x < mask.width(); ++x) {
+        if (mask.isBlocked(x, y)) DrawPixel(x, y, Fade(RED, 0.65f));
+    }
 }
 
 void drawDebugAgent(const Agent& agent, const SimulationConfig& config) {
@@ -178,14 +160,14 @@ int main() {
                 simfw::simulation::ObstaclePaintMode::Block
             );
 
-            if (changed) {
-                sim.rebuildObstaclesFromMask(std::max(2.0f, config.obstacleRadius * 0.25f));
-            }
+            (void)changed;
         }
 
         if (IsKeyPressed(KEY_C)) {
             sim.clearObstacles();
         }
+        if (IsKeyPressed(KEY_L)) { simfw::ui::loadObstacleMaskFromPng("scenarios/agents_obstacles.png", sim.obstacleMask()); }
+        if (IsKeyPressed(KEY_O)) { simfw::ui::exportObstacleMaskToPng("scenarios/agents_obstacles.png", sim.obstacleMask()); }
 
         const bool fastAdjust =
             IsKeyDown(KEY_LEFT_SHIFT) ||
@@ -259,13 +241,7 @@ int main() {
 
         drawTarget(sim.getTarget(), config);
 
-        for (const Obstacle& obstacle : sim.getObstacles()) {
-            drawObstacle(obstacle);
-
-            if (controls.showDebug) {
-                drawDebugObstacle(obstacle, config);
-            }
-        }
+        drawObstacleMask(sim.obstacleMask());
 
         for (const Agent& agent : sim.getAgents()) {
             if (controls.showDebug) {

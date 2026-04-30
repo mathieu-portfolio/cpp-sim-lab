@@ -20,10 +20,6 @@ Vec2 agentPosition(const Agent& agent) {
     return agent.position;
 }
 
-Vec2 obstaclePosition(const Obstacle& obstacle) {
-    return obstacle.position;
-}
-
 Vec2 clampToWorld(Vec2 position, float width, float height) {
     position.x = std::clamp(position.x, 0.0f, width);
     position.y = std::clamp(position.y, 0.0f, height);
@@ -52,7 +48,6 @@ float dampingFactor(float damping, float dt) {
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
       m_agentGrid(config.gridCellSize),
-      m_obstacleGrid(config.gridCellSize),
       m_target{config.width * 0.5f, config.height * 0.5f},
       m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())),
       m_behaviors(steering::makeDefaultBehaviors()),
@@ -96,7 +91,6 @@ void Simulation::updateStatsCount() {
     m_stats.agentCount = m_entities.size();
     m_stats.entityCount = m_entities.size();
     m_config.entityCount = m_entities.size();
-    m_stats.obstacleCount = m_obstacles.size();
 }
 
 Vec2 Simulation::randomPoint() const {
@@ -104,23 +98,6 @@ Vec2 Simulation::randomPoint() const {
         Random::range(0.0f, m_config.width),
         Random::range(0.0f, m_config.height)
     };
-}
-
-float Simulation::maxObstacleQueryRadius(float dt) const {
-    float maxRadius = 0.0f;
-
-    for (const Obstacle& obstacle : m_obstacles) {
-        maxRadius = std::max(maxRadius, obstacle.radius);
-    }
-
-    const float maxMoveDistance = m_config.maxSpeed * std::max(dt, 0.0f);
-    const float overlapRadius = m_config.agentRadius + maxMoveDistance;
-    const float agentInfluenceRadius = std::max(
-        std::max(m_config.obstacleAvoidanceRadius, m_config.obstacleIntentRadius),
-        overlapRadius
-    );
-
-    return maxRadius + agentInfluenceRadius;
 }
 
 void Simulation::reset() {
@@ -134,7 +111,6 @@ void Simulation::reset() {
     m_target = Vec2{m_config.width * 0.5f, m_config.height * 0.5f};
     m_obstacleMask.resize(static_cast<int>(m_config.width), static_cast<int>(m_config.height));
     m_obstacleMask.clear();
-    m_obstacles.clear();
 
     for (std::size_t i = 0; i < m_config.agentCount; ++i) {
         const Vec2 position = randomPoint();
@@ -177,25 +153,8 @@ void Simulation::spawn(const Vec2& position) {
     updateStatsCount();
 }
 
-void Simulation::rebuildObstaclesFromMask(float obstacleRadius) {
-    m_obstacles.clear();
-
-    for (int y = 0; y < m_obstacleMask.height(); ++y) {
-        for (int x = 0; x < m_obstacleMask.width(); ++x) {
-            if (!m_obstacleMask.isBlocked(x, y)) {
-                continue;
-            }
-
-            m_obstacles.push_back({Vec2{static_cast<float>(x), static_cast<float>(y)}, obstacleRadius});
-        }
-    }
-
-    updateStatsCount();
-}
-
 void Simulation::clearObstacles() {
     m_obstacleMask.clear();
-    m_obstacles.clear();
     updateStatsCount();
 }
 
@@ -212,16 +171,11 @@ void Simulation::snapshotAgents() {
 
 void Simulation::buildSpatialIndexes() {
     m_agentGrid.setCellSize(m_config.gridCellSize);
-    m_obstacleGrid.setCellSize(m_config.gridCellSize);
-
     if (m_config.execution.useSpatialGrid) {
         m_agentGrid.build(m_previousAgents, agentPosition);
-        m_obstacleGrid.build(m_obstacles, obstaclePosition);
         m_stats.occupiedGridCells = m_agentGrid.getCells().size();
-        m_stats.occupiedObstacleGridCells = m_obstacleGrid.getCells().size();
     } else {
         m_agentGrid.clear();
-        m_obstacleGrid.clear();
     }
 }
 
@@ -247,33 +201,10 @@ void Simulation::collectAgentCandidates(
     }
 }
 
-void Simulation::collectObstacleCandidates(
-    const Agent& previousAgent,
-    float obstacleQueryRadius,
-    AgentUpdateScratch& scratch,
-    SimulationStats& stats
-) {
-    simfw::simulation::collectCandidates(
-        m_obstacleGrid,
-        previousAgent.position,
-        obstacleQueryRadius,
-        simfw::simulation::makeSpatialQueryOptions(
-            m_config.execution.useSpatialGrid,
-            m_obstacles.size()
-        ),
-        scratch.secondaryNeighbors
-    );
-
-    if (m_config.execution.useSpatialGrid) {
-        stats.obstacleCandidates += scratch.secondaryNeighbors.size();
-    }
-}
-
 void Simulation::updateAgentRange(
     std::size_t beginIndex,
     std::size_t endIndex,
     float dt,
-    float obstacleQueryRadius,
     AgentUpdateScratch& scratch,
     SimulationStats& stats
 ) {
@@ -282,15 +213,12 @@ void Simulation::updateAgentRange(
         const Agent& previousAgent = m_previousAgents[i];
 
         collectAgentCandidates(i, scratch, stats);
-        collectObstacleCandidates(previousAgent, obstacleQueryRadius, scratch, stats);
-
         steering::BehaviorContext behaviorContext{
             m_config,
             m_previousAgents,
-            m_obstacles,
+            m_obstacleMask,
             steering::CandidateLists{
-                scratch.candidates,
-                scratch.secondaryNeighbors
+                scratch.candidates
             },
             previousAgent.intent,
             stats
@@ -323,12 +251,7 @@ void Simulation::updateAgentRange(
         agent.radius = previousAgent.radius;
         agent.intent = intent;
 
-        steering::resolveObstacleOverlap(
-            agent,
-            m_obstacles,
-            scratch.secondaryNeighbors,
-            stats
-        );
+        steering::resolveObstacleOverlap(agent, m_obstacleMask, stats);
 
         agent.position = clampToWorld(
             agent.position,
@@ -365,7 +288,7 @@ void Simulation::updateAgents(float dt) {
         m_entities.size(),
         MinItemsPerParallelTask,
         m_config.execution.useParallelUpdate,
-        [this, dt, obstacleQueryRadius = maxObstacleQueryRadius(dt)](
+        [this, dt](
             std::size_t beginIndex,
             std::size_t endIndex,
             AgentUpdateScratch& scratch,
@@ -375,7 +298,6 @@ void Simulation::updateAgents(float dt) {
                 beginIndex,
                 endIndex,
                 dt,
-                obstacleQueryRadius,
                 scratch,
                 stats
             );

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Agent.hpp"
-#include "Obstacle.hpp"
 #include "SteeringBehaviors.hpp"
 
 #include <simulation/SimulationBase.hpp>
@@ -96,11 +95,8 @@ public:
     void reset();
 
     const std::vector<Agent>& getAgents() const { return m_entities; }
-    const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
-
     const Grid& getGrid() const { return m_agentGrid; }
     const Grid& getAgentGrid() const { return m_agentGrid; }
-    const Grid& getObstacleGrid() const { return m_obstacleGrid; }
 
     const BehaviorList& getBehaviors() const { return m_behaviors; }
     void setBehaviors(BehaviorList behaviors);
@@ -117,16 +113,13 @@ public:
     simfw::simulation::ObstacleMask& obstacleMask() { return m_obstacleMask; }
     const simfw::simulation::ObstacleMask& obstacleMask() const { return m_obstacleMask; }
 
-    void rebuildObstaclesFromMask(float obstacleRadius);
     void clearObstacles();
 
 private:
     using AgentUpdateScratch = simfw::simulation::NeighborScratch<std::size_t>;
 
     Grid m_agentGrid;
-    Grid m_obstacleGrid;
     Vec2 m_target;
-    std::vector<Obstacle> m_obstacles;
     simfw::simulation::ObstacleMask m_obstacleMask;
     std::vector<Agent> m_previousAgents;
     std::unique_ptr<ThreadPool> m_threadPool;
@@ -136,7 +129,6 @@ private:
     void normalizeConfigCounts();
     void updateStatsCount();
     Vec2 randomPoint() const;
-    float maxObstacleQueryRadius(float dt) const;
 
     void beginFrame();
     void snapshotAgents();
@@ -146,21 +138,10 @@ private:
         std::size_t beginIndex,
         std::size_t endIndex,
         float dt,
-        float obstacleQueryRadius,
         AgentUpdateScratch& scratch,
         SimulationStats& stats
     );
-    void collectAgentCandidates(
-        std::size_t agentIndex,
-        AgentUpdateScratch& scratch,
-        SimulationStats& stats
-    );
-    void collectObstacleCandidates(
-        const Agent& previousAgent,
-        float obstacleQueryRadius,
-        AgentUpdateScratch& scratch,
-        SimulationStats& stats
-    );
+    void collectAgentCandidates(std::size_t agentIndex, AgentUpdateScratch& scratch, SimulationStats& stats);
     void mergeWorkerStats(const SimulationStats& workerStats);
 };
 
