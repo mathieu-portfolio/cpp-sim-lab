@@ -165,7 +165,7 @@ void Simulation::setTarget(Vec2 target) {
 }
 
 
-void Simulation::spawn(Vec2 position) {
+void Simulation::spawn(const Vec2& position) {
     const Vec2 clamped = clampToWorld(position, m_config.width, m_config.height);
     simfw::simulation::spawnBrush(m_entities.size(), m_config.maxAgentCount, m_config.spawnCount, [this, clamped]() {
         const Vec2 spawnPos = clampToWorld(clamped + simfw::simulation::randomDiscOffset(m_config.brushRadius), m_config.width, m_config.height);
