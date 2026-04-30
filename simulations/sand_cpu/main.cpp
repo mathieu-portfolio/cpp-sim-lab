@@ -8,18 +8,18 @@
 
 #include <raylib.h>
 
-using namespace sand_cpu;
-
 namespace {
-Color materialColor(Material material) {
+using SandMaterial = sand_cpu::Material;
+
+Color materialColor(SandMaterial material) {
     switch (material) {
-        case Material::Sand:
+        case SandMaterial::Sand:
             return Color{220, 190, 90, 255};
-        case Material::Water:
+        case SandMaterial::Water:
             return Color{60, 130, 255, 255};
-        case Material::Smoke:
+        case SandMaterial::Smoke:
             return Color{170, 170, 170, 220};
-        case Material::Empty:
+        case SandMaterial::Empty:
         default:
             return BLANK;
     }
@@ -27,7 +27,7 @@ Color materialColor(Material material) {
 } // namespace
 
 int main() {
-    SimulationConfig config;
+    sand_cpu::SimulationConfig config;
     config.gridWidth = 256;
     config.gridHeight = 256;
     config.cellSize = 3.0f;
@@ -38,23 +38,23 @@ int main() {
     InitWindow(static_cast<int>(config.width), static_cast<int>(config.height), "sand_cpu");
     SetTargetFPS(60);
 
-    Simulation sim{config};
+    sand_cpu::Simulation sim{config};
     sim.reset();
 
     simfw::ui::SimulationControls controls;
-    Material brushMaterial = Material::Sand;
+    SandMaterial brushMaterial = SandMaterial::Sand;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
         auto& simConfig = sim.getConfig();
 
         constexpr std::size_t paramCount =
-            std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
+            std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<sand_cpu::SimulationConfig>::fields)>;
         simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
 
-        if (IsKeyPressed(KEY_ONE)) brushMaterial = Material::Sand;
-        if (IsKeyPressed(KEY_TWO)) brushMaterial = Material::Water;
-        if (IsKeyPressed(KEY_THREE)) brushMaterial = Material::Smoke;
+        if (IsKeyPressed(KEY_ONE)) brushMaterial = SandMaterial::Sand;
+        if (IsKeyPressed(KEY_TWO)) brushMaterial = SandMaterial::Water;
+        if (IsKeyPressed(KEY_THREE)) brushMaterial = SandMaterial::Smoke;
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const Vector2 mouse = GetMousePosition();
@@ -82,8 +82,8 @@ int main() {
         const auto& cells = sim.getCells();
         for (std::size_t y = 0; y < simConfig.gridHeight; ++y) {
             for (std::size_t x = 0; x < simConfig.gridWidth; ++x) {
-                const Cell& cell = cells[y * simConfig.gridWidth + x];
-                if (cell.material == Material::Empty) {
+                const sand_cpu::Cell& cell = cells[y * simConfig.gridWidth + x];
+                if (cell.material == SandMaterial::Empty) {
                     continue;
                 }
 
