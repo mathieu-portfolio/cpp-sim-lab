@@ -170,12 +170,17 @@ int main() {
 
         {
             const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
-            obstacleBrush.paint(
+            const bool changed = obstacleBrush.paint(
+                sim.obstacleMask(),
                 IsMouseButtonDown(MOUSE_RIGHT_BUTTON),
                 mouseWorld,
                 ObstacleBrushRadius / camera.zoom,
-                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
+                simfw::simulation::ObstaclePaintMode::Block
             );
+
+            if (changed) {
+                sim.rebuildObstaclesFromMask(std::max(2.0f, config.obstacleRadius * 0.25f));
+            }
         }
 
         if (IsKeyPressed(KEY_C)) {
