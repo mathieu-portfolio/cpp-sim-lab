@@ -175,9 +175,13 @@ void Simulation::spawn(const Vec2& position) {
 }
 
 void Simulation::addObstacle(Vec2 position) {
+    addObstacle(position, m_config.obstacleRadius);
+}
+
+void Simulation::addObstacle(Vec2 position, float radius) {
     m_obstacles.push_back({
         clampToWorld(position, m_config.width, m_config.height),
-        m_config.obstacleRadius
+        radius
     });
 
     updateStatsCount();

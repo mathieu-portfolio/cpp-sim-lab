@@ -3,6 +3,7 @@
 
 #include <raylib.h>
 #include <ui/EntitySelection.hpp>
+#include <ui/ObstacleBrush.hpp>
 #include <ui/ObstacleMapPng.hpp>
 #include <ui/RaylibCamera.hpp>
 #include <ui/RaylibDebugUi.hpp>
@@ -13,7 +14,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -50,7 +50,7 @@ int main() {
     simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::None;
     std::optional<std::size_t> selectedAgent;
     bool showIntegrationValues = false;
-    std::optional<Vec2> previousObstaclePaintPos;
+    simfw::ui::ObstacleBrush obstacleBrush;
 
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
@@ -90,33 +90,14 @@ int main() {
             }
         }
 
-        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+        {
             const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
-            const float obstacleRadius = ObstacleBrushRadius / camera.zoom;
-            const float stampSpacing = std::max(1.0f, obstacleRadius * 0.6f);
-
-            if (!previousObstaclePaintPos.has_value()) {
-                sim.addObstacle(mouseWorld, obstacleRadius);
-                previousObstaclePaintPos = mouseWorld;
-            } else {
-                const Vec2 delta = mouseWorld - *previousObstaclePaintPos;
-                const float distance = delta.length();
-
-                if (distance >= std::numeric_limits<float>::epsilon()) {
-                    const Vec2 direction = delta / distance;
-                    for (float traveled = stampSpacing; traveled <= distance; traveled += stampSpacing) {
-                        sim.addObstacle(*previousObstaclePaintPos + direction * traveled, obstacleRadius);
-                    }
-
-                    if (distance < stampSpacing) {
-                        sim.addObstacle(mouseWorld, obstacleRadius);
-                    }
-                }
-
-                previousObstaclePaintPos = mouseWorld;
-            }
-        } else {
-            previousObstaclePaintPos.reset();
+            obstacleBrush.paint(
+                IsMouseButtonDown(MOUSE_RIGHT_BUTTON),
+                mouseWorld,
+                ObstacleBrushRadius / camera.zoom,
+                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
+            );
         }
 
         if (IsKeyPressed(KEY_C)) {

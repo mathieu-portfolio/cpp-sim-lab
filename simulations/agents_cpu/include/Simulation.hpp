@@ -114,6 +114,7 @@ public:
     Vec2 getTarget() const { return m_target; }
 
     void addObstacle(Vec2 position);
+    void addObstacle(Vec2 position, float radius);
     void clearObstacles();
 
 private:
