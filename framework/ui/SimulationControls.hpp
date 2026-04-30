@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RaylibDebugUi.hpp"
+#include "UiHelpers.hpp"
 
 #include <cstddef>
 

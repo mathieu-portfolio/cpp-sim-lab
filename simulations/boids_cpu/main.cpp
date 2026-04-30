@@ -3,7 +3,8 @@
 #include "SimulationUiTraits.hpp"
 #include <ui/EntitySelection.hpp>
 #include <ui/RaylibCamera.hpp>
-#include <ui/RaylibDebugUi.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
+#include <ui/UiHelpers.hpp>
 #include <ui/SimulationBackendControls.hpp>
 #include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationControls.hpp>

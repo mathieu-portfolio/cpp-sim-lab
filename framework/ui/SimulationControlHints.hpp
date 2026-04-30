@@ -1,6 +1,7 @@
 #pragma once
 
-#include <ui/RaylibDebugUi.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
+#include <ui/UiHelpers.hpp>
 
 #include <algorithm>
 #include <initializer_list>
