@@ -185,9 +185,32 @@ void Simulation::buildFlowField() {
     const std::size_t count = m_gridWidth * m_gridHeight;
     m_costField.assign(count, 1.0f);
     m_integrationField.assign(count, std::numeric_limits<float>::infinity());
-    for (std::size_t y=0; y<m_gridHeight; ++y) for (std::size_t x=0; x<m_gridWidth; ++x) {
-        Vec2 c{(x+0.5f)*m_config.gridCellSize,(y+0.5f)*m_config.gridCellSize};
-        if (isBlockedWorld(c)) m_costField[y*m_gridWidth+x]=255.0f;
+    for (std::size_t y = 0; y < m_gridHeight; ++y) {
+        for (std::size_t x = 0; x < m_gridWidth; ++x) {
+            const float minWorldX = static_cast<float>(x) * m_config.gridCellSize;
+            const float maxWorldX = std::min(m_config.width, minWorldX + m_config.gridCellSize);
+            const float minWorldY = static_cast<float>(y) * m_config.gridCellSize;
+            const float maxWorldY = std::min(m_config.height, minWorldY + m_config.gridCellSize);
+
+            const int minX = std::max(0, static_cast<int>(std::floor(minWorldX)));
+            const int maxX = std::min(m_obstacleMask.width() - 1, static_cast<int>(std::ceil(maxWorldX)));
+            const int minY = std::max(0, static_cast<int>(std::floor(minWorldY)));
+            const int maxY = std::min(m_obstacleMask.height() - 1, static_cast<int>(std::ceil(maxWorldY)));
+
+            bool blocked = false;
+            for (int py = minY; py <= maxY && !blocked; ++py) {
+                for (int px = minX; px <= maxX; ++px) {
+                    if (m_obstacleMask.isBlocked(px, py)) {
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (blocked) {
+                m_costField[y * m_gridWidth + x] = 255.0f;
+            }
+        }
     }
     auto goalX = std::clamp(static_cast<int>(m_goal.x/m_config.gridCellSize),0,static_cast<int>(m_gridWidth-1));
     auto goalY = std::clamp(static_cast<int>(m_goal.y/m_config.gridCellSize),0,static_cast<int>(m_gridHeight-1));
