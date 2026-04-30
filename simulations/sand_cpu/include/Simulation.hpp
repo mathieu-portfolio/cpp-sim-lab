@@ -3,6 +3,7 @@
 #include "Cell.hpp"
 
 #include <simulation/SimulationBase.hpp>
+#include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
 #include <cstdint>
