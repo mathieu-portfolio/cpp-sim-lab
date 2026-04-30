@@ -18,26 +18,39 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
   - grid cell size sweep
   - unordered_map vs flat grid
 
+### boids_cpu
+- Alignment, cohesion, separation
+- Naive O(n²) neighbor search
+- Spatial grid optimization
+- Benchmarks:
+  - naive vs grid
+  - backend execution matrix
+
+### agents_cpu
+- Goal-driven agent intents
+- Steering behavior composition
+- Obstacle-aware movement
+- Benchmarks:
+  - spatial grid variants
+  - obstacle scaling
+  - parallel compare
+
+### crowd_cpu
+- Crowd movement and obstacle interactions
+- Flow-field style local behavior
+
+### sand_cpu
+- Cellular-style granular updates
+- Double-buffer style stepping and UI controls
+
+### bubbles_cpu
+- Bubble interactions and boundary behavior
+
 ---
 
 ## Planned Simulations
 
-### 1. boids_cpu
-Focus: local interactions and emergent behavior
-
-- Alignment, cohesion, separation
-- Naive O(n²) neighbor search
-- Spatial grid optimization (reuse idea, not code yet)
-- Benchmark: naive vs grid
-
-Key learnings:
-- Force accumulation
-- Neighborhood queries
-- Stability and tuning
-
----
-
-### 2. cloth_cpu
+### 1. cloth_cpu
 Focus: constraints and iterative solvers
 
 - Verlet integration
@@ -52,7 +65,7 @@ Key learnings:
 
 ---
 
-### 3. fluids_grid_cpu
+### 2. fluids_grid_cpu
 Focus: grid-based simulation
 
 - Velocity field (2D grid)
@@ -67,7 +80,7 @@ Key learnings:
 
 ---
 
-### 4. rigid_bodies_2d
+### 3. rigid_bodies_2d
 Focus: advanced collision and physics
 
 - Rotation and angular velocity
@@ -81,7 +94,7 @@ Key learnings:
 
 ---
 
-### 5. cellular_automata_cpu
+### 4. cellular_automata_cpu
 Focus: discrete systems
 
 - Game of Life / falling sand / fire
@@ -94,7 +107,7 @@ Key learnings:
 
 ---
 
-### 6. nbody_cpu
+### 5. nbody_cpu
 Focus: algorithmic complexity
 
 - O(n²) baseline
@@ -135,4 +148,3 @@ Avoid premature generalization.
 - Add instrumentation before optimizing
 - Benchmark competing approaches
 - Prefer clarity over cleverness
-

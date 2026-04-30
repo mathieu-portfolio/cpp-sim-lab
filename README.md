@@ -15,6 +15,9 @@ A collection of CPU-based simulations used to explore:
   - particles_cpu
   - boids_cpu
   - agents_cpu
+  - crowd_cpu
+  - sand_cpu
+  - bubbles_cpu
 
 - benchmarks/
   Performance comparisons (grid vs naive, parallel vs single-thread)
@@ -29,6 +32,9 @@ A collection of CPU-based simulations used to explore:
 | particles    | physics + collisions          | spatial grid, collision passes   |
 | boids        | flocking                      | composable behaviors             |
 | agents       | goal-driven agents            | behaviors + intent system        |
+| crowd        | crowd navigation              | flow fields, obstacle handling   |
+| sand         | cellular material updates     | grid stepping, local rules       |
+| bubbles      | soft-body style interactions  | collisions, simple fluid feel    |
 
 ## Key Concepts
 
