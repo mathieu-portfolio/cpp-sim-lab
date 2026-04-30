@@ -115,6 +115,18 @@ int main() {
         if (IsKeyPressed(KEY_I)) {
             showIntegrationValues = !showIntegrationValues;
         }
+        if (IsKeyPressed(KEY_ONE)) {
+            sim.loadScenario(CanonicalScenario::CorridorBidirectionalFlow);
+        }
+        if (IsKeyPressed(KEY_TWO)) {
+            sim.loadScenario(CanonicalScenario::BottleneckDoorway);
+        }
+        if (IsKeyPressed(KEY_THREE)) {
+            sim.loadScenario(CanonicalScenario::EvacuationBlockedExits);
+        }
+        if (IsKeyPressed(KEY_FOUR)) {
+            sim.loadScenario(CanonicalScenario::MovingHazardRegion);
+        }
 
         const bool fastAdjust =
             IsKeyDown(KEY_LEFT_SHIFT) ||
@@ -321,7 +333,11 @@ int main() {
                         "G: toggle grid backend",
                         "H: grid debug mode",
                         "P: parallel update",
-                        "I: integration values"
+                        "I: integration values",
+                        "1: corridor (bidirectional)",
+                        "2: bottleneck doorway",
+                        "3: evacuation blocked exits",
+                        "4: moving hazard"
                     }
                 );
             }

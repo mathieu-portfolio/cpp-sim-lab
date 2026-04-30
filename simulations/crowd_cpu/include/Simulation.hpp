@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
 
 class ThreadPool;
@@ -45,6 +46,13 @@ struct SimulationStats {
     std::size_t neighborCandidates = 0;
     std::size_t neighborChecks = 0;
     std::size_t reachedGoalCount = 0;
+};
+
+enum class CanonicalScenario {
+    CorridorBidirectionalFlow,
+    BottleneckDoorway,
+    EvacuationBlockedExits,
+    MovingHazardRegion
 };
 
 class Simulation : public simfw::SimulationBase<SimulationConfig, SimulationStats, Agent> {
@@ -83,6 +91,8 @@ private:
     std::size_t m_gridHeight = 0;
     std::vector<float> m_costField;
     std::vector<float> m_integrationField;
+    std::optional<CanonicalScenario> m_activeScenario;
+    float m_scenarioTime = 0.0f;
     void beginFrame();
     void buildSpatialIndexes();
     void buildFlowField();
