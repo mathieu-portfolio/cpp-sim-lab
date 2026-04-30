@@ -26,3 +26,9 @@ Each simulation is independent and demonstrates a different system.
 - parallel vs single-thread
 - camera navigation
 - entity selection & debug UI
+
+## traffic_flow_cpu
+- lane-based traffic flow
+- IDM longitudinal control
+- simple MOBIL-style lane changes
+- throughput / speed / queue metrics

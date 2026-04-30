@@ -5,3 +5,4 @@ add_subdirectory(bubbles_cpu)
 add_subdirectory(crowd_cpu)
 
 add_subdirectory(sand_cpu)
+add_subdirectory(traffic_flow_cpu)
