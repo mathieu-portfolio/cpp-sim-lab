@@ -6,117 +6,83 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <queue>
-#include <utility>
 #include <vector>
 
 namespace simfw::simulation {
 
-inline bool paintMaskCircle(
-    std::vector<uint8_t>& mask,
-    int width,
-    int height,
-    Vec2 center,
-    float radius
-) {
-    if (width <= 0 || height <= 0 || static_cast<int>(mask.size()) != width * height) {
-        return false;
+enum class ObstaclePaintMode { Block, Erase };
+
+class ObstacleMask {
+public:
+    ObstacleMask() = default;
+    ObstacleMask(int width, int height) { resize(width, height); }
+
+    void resize(int width, int height) {
+        m_width = std::max(0, width);
+        m_height = std::max(0, height);
+        m_cells.assign(static_cast<std::size_t>(m_width * m_height), 0u);
     }
 
-    const int minX = std::max(0, static_cast<int>(std::floor(center.x - radius)));
-    const int maxX = std::min(width - 1, static_cast<int>(std::ceil(center.x + radius)));
-    const int minY = std::max(0, static_cast<int>(std::floor(center.y - radius)));
-    const int maxY = std::min(height - 1, static_cast<int>(std::ceil(center.y + radius)));
-    const float radiusSq = radius * radius;
+    void clear() { std::fill(m_cells.begin(), m_cells.end(), 0u); }
 
-    bool changed = false;
-    for (int y = minY; y <= maxY; ++y) {
-        for (int x = minX; x <= maxX; ++x) {
-            const float dx = static_cast<float>(x) - center.x;
-            const float dy = static_cast<float>(y) - center.y;
-            if (dx * dx + dy * dy > radiusSq) {
-                continue;
-            }
-            auto& cell = mask[static_cast<std::size_t>(y * width + x)];
-            if (cell == 0u) {
-                cell = 1u;
-                changed = true;
-            }
+    [[nodiscard]] int width() const { return m_width; }
+    [[nodiscard]] int height() const { return m_height; }
+    [[nodiscard]] bool empty() const { return m_width == 0 || m_height == 0 || m_cells.empty(); }
+
+    [[nodiscard]] bool isBlocked(int x, int y) const {
+        if (!inBounds(x, y)) {
+            return false;
         }
-    }
-    return changed;
-}
-
-inline std::vector<std::pair<Vec2, float>> buildRigidBodyCirclesFromMask(
-    const std::vector<uint8_t>& mask,
-    int width,
-    int height
-) {
-    std::vector<std::pair<Vec2, float>> circles;
-    if (width <= 0 || height <= 0 || static_cast<int>(mask.size()) != width * height) {
-        return circles;
+        return m_cells[indexOf(x, y)] != 0u;
     }
 
-    std::vector<uint8_t> visited(mask.size(), 0u);
-    auto indexOf = [width](int x, int y) { return static_cast<std::size_t>(y * width + x); };
+    void setBlocked(int x, int y, bool blocked) {
+        if (!inBounds(x, y)) {
+            return;
+        }
+        m_cells[indexOf(x, y)] = blocked ? 1u : 0u;
+    }
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const std::size_t startIndex = indexOf(x, y);
-            if (visited[startIndex] != 0u || mask[startIndex] == 0u) {
-                continue;
-            }
-            std::queue<std::pair<int, int>> queue;
-            std::vector<std::pair<int, int>> componentPixels;
-            visited[startIndex] = 1u;
-            queue.push({x, y});
+    bool paintCircle(Vec2 center, float radius, ObstaclePaintMode mode) {
+        if (empty()) {
+            return false;
+        }
 
-            while (!queue.empty()) {
-                const auto [cx, cy] = queue.front();
-                queue.pop();
-                componentPixels.push_back({cx, cy});
+        const int minX = std::max(0, static_cast<int>(std::floor(center.x - radius)));
+        const int maxX = std::min(m_width - 1, static_cast<int>(std::ceil(center.x + radius)));
+        const int minY = std::max(0, static_cast<int>(std::floor(center.y - radius)));
+        const int maxY = std::min(m_height - 1, static_cast<int>(std::ceil(center.y + radius)));
+        const float radiusSq = radius * radius;
 
-                for (int oy = -1; oy <= 1; ++oy) {
-                    for (int ox = -1; ox <= 1; ++ox) {
-                        if (ox == 0 && oy == 0) {
-                            continue;
-                        }
-                        const int nx = cx + ox;
-                        const int ny = cy + oy;
-                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
-                            continue;
-                        }
-                        const std::size_t nIndex = indexOf(nx, ny);
-                        if (visited[nIndex] != 0u || mask[nIndex] == 0u) {
-                            continue;
-                        }
-                        visited[nIndex] = 1u;
-                        queue.push({nx, ny});
-                    }
+        bool changed = false;
+        const uint8_t value = mode == ObstaclePaintMode::Block ? 1u : 0u;
+        for (int y = minY; y <= maxY; ++y) {
+            for (int x = minX; x <= maxX; ++x) {
+                const float dx = static_cast<float>(x) - center.x;
+                const float dy = static_cast<float>(y) - center.y;
+                if (dx * dx + dy * dy > radiusSq) {
+                    continue;
+                }
+                auto& cell = m_cells[indexOf(x, y)];
+                if (cell != value) {
+                    cell = value;
+                    changed = true;
                 }
             }
-
-            float cx = 0.0f;
-            float cy = 0.0f;
-            for (const auto& [px, py] : componentPixels) {
-                cx += static_cast<float>(px);
-                cy += static_cast<float>(py);
-            }
-            const float invCount = 1.0f / static_cast<float>(componentPixels.size());
-            cx *= invCount;
-            cy *= invCount;
-
-            float maxDistSq = 0.0f;
-            for (const auto& [px, py] : componentPixels) {
-                const float dx = static_cast<float>(px) - cx;
-                const float dy = static_cast<float>(py) - cy;
-                maxDistSq = std::max(maxDistSq, dx * dx + dy * dy);
-            }
-            circles.push_back({Vec2{cx, cy}, std::max(2.0f, std::sqrt(maxDistSq))});
         }
+        return changed;
     }
 
-    return circles;
-}
+    [[nodiscard]] const std::vector<uint8_t>& cells() const { return m_cells; }
+    [[nodiscard]] std::vector<uint8_t>& cells() { return m_cells; }
+
+private:
+    [[nodiscard]] bool inBounds(int x, int y) const { return x >= 0 && y >= 0 && x < m_width && y < m_height; }
+    [[nodiscard]] std::size_t indexOf(int x, int y) const { return static_cast<std::size_t>(y * m_width + x); }
+
+    int m_width = 0;
+    int m_height = 0;
+    std::vector<uint8_t> m_cells;
+};
 
 } // namespace simfw::simulation

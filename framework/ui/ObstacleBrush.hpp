@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math/Vec2.hpp>
+#include <simulation/ObstacleMask.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -11,24 +12,25 @@ namespace simfw::ui {
 
 class ObstacleBrush {
 public:
-    template <typename AddObstacleFn>
-    void paint(
+    bool paint(
+        simfw::simulation::ObstacleMask& mask,
         bool isPainting,
         Vec2 worldPosition,
         float worldRadius,
-        AddObstacleFn&& addObstacle
+        simfw::simulation::ObstaclePaintMode mode
     ) {
         if (!isPainting) {
             m_previousPaintPosition.reset();
-            return;
+            return false;
         }
 
         const float stampSpacing = std::max(1.0f, worldRadius * 0.6f);
+        bool changed = false;
 
         if (!m_previousPaintPosition.has_value()) {
-            addObstacle(worldPosition, worldRadius);
+            changed |= mask.paintCircle(worldPosition, worldRadius, mode);
             m_previousPaintPosition = worldPosition;
-            return;
+            return changed;
         }
 
         const Vec2 delta = worldPosition - *m_previousPaintPosition;
@@ -36,17 +38,16 @@ public:
 
         if (distance >= std::numeric_limits<float>::epsilon()) {
             const Vec2 direction = delta / distance;
-
             for (float traveled = stampSpacing; traveled <= distance; traveled += stampSpacing) {
-                addObstacle(*m_previousPaintPosition + direction * traveled, worldRadius);
+                changed |= mask.paintCircle(*m_previousPaintPosition + direction * traveled, worldRadius, mode);
             }
-
             if (distance < stampSpacing) {
-                addObstacle(worldPosition, worldRadius);
+                changed |= mask.paintCircle(worldPosition, worldRadius, mode);
             }
         }
 
         m_previousPaintPosition = worldPosition;
+        return changed;
     }
 
 private:

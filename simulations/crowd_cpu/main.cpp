@@ -92,37 +92,24 @@ int main() {
 
         {
             const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
+            const auto paintMode = (IsKeyDown(KEY_E) ? simfw::simulation::ObstaclePaintMode::Erase : simfw::simulation::ObstaclePaintMode::Block);
             obstacleBrush.paint(
+                sim.obstacleMask(),
                 IsMouseButtonDown(MOUSE_RIGHT_BUTTON),
                 mouseWorld,
                 ObstacleBrushRadius / camera.zoom,
-                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
+                paintMode
             );
         }
 
         if (IsKeyPressed(KEY_C)) {
-            sim.clearObstacles();
+            sim.obstacleMask().clear();
         }
         if (IsKeyPressed(KEY_L)) {
-            simfw::ui::loadObstacleShapesFromPng(
-                ScenarioObstacleMapPath,
-                ObstacleThreshold,
-                [&sim]() { sim.clearObstacles(); },
-                [&sim](Vec2 position, float radius) { sim.addObstacle(position, radius); }
-            );
+            simfw::ui::loadObstacleMaskFromPng(ScenarioObstacleMapPath, sim.obstacleMask());
         }
         if (IsKeyPressed(KEY_O)) {
-            std::vector<std::pair<Vec2, float>> circles;
-            circles.reserve(sim.getObstacles().size());
-            for (const auto& obstacle : sim.getObstacles()) {
-                circles.push_back({obstacle.position, obstacle.radius});
-            }
-            simfw::ui::exportObstacleShapesToPng(
-                ScenarioObstacleMapPath,
-                static_cast<int>(config.width),
-                static_cast<int>(config.height),
-                circles
-            );
+            simfw::ui::exportObstacleMaskToPng(ScenarioObstacleMapPath, sim.obstacleMask());
         }
 
         if (IsKeyPressed(KEY_I)) {
@@ -203,9 +190,6 @@ int main() {
             DrawCircleV(simfw::ui::toRaylib(agent.position), AgentDrawRadius, WHITE);
         }
 
-        for (const auto& obstacle : sim.getObstacles()) {
-            DrawCircleV(simfw::ui::toRaylib(obstacle.position), obstacle.radius, DARKGRAY);
-        }
 
         if (controls.showDebug) {
             const auto& cost = sim.getCostField();

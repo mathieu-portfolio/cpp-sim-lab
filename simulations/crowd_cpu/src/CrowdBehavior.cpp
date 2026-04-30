@@ -72,8 +72,7 @@ std::vector<WeightedBehavior> makeDefaultBehaviors() {
     return {
         {BehaviorType::FlowFollow, followFlow, &SimulationConfig::flowWeight, ForceScale::Unit, true, "flow"},
         {BehaviorType::Separation, separate, &SimulationConfig::separationWeight, ForceScale::MaxForce, true, "separation"},
-        {BehaviorType::ObstacleAvoidance, avoidObstacles, &SimulationConfig::obstacleAvoidanceWeight, ForceScale::MaxForce, true, "obstacle"}
-    };
+            };
 }
 
 Vec2 limitLength(Vec2 v, float maxLen) { float l=v.length(); return (l<=maxLen||l<=Epsilon)?v:v*(maxLen/l); }
@@ -128,17 +127,5 @@ Vec2 separate(std::size_t index, BehaviorContext& c) {
     return out;
 }
 
-Vec2 avoidObstacles(std::size_t index, BehaviorContext& c) {
-    Vec2 out{};
-    for (std::size_t oi : c.candidates.obstacles) {
-        ++c.stats.obstacleChecks;
-        Vec2 away = c.agents[index].position - c.obstacles[oi].position;
-        float d = away.length();
-        float r = c.obstacles[oi].radius + c.config.obstacleAvoidanceRadius;
-        if (d <= Epsilon || d >= r) continue;
-        out += away.normalized() * (1.0f - d / r);
-    }
-    return out;
-}
 
 } // namespace crowd_cpu

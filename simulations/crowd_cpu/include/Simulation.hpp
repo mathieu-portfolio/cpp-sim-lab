@@ -2,9 +2,9 @@
 
 #include "Agent.hpp"
 #include "CrowdBehavior.hpp"
-#include "Obstacle.hpp"
 
 #include <simulation/NeighborScratch.hpp>
+#include <simulation/ObstacleMask.hpp>
 #include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
 #include <spatial/SpatialHashGrid.hpp>
@@ -31,10 +31,8 @@ struct SimulationConfig {
     float maxForce = 160.0f;
     float flowWeight = 1.0f;
     float separationWeight = 2.0f;
-    float obstacleAvoidanceWeight = 2.5f;
+    float obstacleAvoidanceWeight = 0.0f;
     float separationRadius = 16.0f;
-    float obstacleRadius = 24.0f;
-    float obstacleAvoidanceRadius = 58.0f;
     float goalRadius = 14.0f;
     float gridCellSize = 24.0f;
     simfw::simulation::SimulationExecutionConfig execution{};
@@ -43,14 +41,9 @@ struct SimulationConfig {
 struct SimulationStats {
     std::size_t agentCount = 0;
     std::size_t entityCount = 0;
-    std::size_t obstacleCount = 0;
     std::size_t occupiedGridCells = 0;
-    std::size_t occupiedObstacleGridCells = 0;
     std::size_t neighborCandidates = 0;
     std::size_t neighborChecks = 0;
-    std::size_t obstacleCandidates = 0;
-    std::size_t obstacleChecks = 0;
-    std::size_t obstacleOverlapChecks = 0;
     std::size_t reachedGoalCount = 0;
 };
 
@@ -62,21 +55,17 @@ public:
     ~Simulation();
     Simulation(Simulation&&) noexcept;
     Simulation& operator=(Simulation&&) noexcept;
-    Simulation(const Simulation&) = delete;
-    Simulation& operator=(const Simulation&) = delete;
 
     void update(float dt);
     void reset();
     void setGoal(Vec2 goal);
     void spawn(const Vec2& position);
-    void addObstacle(Vec2 pos);
-    void addObstacle(Vec2 pos, float radius);
-    void clearObstacles();
+
+    simfw::simulation::ObstacleMask& obstacleMask() { return m_obstacleMask; }
+    const simfw::simulation::ObstacleMask& obstacleMask() const { return m_obstacleMask; }
 
     Vec2 getGoal() const { return m_goal; }
     const Grid& getGrid() const { return m_agentGrid; }
-    const Grid& getObstacleGrid() const { return m_obstacleGrid; }
-    const std::vector<Obstacle>& getObstacles() const { return m_obstacles; }
     const std::vector<float>& getCostField() const { return m_costField; }
     const std::vector<float>& getIntegrationField() const { return m_integrationField; }
     Vec2 sampleFlow(Vec2 worldPos) const;
@@ -84,12 +73,11 @@ public:
 private:
     using Scratch = simfw::simulation::NeighborScratch<std::size_t>;
     Grid m_agentGrid;
-    Grid m_obstacleGrid;
     std::vector<Agent> m_previousAgents;
-    std::vector<Obstacle> m_obstacles;
     Vec2 m_goal;
     std::unique_ptr<ThreadPool> m_threadPool;
     std::vector<WeightedBehavior> m_behaviors;
+    simfw::simulation::ObstacleMask m_obstacleMask;
 
     std::size_t m_gridWidth = 0;
     std::size_t m_gridHeight = 0;
@@ -99,6 +87,7 @@ private:
     void buildSpatialIndexes();
     void buildFlowField();
     void updateAgents(float dt);
+    bool isBlockedWorld(Vec2 worldPos) const;
 };
 
 } // namespace crowd_cpu
