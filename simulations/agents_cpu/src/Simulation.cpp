@@ -9,8 +9,8 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
+#include <simulation/SimulationUtils.hpp>
 #include <simulation/EntityBrush.hpp>
-#include <thread>
 
 namespace agents_cpu {
 namespace {
@@ -26,15 +26,6 @@ Vec2 clampToWorld(Vec2 position, float width, float height) {
     return position;
 }
 
-std::size_t hardwareWorkerCount() {
-    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
-
-    if (hardwareThreads == 0) {
-        return 1;
-    }
-
-    return static_cast<std::size_t>(hardwareThreads);
-}
 
 float dampingFactor(float damping, float dt) {
     if (damping <= 0.0f) {
@@ -49,7 +40,7 @@ Simulation::Simulation(SimulationConfig config)
     : Base(config),
       m_agentGrid(config.gridCellSize),
       m_target{config.width * 0.5f, config.height * 0.5f},
-      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())),
+      m_threadPool(std::make_unique<ThreadPool>(simfw::simulation::hardwareWorkerCount())),
       m_behaviors(steering::makeDefaultBehaviors()),
       m_intentRules(steering::makeDefaultIntentRules()) {
     normalizeConfigCounts();
@@ -78,13 +69,11 @@ void Simulation::resetIntentRules() {
 }
 
 void Simulation::normalizeConfigCounts() {
-    constexpr std::size_t defaultCount = SimulationConfig::DefaultAgentCount;
-
-    if (m_config.agentCount == defaultCount && m_config.entityCount != defaultCount) {
-        m_config.agentCount = m_config.entityCount;
-    } else {
-        m_config.entityCount = m_config.agentCount;
-    }
+    simfw::simulation::syncEntityCount(
+        SimulationConfig::DefaultAgentCount,
+        m_config.agentCount,
+        m_config
+    );
 }
 
 void Simulation::updateStatsCount() {

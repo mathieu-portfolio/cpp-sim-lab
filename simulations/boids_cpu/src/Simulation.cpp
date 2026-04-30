@@ -6,12 +6,12 @@
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
+#include <simulation/SimulationUtils.hpp>
 #include <simulation/EntityBrush.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <random/Random.hpp>
-#include <thread>
 
 namespace boids_cpu {
 namespace {
@@ -50,15 +50,6 @@ Vec2 boidPosition(const Boid& boid) {
     return boid.position;
 }
 
-std::size_t hardwareWorkerCount() {
-    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
-
-    if (hardwareThreads == 0) {
-        return 1;
-    }
-
-    return static_cast<std::size_t>(hardwareThreads);
-}
 } // namespace
 
 Simulation::Simulation(SimulationConfig config)
@@ -68,7 +59,7 @@ Simulation::Simulation(SimulationConfig config)
           defaultBoidBehaviors().begin(),
           defaultBoidBehaviors().end()
       ),
-      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
+      m_threadPool(std::make_unique<ThreadPool>(simfw::simulation::hardwareWorkerCount())) {
     normalizeConfigCounts();
     reset();
 }
@@ -87,13 +78,11 @@ void Simulation::resetBehaviors() {
 }
 
 void Simulation::normalizeConfigCounts() {
-    constexpr std::size_t defaultCount = SimulationConfig::DefaultBoidCount;
-
-    if (m_config.boidCount == defaultCount && m_config.entityCount != defaultCount) {
-        m_config.boidCount = m_config.entityCount;
-    } else {
-        m_config.entityCount = m_config.boidCount;
-    }
+    simfw::simulation::syncEntityCount(
+        SimulationConfig::DefaultBoidCount,
+        m_config.boidCount,
+        m_config
+    );
 }
 
 void Simulation::updateStatsCount() {
@@ -156,13 +145,16 @@ void Simulation::snapshotBoids() {
 }
 
 void Simulation::buildSpatialIndex() {
-    m_grid.setCellSize(m_config.gridCellSize);
+    simfw::simulation::setupSpatialIndex(
+        m_grid,
+        m_config.gridCellSize,
+        m_config.execution.useSpatialGrid,
+        m_previousBoids,
+        boidPosition
+    );
 
     if (m_config.execution.useSpatialGrid) {
-        m_grid.build(m_previousBoids, boidPosition);
         m_stats.occupiedGridCells = m_grid.getCells().size();
-    } else {
-        m_grid.clear();
     }
 }
 

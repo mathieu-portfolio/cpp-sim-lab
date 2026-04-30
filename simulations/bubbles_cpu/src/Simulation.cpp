@@ -5,12 +5,12 @@
 #include <simulation/CollisionPairs.hpp>
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
+#include <simulation/SimulationUtils.hpp>
 #include <simulation/EntityBrush.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <random/Random.hpp>
-#include <thread>
 
 namespace bubbles_cpu {
 namespace {
@@ -20,16 +20,12 @@ Vec2 bubblePosition(const Bubble& bubble) {
     return bubble.position;
 }
 
-std::size_t hardwareWorkerCount() {
-    const unsigned int hardwareThreads = std::thread::hardware_concurrency();
-    return hardwareThreads == 0 ? 1 : static_cast<std::size_t>(hardwareThreads);
-}
 } // namespace
 
 Simulation::Simulation(SimulationConfig config)
     : Base(config),
       m_grid(m_config.gridCellSize),
-      m_threadPool(std::make_unique<ThreadPool>(hardwareWorkerCount())) {
+      m_threadPool(std::make_unique<ThreadPool>(simfw::simulation::hardwareWorkerCount())) {
     m_config.cellSize = m_config.gridCellSize;
     m_config.entityCount = m_config.maxBubbleCount;
     m_entities.reserve(m_config.maxBubbleCount);
@@ -76,12 +72,13 @@ void Simulation::integrateBubbles(float dt) {
 }
 
 void Simulation::buildSpatialIndex() {
-    m_grid.setCellSize(m_config.gridCellSize);
-    if (m_config.execution.useSpatialGrid) {
-        m_grid.build(m_entities, bubblePosition);
-    } else {
-        m_grid.clear();
-    }
+    simfw::simulation::setupSpatialIndex(
+        m_grid,
+        m_config.gridCellSize,
+        m_config.execution.useSpatialGrid,
+        m_entities,
+        bubblePosition
+    );
 }
 
 void Simulation::resolveInteractions(float dt) {
