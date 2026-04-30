@@ -7,6 +7,7 @@
 #include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
 #include <simulation/NeighborScratch.hpp>
+#include <simulation/ObstacleMask.hpp>
 #include <spatial/SpatialHashGrid.hpp>
 
 #include <cstddef>
@@ -113,8 +114,10 @@ public:
     void spawn(const Vec2& position);
     Vec2 getTarget() const { return m_target; }
 
-    void addObstacle(Vec2 position);
-    void addObstacle(Vec2 position, float radius);
+    simfw::simulation::ObstacleMask& obstacleMask() { return m_obstacleMask; }
+    const simfw::simulation::ObstacleMask& obstacleMask() const { return m_obstacleMask; }
+
+    void rebuildObstaclesFromMask(float obstacleRadius);
     void clearObstacles();
 
 private:
@@ -124,6 +127,7 @@ private:
     Grid m_obstacleGrid;
     Vec2 m_target;
     std::vector<Obstacle> m_obstacles;
+    simfw::simulation::ObstacleMask m_obstacleMask;
     std::vector<Agent> m_previousAgents;
     std::unique_ptr<ThreadPool> m_threadPool;
     BehaviorList m_behaviors;

@@ -132,6 +132,9 @@ void Simulation::reset() {
     m_previousAgents.reserve(m_config.agentCount);
 
     m_target = Vec2{m_config.width * 0.5f, m_config.height * 0.5f};
+    m_obstacleMask.resize(static_cast<int>(m_config.width), static_cast<int>(m_config.height));
+    m_obstacleMask.clear();
+    m_obstacles.clear();
 
     for (std::size_t i = 0; i < m_config.agentCount; ++i) {
         const Vec2 position = randomPoint();
@@ -174,20 +177,24 @@ void Simulation::spawn(const Vec2& position) {
     updateStatsCount();
 }
 
-void Simulation::addObstacle(Vec2 position) {
-    addObstacle(position, m_config.obstacleRadius);
-}
+void Simulation::rebuildObstaclesFromMask(float obstacleRadius) {
+    m_obstacles.clear();
 
-void Simulation::addObstacle(Vec2 position, float radius) {
-    m_obstacles.push_back({
-        clampToWorld(position, m_config.width, m_config.height),
-        radius
-    });
+    for (int y = 0; y < m_obstacleMask.height(); ++y) {
+        for (int x = 0; x < m_obstacleMask.width(); ++x) {
+            if (!m_obstacleMask.isBlocked(x, y)) {
+                continue;
+            }
+
+            m_obstacles.push_back({Vec2{static_cast<float>(x), static_cast<float>(y)}, obstacleRadius});
+        }
+    }
 
     updateStatsCount();
 }
 
 void Simulation::clearObstacles() {
+    m_obstacleMask.clear();
     m_obstacles.clear();
     updateStatsCount();
 }
