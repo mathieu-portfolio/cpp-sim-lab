@@ -99,6 +99,7 @@ private:
     void buildFlowField();
     void updateAgents(float dt);
     bool isBlockedWorld(Vec2 worldPos) const;
+    Vec2 resolveObstacleCollision(Vec2 previousPos, Vec2 proposedPos, float radius) const;
 };
 
 } // namespace crowd_cpu

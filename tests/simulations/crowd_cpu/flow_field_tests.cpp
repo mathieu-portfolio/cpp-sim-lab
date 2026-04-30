@@ -96,7 +96,7 @@ TEST(CrowdCpuFlowField, AgentMotionFollowsFlowInsteadOfDirectGoalVector) {
     EXPECT_GT(agent.velocity.length(), 0.01f);
 }
 
-TEST(CrowdCpuFlowField, AgentMoveIsRejectedIfBlockedByMask) {
+TEST(CrowdCpuFlowField, AgentCollidesWithObstacleMaskUsingRadius) {
     SimulationConfig config = baseConfig();
     config.flowWeight = 0.0f;
     config.separationWeight = 0.0f;
@@ -112,8 +112,8 @@ TEST(CrowdCpuFlowField, AgentMoveIsRejectedIfBlockedByMask) {
     sim.update(1.0f / 60.0f);
 
     const Agent& agent = sim.getEntities()[0];
-    EXPECT_NEAR(agent.position.x, 50.0f, 0.01f);
-    EXPECT_NEAR(agent.position.y, 50.0f, 0.01f);
+    EXPECT_LT(agent.position.x, 51.5f);
+    EXPECT_FALSE(sim.obstacleMask().isBlocked(static_cast<int>(agent.position.x), static_cast<int>(agent.position.y)));
 }
 
 } // namespace
