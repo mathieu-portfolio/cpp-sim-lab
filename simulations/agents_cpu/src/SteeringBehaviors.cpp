@@ -3,6 +3,7 @@
 #include "Simulation.hpp"
 
 #include <algorithm>
+#include <simulation/ObstaclePhysics.hpp>
 #include <simulation/WeightedBehaviorPipeline.hpp>
 #include <array>
 #include <cmath>
@@ -289,21 +290,18 @@ Vec2 avoidObstacles(std::size_t agentIndex, BehaviorContext& context) {
     Vec2 force{};
     int obstacleCount = 0;
 
-    for (std::size_t obstacleIndex : context.candidates.obstacles) {
-        ++context.stats.obstacleChecks;
-
-        const Obstacle& obstacle = context.obstacles[obstacleIndex];
-        const Vec2 away = agent.position - obstacle.position;
-        const float distance = away.length();
-        const float influenceDistance = obstacle.radius + config.obstacleAvoidanceRadius;
-
-        if (distance <= Epsilon || distance >= influenceDistance) {
-            continue;
+    const float step = std::max(4.0f, config.obstacleAvoidanceRadius * 0.25f);
+    for (float y = -config.obstacleAvoidanceRadius; y <= config.obstacleAvoidanceRadius; y += step) {
+        for (float x = -config.obstacleAvoidanceRadius; x <= config.obstacleAvoidanceRadius; x += step) {
+            const Vec2 delta{x, y};
+            const float distance = delta.length();
+            if (distance <= Epsilon || distance >= config.obstacleAvoidanceRadius) continue;
+            ++context.stats.obstacleChecks;
+            if (!simfw::simulation::isBlockedWorld(context.obstacleMask, agent.position + delta)) continue;
+            const float strength = 1.0f - (distance / config.obstacleAvoidanceRadius);
+            force += (delta * -1.0f).normalized() * strength;
+            ++obstacleCount;
         }
-
-        const float strength = 1.0f - (distance / influenceDistance);
-        force += away.normalized() * strength;
-        ++obstacleCount;
     }
 
     if (obstacleCount > 0) {
@@ -320,15 +318,12 @@ std::optional<AgentIntent> avoidObstacleIntent(
     const SimulationConfig& config = context.config;
     const Agent& agent = context.agents[agentIndex];
 
-    for (std::size_t obstacleIndex : context.candidates.obstacles) {
-        const Obstacle& obstacle = context.obstacles[obstacleIndex];
-        const Vec2 away = agent.position - obstacle.position;
-        const float distance = away.length();
-        const float threatDistance = obstacle.radius + agent.radius +
-            config.obstacleIntentRadius;
-
-        if (distance <= threatDistance) {
-            return AgentIntent::AvoidObstacle;
+    const float step = std::max(4.0f, config.obstacleIntentRadius * 0.25f);
+    for (float y = -config.obstacleIntentRadius; y <= config.obstacleIntentRadius; y += step) {
+        for (float x = -config.obstacleIntentRadius; x <= config.obstacleIntentRadius; x += step) {
+            const Vec2 delta{x, y};
+            if (delta.length() > config.obstacleIntentRadius) continue;
+            if (simfw::simulation::isBlockedWorld(context.obstacleMask, agent.position + delta)) return AgentIntent::AvoidObstacle;
         }
     }
 
@@ -358,32 +353,10 @@ std::optional<AgentIntent> seekTargetIntent(
 
 void resolveObstacleOverlap(
     Agent& agent,
-    const std::vector<Obstacle>& obstacles,
-    std::span<const std::size_t> obstacleCandidates,
-    SimulationStats& stats
+    const simfw::simulation::ObstacleMask& obstacleMask,
+    SimulationStats&
 ) {
-    for (std::size_t obstacleIndex : obstacleCandidates) {
-        ++stats.obstacleOverlapChecks;
-
-        const Obstacle& obstacle = obstacles[obstacleIndex];
-        Vec2 away = agent.position - obstacle.position;
-        float distance = away.length();
-
-        const float minDistance = obstacle.radius + agent.radius;
-
-        if (distance <= Epsilon || distance >= minDistance) {
-            continue;
-        }
-
-        Vec2 normal = away * (1.0f / distance);
-        agent.position = obstacle.position + normal * minDistance;
-
-        const float velocityIntoObstacle = Vec2::dot(agent.velocity, normal);
-
-        if (velocityIntoObstacle < 0.0f) {
-            agent.velocity -= normal * velocityIntoObstacle;
-        }
-    }
+    agent.position = simfw::simulation::resolveObstacleCollision(obstacleMask, agent.position, agent.position, agent.radius);
 }
 
 } // namespace agents_cpu::steering

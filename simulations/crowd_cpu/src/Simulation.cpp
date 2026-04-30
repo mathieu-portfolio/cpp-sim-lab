@@ -9,6 +9,7 @@
 #include <queue>
 #include <random/Random.hpp>
 #include <simulation/EntityBrush.hpp>
+#include <simulation/ObstaclePhysics.hpp>
 #include <simulation/ParallelUpdate.hpp>
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
@@ -173,64 +174,9 @@ void Simulation::buildSpatialIndexes() {
     else m_agentGrid.clear();
 }
 
-bool Simulation::isBlockedWorld(Vec2 worldPos) const {
-    const int x = std::clamp(static_cast<int>(worldPos.x), 0, m_obstacleMask.width() - 1);
-    const int y = std::clamp(static_cast<int>(worldPos.y), 0, m_obstacleMask.height() - 1);
-    return m_obstacleMask.isBlocked(x, y);
-}
+bool Simulation::isBlockedWorld(Vec2 worldPos) const { return simfw::simulation::isBlockedWorld(m_obstacleMask, worldPos); }
 
-Vec2 Simulation::resolveObstacleCollision(Vec2 previousPos, Vec2 proposedPos, float radius) const {
-    if (m_obstacleMask.empty()) {
-        return proposedPos;
-    }
-
-    Vec2 resolved = proposedPos;
-    const float padding = 0.25f;
-    const float expanded = radius + padding;
-    const float expandedSq = expanded * expanded;
-
-    for (int iteration = 0; iteration < 3; ++iteration) {
-        bool collided = false;
-        const int minX = std::max(0, static_cast<int>(std::floor(resolved.x - expanded)));
-        const int maxX = std::min(m_obstacleMask.width() - 1, static_cast<int>(std::ceil(resolved.x + expanded)));
-        const int minY = std::max(0, static_cast<int>(std::floor(resolved.y - expanded)));
-        const int maxY = std::min(m_obstacleMask.height() - 1, static_cast<int>(std::ceil(resolved.y + expanded)));
-
-        for (int y = minY; y <= maxY; ++y) {
-            for (int x = minX; x <= maxX; ++x) {
-                if (!m_obstacleMask.isBlocked(x, y)) {
-                    continue;
-                }
-
-                const Vec2 cellCenter{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
-                Vec2 delta = resolved - cellCenter;
-                float distSq = delta.lengthSquared();
-                if (distSq >= expandedSq) {
-                    continue;
-                }
-
-                collided = true;
-                if (distSq <= 1e-8f) {
-                    delta = (resolved - previousPos).normalized();
-                    if (delta.lengthSquared() <= 1e-8f) {
-                        delta = Vec2{1.0f, 0.0f};
-                    }
-                    distSq = 1e-8f;
-                }
-
-                const float dist = std::sqrt(distSq);
-                const float penetration = expanded - dist;
-                resolved += delta / dist * penetration;
-            }
-        }
-
-        if (!collided) {
-            return resolved;
-        }
-    }
-
-    return previousPos;
-}
+Vec2 Simulation::resolveObstacleCollision(Vec2 previousPos, Vec2 proposedPos, float radius) const { return simfw::simulation::resolveObstacleCollision(m_obstacleMask, previousPos, proposedPos, radius); }
 
 void Simulation::buildFlowField() {
     m_gridWidth = static_cast<std::size_t>(m_config.width / m_config.gridCellSize) + 1;
