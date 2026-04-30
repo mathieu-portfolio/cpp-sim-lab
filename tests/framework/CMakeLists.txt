@@ -6,6 +6,7 @@ add_executable(framework_tests
     collision_pairs_tests.cpp
     simulation_execution_tests.cpp
     weighted_behavior_pipeline_tests.cpp
+    obstacle_mask_tests.cpp
 )
 
 target_link_libraries(framework_tests
