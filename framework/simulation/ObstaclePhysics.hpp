@@ -7,6 +7,11 @@
 #include <cmath>
 
 namespace simfw::simulation {
+struct ObstacleCollisionResult {
+    Vec2 position;
+    Vec2 normal;
+    bool collided = false;
+};
 
 inline bool isBlockedWorld(const ObstacleMask& mask, Vec2 worldPos) {
     if (mask.empty()) {
@@ -17,17 +22,19 @@ inline bool isBlockedWorld(const ObstacleMask& mask, Vec2 worldPos) {
     return mask.isBlocked(x, y);
 }
 
-inline Vec2 resolveObstacleCollision(
+inline ObstacleCollisionResult resolveObstacleCollisionWithNormal(
     const ObstacleMask& mask,
     Vec2 previousPos,
     Vec2 proposedPos,
     float radius
 ) {
     if (mask.empty()) {
-        return proposedPos;
+        return ObstacleCollisionResult{proposedPos, Vec2{0.0f, 0.0f}, false};
     }
 
     Vec2 resolved = proposedPos;
+    Vec2 accumulatedNormal{0.0f, 0.0f};
+    bool anyCollision = false;
     const float padding = 0.25f;
     const float expanded = radius + padding;
     const float expandedSq = expanded * expanded;
@@ -52,26 +59,62 @@ inline Vec2 resolveObstacleCollision(
                 }
 
                 collided = true;
+                anyCollision = true;
                 if (distSq <= 1e-8f) {
                     delta = (resolved - previousPos).normalized();
                     if (delta.lengthSquared() <= 1e-8f) {
-                        delta = Vec2{1.0f, 0.0f};
+                        delta = Vec2{resolved.x - static_cast<float>(mask.width()) * 0.5f, resolved.y - static_cast<float>(mask.height()) * 0.5f}.normalized();
+                        if (delta.lengthSquared() <= 1e-8f) {
+                            delta = Vec2{1.0f, 0.0f};
+                        }
                     }
                     distSq = 1e-8f;
                 }
 
                 const float dist = std::sqrt(distSq);
                 const float penetration = expanded - dist;
-                resolved += delta / dist * penetration;
+                const Vec2 normal = delta / dist;
+                resolved += normal * penetration;
+                accumulatedNormal += normal;
             }
         }
 
         if (!collided) {
-            return resolved;
+            const Vec2 normal = accumulatedNormal.lengthSquared() > 1e-8f ? accumulatedNormal.normalized() : Vec2{0.0f, 0.0f};
+            return ObstacleCollisionResult{resolved, normal, anyCollision};
         }
     }
 
-    return previousPos;
+    Vec2 fallback = previousPos;
+    if (isBlockedWorld(mask, fallback)) {
+        constexpr int maxSearchRadius = 64;
+        const int originX = std::clamp(static_cast<int>(std::round(proposedPos.x)), 0, mask.width() - 1);
+        const int originY = std::clamp(static_cast<int>(std::round(proposedPos.y)), 0, mask.height() - 1);
+        bool found = false;
+        for (int r = 1; r <= maxSearchRadius && !found; ++r) {
+            for (int y = std::max(0, originY - r); y <= std::min(mask.height() - 1, originY + r) && !found; ++y) {
+                for (int x = std::max(0, originX - r); x <= std::min(mask.width() - 1, originX + r); ++x) {
+                    if (mask.isBlocked(x, y)) {
+                        continue;
+                    }
+                    fallback = Vec2{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
+                    found = true;
+                    break;
+                }
+            }
+        }
+    }
+    const Vec2 fallbackNormal = (fallback - proposedPos).lengthSquared() > 1e-8f ? (fallback - proposedPos).normalized() : Vec2{0.0f, 0.0f};
+    return ObstacleCollisionResult{fallback, fallbackNormal, true};
+}
+
+inline Vec2 resolveObstacleCollision(
+    const ObstacleMask& mask,
+    Vec2 previousPos,
+    Vec2 proposedPos,
+    float radius
+) {
+    return resolveObstacleCollisionWithNormal(mask, previousPos, proposedPos, radius).position;
 }
 
 } // namespace simfw::simulation

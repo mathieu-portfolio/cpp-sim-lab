@@ -283,7 +283,20 @@ void Simulation::updateAgents(float dt) {
             Agent& a=m_entities[i]; const Agent& p=m_previousAgents[i];
             a.velocity = limitLength(p.velocity + acc*dt, m_config.maxSpeed);
             const Vec2 proposed = p.position + a.velocity*dt;
-            a.position = resolveObstacleCollision(p.position, proposed, a.radius);
+            const simfw::simulation::ObstacleCollisionResult collision = simfw::simulation::resolveObstacleCollisionWithNormal(
+                m_obstacleMask,
+                p.position,
+                proposed,
+                a.radius
+            );
+            a.position = collision.position;
+            if (collision.collided && collision.normal.lengthSquared() > 1e-6f) {
+                const float normalSpeed = a.velocity.dot(collision.normal);
+                if (normalSpeed < 0.0f) {
+                    constexpr float restitution = 0.35f;
+                    a.velocity -= collision.normal * ((1.0f + restitution) * normalSpeed);
+                }
+            }
             a.position.x = std::clamp(a.position.x, a.radius, m_config.width - a.radius); a.position.y = std::clamp(a.position.y, a.radius, m_config.height - a.radius);
             if ((a.position - m_goal).length() <= m_config.goalRadius) ++st.reachedGoalCount;
         }

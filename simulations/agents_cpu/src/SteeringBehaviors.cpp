@@ -353,10 +353,29 @@ std::optional<AgentIntent> seekTargetIntent(
 
 void resolveObstacleOverlap(
     Agent& agent,
+    const Vec2& previousPosition,
     const simfw::simulation::ObstacleMask& obstacleMask,
     SimulationStats&
 ) {
-    agent.position = simfw::simulation::resolveObstacleCollision(obstacleMask, agent.position, agent.position, agent.radius);
+    const Vec2 proposedPosition = agent.position;
+    const simfw::simulation::ObstacleCollisionResult collision = simfw::simulation::resolveObstacleCollisionWithNormal(
+        obstacleMask,
+        previousPosition,
+        proposedPosition,
+        agent.radius
+    );
+    const Vec2 resolvedPosition = collision.position;
+    agent.position = resolvedPosition;
+
+    if (!collision.collided || collision.normal.lengthSquared() <= 1e-6f) {
+        return;
+    }
+
+    const float normalSpeed = agent.velocity.dot(collision.normal);
+    if (normalSpeed < 0.0f) {
+        constexpr float restitution = 0.35f;
+        agent.velocity -= collision.normal * ((1.0f + restitution) * normalSpeed);
+    }
 }
 
 } // namespace agents_cpu::steering

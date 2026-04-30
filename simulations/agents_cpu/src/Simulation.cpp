@@ -251,7 +251,12 @@ void Simulation::updateAgentRange(
         agent.radius = previousAgent.radius;
         agent.intent = intent;
 
-        steering::resolveObstacleOverlap(agent, m_obstacleMask, stats);
+        steering::resolveObstacleOverlap(
+            agent,
+            previousAgent.position,
+            m_obstacleMask,
+            stats
+        );
 
         agent.position = clampToWorld(
             agent.position,
