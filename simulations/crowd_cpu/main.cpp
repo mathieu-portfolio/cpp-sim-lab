@@ -38,6 +38,23 @@ Vec2 agentPosition(const Agent& agent) {
     return agent.position;
 }
 
+void drawObstacleMask(const simfw::simulation::ObstacleMask& mask) {
+    const int width = mask.width();
+    const int height = mask.height();
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (!mask.isBlocked(x, y)) {
+                continue;
+            }
+            DrawPixel(x, y, Fade(RED, 0.65f));
+        }
+    }
+}
+
 } // namespace
 
 int main() {
@@ -197,6 +214,8 @@ int main() {
         if (controls.showDebug && config.execution.useSpatialGrid) {
             simfw::ui::drawSpatialGridDebug(sim.getGrid(), gridDebugMode);
         }
+
+        drawObstacleMask(sim.obstacleMask());
 
         for (const auto& agent : sim.getEntities()) {
             DrawCircleV(simfw::ui::toRaylib(agent.position), AgentDrawRadius, WHITE);
