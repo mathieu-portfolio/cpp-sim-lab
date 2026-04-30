@@ -93,6 +93,86 @@ void Simulation::reset() {
     for (std::size_t i=0;i<m_config.agentCount;++i){
         m_entities.push_back({Vec2{Random::range(0.0f, m_config.width*0.3f), Random::range(0.0f,m_config.height)}, Vec2{}, m_config.agentRadius});
     }
+    m_activeScenario.reset();
+    m_scenarioTime = 0.0f;
+}
+
+void Simulation::loadScenario(CanonicalScenario scenario) {
+    normalizeConfigCounts(m_config);
+    m_entities.clear();
+    m_entities.reserve(m_config.agentCount);
+    m_obstacles.clear();
+
+    auto spawnAgent = [this](float minX, float maxX, float minY, float maxY) {
+        m_entities.push_back(
+            {Vec2{Random::range(minX, maxX), Random::range(minY, maxY)}, Vec2{}, m_config.agentRadius}
+        );
+    };
+
+    const float width = m_config.width;
+    const float height = m_config.height;
+    const std::size_t count = m_config.agentCount;
+
+    switch (scenario) {
+    case CanonicalScenario::CorridorBidirectionalFlow: {
+        m_goal = Vec2{width * 0.9f, height * 0.5f};
+        addObstacle(Vec2{width * 0.5f, height * 0.15f}, width * 0.32f);
+        addObstacle(Vec2{width * 0.5f, height * 0.85f}, width * 0.32f);
+
+        const std::size_t halfCount = count / 2;
+        for (std::size_t i = 0; i < halfCount; ++i) {
+            spawnAgent(width * 0.08f, width * 0.26f, height * 0.36f, height * 0.64f);
+        }
+        for (std::size_t i = halfCount; i < count; ++i) {
+            Agent agent{Vec2{Random::range(width * 0.74f, width * 0.92f), Random::range(height * 0.36f, height * 0.64f)},
+                        Vec2{},
+                        m_config.agentRadius};
+            agent.velocity = Vec2{-m_config.maxSpeed * 0.35f, 0.0f};
+            m_entities.push_back(agent);
+        }
+        break;
+    }
+    case CanonicalScenario::BottleneckDoorway: {
+        m_goal = Vec2{width * 0.9f, height * 0.5f};
+        const float doorwayY = height * 0.5f;
+        const float doorwayHalfGap = 42.0f;
+        for (float y = 40.0f; y < height - 40.0f; y += 38.0f) {
+            if (y > doorwayY - doorwayHalfGap && y < doorwayY + doorwayHalfGap) {
+                continue;
+            }
+            addObstacle(Vec2{width * 0.5f, y}, 16.0f);
+        }
+        for (std::size_t i = 0; i < count; ++i) {
+            spawnAgent(width * 0.08f, width * 0.30f, height * 0.12f, height * 0.88f);
+        }
+        break;
+    }
+    case CanonicalScenario::EvacuationBlockedExits: {
+        m_goal = Vec2{width * 0.5f, height * 0.06f};
+        addObstacle(Vec2{width * 0.20f, height * 0.08f}, 42.0f);
+        addObstacle(Vec2{width * 0.80f, height * 0.08f}, 42.0f);
+        addObstacle(Vec2{width * 0.50f, height * 0.92f}, 68.0f);
+        for (std::size_t i = 0; i < count; ++i) {
+            spawnAgent(width * 0.14f, width * 0.86f, height * 0.38f, height * 0.92f);
+        }
+        break;
+    }
+    case CanonicalScenario::MovingHazardRegion: {
+        m_goal = Vec2{width * 0.92f, height * 0.5f};
+        addObstacle(Vec2{width * 0.45f, height * 0.5f}, 55.0f);
+        addObstacle(Vec2{width * 0.62f, height * 0.5f}, 48.0f);
+        for (std::size_t i = 0; i < count; ++i) {
+            spawnAgent(width * 0.08f, width * 0.32f, height * 0.14f, height * 0.86f);
+        }
+        break;
+    }
+    }
+
+    m_previousAgents.clear();
+    m_previousAgents.reserve(m_entities.size());
+    m_config.entityCount = m_entities.size();
+    m_activeScenario = scenario;
+    m_scenarioTime = 0.0f;
 }
 
 void Simulation::buildSpatialIndexes() {
@@ -210,6 +290,13 @@ void Simulation::updateAgents(float dt) {
 }
 
 void Simulation::update(float dt) {
+    if (m_activeScenario == CanonicalScenario::MovingHazardRegion && m_obstacles.size() >= 2) {
+        m_scenarioTime += dt;
+        const float baseX = m_config.width * 0.54f;
+        const float wave = std::sin(m_scenarioTime * 1.2f) * (m_config.width * 0.13f);
+        m_obstacles[0].position.x = baseX + wave;
+        m_obstacles[1].position.x = baseX + 110.0f + wave;
+    }
     beginFrame(); m_previousAgents = m_entities; buildSpatialIndexes(); buildFlowField(); updateAgents(dt);
 }
 
