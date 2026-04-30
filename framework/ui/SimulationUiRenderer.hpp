@@ -3,7 +3,9 @@
 #include "SimulationUiTraits.hpp"
 #include "RaylibDebugUi.hpp"
 
+#include <cmath>
 #include <tuple>
+#include <type_traits>
 
 namespace simfw::ui {
 
@@ -46,15 +48,31 @@ void adjustTunables(
 
     forEach(ConfigUiTraits<Config>::fields, [&](auto field) {
         if (index == selected) {
-            TunableParameter p{
-                field.name,
-                &(config.*(field.member)),
-                field.minValue,
-                field.normalStep,
-                field.fastStep
-            };
+            using FieldType = std::remove_reference_t<decltype(config.*(field.member))>;
 
-            adjustTunable(p, direction, dt, fast);
+            if constexpr (std::is_same_v<FieldType, float>) {
+                TunableParameter p{
+                    field.name,
+                    &(config.*(field.member)),
+                    field.minValue,
+                    field.normalStep,
+                    field.fastStep
+                };
+
+                adjustTunable(p, direction, dt, fast);
+            } else {
+                float value = static_cast<float>(config.*(field.member));
+                TunableParameter p{
+                    field.name,
+                    &value,
+                    field.minValue,
+                    field.normalStep,
+                    field.fastStep
+                };
+
+                adjustTunable(p, direction, dt, fast);
+                config.*(field.member) = static_cast<FieldType>(std::lround(value));
+            }
         }
         ++index;
     });
@@ -69,17 +87,29 @@ void drawTunables(
     std::size_t index = 0;
 
     forEach(ConfigUiTraits<Config>::fields, [&](auto field) {
-        const float value = config.*(field.member);
+        const auto value = config.*(field.member);
 
-        cursor.draw(
-            TextFormat("%s: %.2f%s",
-                field.name,
-                value,
-                (index == selected ? " <" : "")
-            ),
-            16,
-            (index == selected ? YELLOW : LIGHTGRAY)
-        );
+        if constexpr (std::is_integral_v<std::decay_t<decltype(value)>>) {
+            cursor.draw(
+                TextFormat("%s: %d%s",
+                    field.name,
+                    static_cast<int>(value),
+                    (index == selected ? " <" : "")
+                ),
+                16,
+                (index == selected ? YELLOW : LIGHTGRAY)
+            );
+        } else {
+            cursor.draw(
+                TextFormat("%s: %.2f%s",
+                    field.name,
+                    static_cast<float>(value),
+                    (index == selected ? " <" : "")
+                ),
+                16,
+                (index == selected ? YELLOW : LIGHTGRAY)
+            );
+        }
 
         ++index;
     });
