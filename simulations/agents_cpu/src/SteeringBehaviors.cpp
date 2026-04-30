@@ -358,24 +358,23 @@ void resolveObstacleOverlap(
     SimulationStats&
 ) {
     const Vec2 proposedPosition = agent.position;
-    const Vec2 resolvedPosition = simfw::simulation::resolveObstacleCollision(
+    const simfw::simulation::ObstacleCollisionResult collision = simfw::simulation::resolveObstacleCollisionWithNormal(
         obstacleMask,
         previousPosition,
         proposedPosition,
         agent.radius
     );
+    const Vec2 resolvedPosition = collision.position;
     agent.position = resolvedPosition;
 
-    const Vec2 correction = resolvedPosition - proposedPosition;
-    if (correction.lengthSquared() <= 1e-6f) {
+    if (!collision.collided || collision.normal.lengthSquared() <= 1e-6f) {
         return;
     }
 
-    const Vec2 collisionNormal = correction.normalized();
-    const float normalSpeed = agent.velocity.dot(collisionNormal);
+    const float normalSpeed = agent.velocity.dot(collision.normal);
     if (normalSpeed < 0.0f) {
         constexpr float restitution = 0.35f;
-        agent.velocity -= collisionNormal * ((1.0f + restitution) * normalSpeed);
+        agent.velocity -= collision.normal * ((1.0f + restitution) * normalSpeed);
     }
 }
 
