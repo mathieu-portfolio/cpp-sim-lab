@@ -142,6 +142,7 @@ std::optional<AgentIntent> seekTargetIntent(
 
 void resolveObstacleOverlap(
     Agent& agent,
+    const Vec2& previousPosition,
     const simfw::simulation::ObstacleMask& obstacleMask,
     SimulationStats& stats
 );
