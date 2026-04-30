@@ -66,6 +66,7 @@ public:
 
     void update(float dt);
     void reset();
+    void loadScenario(CanonicalScenario scenario);
     void setGoal(Vec2 goal);
     void spawn(const Vec2& position);
 

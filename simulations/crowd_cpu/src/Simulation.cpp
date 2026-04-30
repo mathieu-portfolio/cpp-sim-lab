@@ -59,7 +59,8 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
     normalizeConfigCounts(m_config);
     m_entities.clear();
     m_entities.reserve(m_config.agentCount);
-    m_obstacles.clear();
+    m_obstacleMask.resize(static_cast<int>(m_config.width), static_cast<int>(m_config.height));
+    m_obstacleMask.clear();
 
     auto spawnAgent = [this](float minX, float maxX, float minY, float maxY) {
         m_entities.push_back(
@@ -74,8 +75,16 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
     switch (scenario) {
     case CanonicalScenario::CorridorBidirectionalFlow: {
         m_goal = Vec2{width * 0.9f, height * 0.5f};
-        addObstacle(Vec2{width * 0.5f, height * 0.15f}, width * 0.32f);
-        addObstacle(Vec2{width * 0.5f, height * 0.85f}, width * 0.32f);
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.5f, height * 0.15f},
+            width * 0.32f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.5f, height * 0.85f},
+            width * 0.32f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
 
         const std::size_t halfCount = count / 2;
         for (std::size_t i = 0; i < halfCount; ++i) {
@@ -98,7 +107,11 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
             if (y > doorwayY - doorwayHalfGap && y < doorwayY + doorwayHalfGap) {
                 continue;
             }
-            addObstacle(Vec2{width * 0.5f, y}, 16.0f);
+            m_obstacleMask.paintCircle(
+                Vec2{width * 0.5f, y},
+                16.0f,
+                simfw::simulation::ObstaclePaintMode::Block
+            );
         }
         for (std::size_t i = 0; i < count; ++i) {
             spawnAgent(width * 0.08f, width * 0.30f, height * 0.12f, height * 0.88f);
@@ -107,9 +120,21 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
     }
     case CanonicalScenario::EvacuationBlockedExits: {
         m_goal = Vec2{width * 0.5f, height * 0.06f};
-        addObstacle(Vec2{width * 0.20f, height * 0.08f}, 42.0f);
-        addObstacle(Vec2{width * 0.80f, height * 0.08f}, 42.0f);
-        addObstacle(Vec2{width * 0.50f, height * 0.92f}, 68.0f);
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.20f, height * 0.08f},
+            42.0f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.80f, height * 0.08f},
+            42.0f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.50f, height * 0.92f},
+            68.0f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
         for (std::size_t i = 0; i < count; ++i) {
             spawnAgent(width * 0.14f, width * 0.86f, height * 0.38f, height * 0.92f);
         }
@@ -117,8 +142,16 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
     }
     case CanonicalScenario::MovingHazardRegion: {
         m_goal = Vec2{width * 0.92f, height * 0.5f};
-        addObstacle(Vec2{width * 0.45f, height * 0.5f}, 55.0f);
-        addObstacle(Vec2{width * 0.62f, height * 0.5f}, 48.0f);
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.45f, height * 0.5f},
+            55.0f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
+        m_obstacleMask.paintCircle(
+            Vec2{width * 0.62f, height * 0.5f},
+            48.0f,
+            simfw::simulation::ObstaclePaintMode::Block
+        );
         for (std::size_t i = 0; i < count; ++i) {
             spawnAgent(width * 0.08f, width * 0.32f, height * 0.14f, height * 0.86f);
         }
@@ -131,6 +164,7 @@ void Simulation::loadScenario(CanonicalScenario scenario) {
     m_config.entityCount = m_entities.size();
     m_activeScenario = scenario;
     m_scenarioTime = 0.0f;
+    buildFlowField();
 }
 
 void Simulation::buildSpatialIndexes() {
