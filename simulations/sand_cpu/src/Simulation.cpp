@@ -38,7 +38,9 @@ void Simulation::markChunkDirtyByCell(int x, int y) {
 
     const std::size_t cx = static_cast<std::size_t>(x) / m_config.chunkSize;
     const std::size_t cy = static_cast<std::size_t>(y) / m_config.chunkSize;
-    m_nextActiveChunks[cy * m_chunkCols + cx] = 1;
+    const std::size_t chunkIndex = cy * m_chunkCols + cx;
+    m_activeChunks[chunkIndex] = 1;
+    m_nextActiveChunks[chunkIndex] = 1;
 }
 
 void Simulation::markNeighborsDirty(int x, int y) {

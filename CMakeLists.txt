@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cpp_sim_lab LANGUAGES CXX)
 
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/EHsc>)
+
 enable_testing()
 include(CTest)
 
