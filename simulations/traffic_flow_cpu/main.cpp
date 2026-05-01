@@ -110,6 +110,11 @@ int main() {
                 previous = current;
             }
         }
+        for (const auto& crossroad : sim.getRoadNetwork().crossroads) {
+            DrawCircleV({crossroad.position.x, crossroad.position.y}, 8.0f, RED);
+            DrawCircleLines(static_cast<int>(crossroad.position.x), static_cast<int>(crossroad.position.y), config.crossroadYieldLookahead, MAROON);
+        }
+
         for (const Vehicle& v : vehicles) {
             const Vec2 p = sim.sampleLanePosition(v.roadId, v.laneId, v.s);
             const Vector2 pos{p.x,p.y};
@@ -124,6 +129,7 @@ int main() {
             cursor.draw("traffic_flow_cpu", 20, RAYWHITE);
             cursor.draw(controls.paused ? "Paused" : "Running");
             cursor.draw(TextFormat("Vehicles: %d", static_cast<int>(vehicles.size())));
+            cursor.draw(TextFormat("Crossroads: %d", static_cast<int>(sim.getRoadNetwork().crossroads.size())));
             simfw::ui::drawStats(cursor, stats);
             cursor.gap(6);
             simfw::ui::drawTunables(cursor, config, controls.selectedParameter);

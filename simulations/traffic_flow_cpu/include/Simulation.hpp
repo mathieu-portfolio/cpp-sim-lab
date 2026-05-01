@@ -31,8 +31,19 @@ struct RoadSegment {
     std::optional<RoadConnection> endConnection;
 };
 
+struct CrossroadApproach {
+    std::size_t roadId = 0;
+    float s = 0.0f;
+};
+
+struct Crossroad {
+    Vec2 position{};
+    std::vector<CrossroadApproach> approaches;
+};
+
 struct RoadNetwork {
     std::vector<RoadSegment> roads;
+    std::vector<Crossroad> crossroads;
 };
 
 struct SimulationConfig {
@@ -46,6 +57,10 @@ struct SimulationConfig {
     float laneWidth = 22.0f;
     float spawnSpeedMin = 8.0f;
     float spawnSpeedMax = 22.0f;
+    float crossroadYieldLookahead = 55.0f;
+    float crossroadStopRadius = 11.0f;
+    float crossroadClearDelay = 0.45f;
+    float crossroadMaxWait = 2.0f;
     int arcLengthSamplesPerSpan = 24;
     simfw::simulation::SimulationExecutionConfig execution{};
 };
@@ -75,6 +90,7 @@ public:
 
     Vec2 sampleRoadCenter(std::size_t roadId, float s) const;
     Vec2 sampleLanePosition(std::size_t roadId, int laneId, float s) const;
+    Vec2 sampleRoadTangent(std::size_t roadId, int laneId, float s) const;
 
 private:
     SimulationConfig m_config;
@@ -90,6 +106,9 @@ private:
     void resetDefaultRoad();
     void rebuildRoadCaches();
     void rebuildRoadCache(RoadSegment& road);
+    void rebuildCrossroads();
+    float distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const;
+    bool hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const;
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
 };
 

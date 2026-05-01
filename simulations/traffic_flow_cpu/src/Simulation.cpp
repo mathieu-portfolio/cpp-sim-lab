@@ -27,6 +27,26 @@ float wrapDistance(float s, float length) {
     return wrapped;
 }
 
+float cross(const Vec2& a, const Vec2& b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+float dot(const Vec2& a, const Vec2& b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+bool lineIntersection(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& d, float& outU, float& outV) {
+    const Vec2 r = b - a;
+    const Vec2 s = d - c;
+    const float denom = cross(r, s);
+    if (std::fabs(denom) < 1e-4f) return false;
+
+    const Vec2 delta = c - a;
+    outU = cross(delta, s) / denom;
+    outV = cross(delta, r) / denom;
+    return outU > 0.02f && outU < 0.98f && outV > 0.02f && outV < 0.98f;
+}
+
 Vec2 sampleByT(const RoadSegment& road, float t) {
     if (road.controlPoints.empty()) return {};
     if (road.controlPoints.size() == 1) return road.controlPoints.front();
@@ -57,12 +77,14 @@ void Simulation::resetDefaultRoad() {
     road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
     rebuildRoadCache(road);
     m_network.roads = {road};
+    rebuildCrossroads();
 }
 
 void Simulation::rebuildRoadCaches() {
     for (RoadSegment& road : m_network.roads) {
         rebuildRoadCache(road);
     }
+    rebuildCrossroads();
 }
 
 void Simulation::rebuildRoadCache(RoadSegment& road) {
@@ -81,6 +103,58 @@ void Simulation::rebuildRoadCache(RoadSegment& road) {
     road.length = len;
 }
 
+void Simulation::rebuildCrossroads() {
+    m_network.crossroads.clear();
+
+    for (std::size_t roadId = 0; roadId < m_network.roads.size(); ++roadId) {
+        const RoadSegment& road = m_network.roads[roadId];
+        if (road.length <= 1.0f || road.arcLengthCache.size() < 8) continue;
+
+        const int samples = std::max(32, static_cast<int>(road.controlPoints.size()) * std::max(12, m_config.arcLengthSamplesPerSpan));
+        struct Sample { Vec2 p; float s; };
+        std::vector<Sample> centerline;
+        centerline.reserve(static_cast<std::size_t>(samples + 1));
+        for (int i = 0; i <= samples; ++i) {
+            const float s = road.length * static_cast<float>(i) / static_cast<float>(samples);
+            centerline.push_back({sampleRoadCenter(roadId, s), s});
+        }
+
+        for (int a = 0; a < samples; ++a) {
+            for (int b = a + 2; b < samples; ++b) {
+                if (a == 0 && b == samples - 1) continue; // same closed-loop seam
+
+                float u = 0.0f;
+                float v = 0.0f;
+                if (!lineIntersection(centerline[a].p, centerline[a + 1].p, centerline[b].p, centerline[b + 1].p, u, v)) continue;
+
+                const float sA = centerline[a].s + (centerline[a + 1].s - centerline[a].s) * u;
+                const float sB = centerline[b].s + (centerline[b + 1].s - centerline[b].s) * v;
+                if (std::fabs(sA - sB) < m_config.crossroadYieldLookahead) continue;
+                if (road.length - std::fabs(sA - sB) < m_config.crossroadYieldLookahead) continue;
+
+                const Vec2 pos = centerline[a].p + (centerline[a + 1].p - centerline[a].p) * u;
+
+                bool merged = false;
+                for (Crossroad& existing : m_network.crossroads) {
+                    if ((existing.position - pos).lengthSquared() < 28.0f * 28.0f) {
+                        existing.approaches.push_back({roadId, wrapDistance(sA, road.length)});
+                        existing.approaches.push_back({roadId, wrapDistance(sB, road.length)});
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged) {
+                    Crossroad crossroad;
+                    crossroad.position = pos;
+                    crossroad.approaches.push_back({roadId, wrapDistance(sA, road.length)});
+                    crossroad.approaches.push_back({roadId, wrapDistance(sB, road.length)});
+                    m_network.crossroads.push_back(std::move(crossroad));
+                }
+            }
+        }
+    }
+}
+
 Vec2 Simulation::sampleRoadCenter(std::size_t roadId, float s) const {
     const RoadSegment& road = m_network.roads[roadId];
     if (road.length <= 0.0f || road.arcLengthCache.size() < 2) return sampleByT(road, 0.0f);
@@ -97,17 +171,34 @@ Vec2 Simulation::sampleRoadCenter(std::size_t roadId, float s) const {
     return sampleByT(road, t0 + (t1 - t0) * alpha);
 }
 
+Vec2 Simulation::sampleRoadTangent(std::size_t roadId, int laneId, float s) const {
+    const RoadSegment& road = m_network.roads[roadId];
+    const float eps = 0.5f;
+    const Vec2 p0 = sampleRoadCenter(roadId, s - eps);
+    const Vec2 p1 = sampleRoadCenter(roadId, s + eps);
+    Vec2 tangent = p1 - p0;
+    if (tangent.lengthSquared() < 1e-6f) tangent = {1.0f, 0.0f};
+    else tangent = tangent.normalized();
+    if (road.lanes[static_cast<std::size_t>(laneId)].direction < 0) tangent = tangent * -1.0f;
+    return tangent;
+}
+
 Vec2 Simulation::sampleLanePosition(std::size_t roadId, int laneId, float s) const {
     const RoadSegment& road = m_network.roads[roadId];
     const Vec2 c = sampleRoadCenter(roadId, s);
-    const float eps = 0.2f;
+
+    // Use the centerline tangent for lane offsets. sampleRoadTangent() includes
+    // the lane travel direction, so the opposite-direction lane was being flipped
+    // back onto the same physical side of the road.
+    const float eps = 0.5f;
     const Vec2 p0 = sampleRoadCenter(roadId, s - eps);
     const Vec2 p1 = sampleRoadCenter(roadId, s + eps);
-    Vec2 t = p1 - p0;
-    if (t.lengthSquared() < 1e-6f) t = {1.0f, 0.0f};
-    else t = t.normalized();
-    const Vec2 n{-t.y, t.x};
-    return c + n * road.lanes[static_cast<std::size_t>(laneId)].lateralOffset;
+    Vec2 centerTangent = p1 - p0;
+    if (centerTangent.lengthSquared() < 1e-6f) centerTangent = {1.0f, 0.0f};
+    else centerTangent = centerTangent.normalized();
+
+    const Vec2 leftNormal{-centerTangent.y, centerTangent.x};
+    return c + leftNormal * road.lanes[static_cast<std::size_t>(laneId)].lateralOffset;
 }
 
 float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const {
@@ -146,45 +237,102 @@ void Simulation::generateTraffic() {
     clearTraffic();
 
     std::vector<std::pair<std::size_t, int>> spawnLanes;
-    float totalLaneLength = 0.0f;
     for (std::size_t roadId = 0; roadId < m_network.roads.size(); ++roadId) {
         const RoadSegment& road = m_network.roads[roadId];
         if (road.length <= 1.0f || road.lanes.empty()) continue;
         for (std::size_t laneId = 0; laneId < road.lanes.size(); ++laneId) {
             spawnLanes.emplace_back(roadId, static_cast<int>(laneId));
-            totalLaneLength += road.length;
         }
     }
 
-    if (spawnLanes.empty() || totalLaneLength <= 0.0f) return;
+    if (spawnLanes.empty()) return;
 
+    const std::size_t laneCount = spawnLanes.size();
+    std::vector<std::size_t> perLaneCount(laneCount, 0);
     for (std::size_t i = 0; i < m_config.vehicleCount; ++i) {
-        const float target = (static_cast<float>(i) + 0.5f) /
-                             std::max(1.0f, static_cast<float>(m_config.vehicleCount)) * totalLaneLength;
-        float cursor = 0.0f;
-        std::size_t roadId = spawnLanes.back().first;
-        int laneId = spawnLanes.back().second;
-        float spawnS = 0.0f;
+        ++perLaneCount[i % laneCount];
+    }
 
-        for (const auto& laneRef : spawnLanes) {
-            const RoadSegment& road = m_network.roads[laneRef.first];
-            if (target <= cursor + road.length) {
-                roadId = laneRef.first;
-                laneId = laneRef.second;
-                spawnS = target - cursor;
-                break;
+    for (std::size_t laneSlot = 0; laneSlot < laneCount; ++laneSlot) {
+        const auto& laneRef = spawnLanes[laneSlot];
+        const RoadSegment& road = m_network.roads[laneRef.first];
+        const std::size_t count = perLaneCount[laneSlot];
+        if (count == 0 || road.length <= 1.0f) continue;
+
+        for (std::size_t i = 0; i < count; ++i) {
+            Vehicle v;
+            v.roadId = laneRef.first;
+            v.laneId = laneRef.second;
+            v.s = (static_cast<float>(i) + 0.5f) / static_cast<float>(count) * road.length;
+            v.speed = Random::range(m_config.spawnSpeedMin, m_config.spawnSpeedMax);
+            m_vehicles.push_back(v);
+        }
+    }
+}
+
+float Simulation::distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const {
+    const RoadSegment& road = m_network.roads[vehicle.roadId];
+    if (road.length <= 0.0f) return 999999.0f;
+
+    const int dir = road.lanes[static_cast<std::size_t>(vehicle.laneId)].direction;
+    if (dir >= 0) return wrapDistance(crossroadS - vehicle.s, road.length);
+    return wrapDistance(vehicle.s - crossroadS, road.length);
+}
+
+bool Simulation::hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const {
+    for (const Crossroad& crossroad : m_network.crossroads) {
+        float ownApproachS = 0.0f;
+        float ownDistance = 999999.0f;
+        bool approaching = false;
+        for (const CrossroadApproach& approach : crossroad.approaches) {
+            if (approach.roadId != vehicle.roadId) continue;
+            const float distance = distanceToCrossroadAlongLane(vehicle, approach.s);
+            if (distance < ownDistance) {
+                ownDistance = distance;
+                ownApproachS = approach.s;
+                approaching = true;
             }
-            cursor += road.length;
         }
 
-        const RoadSegment& road = m_network.roads[roadId];
-        Vehicle v;
-        v.roadId = roadId;
-        v.laneId = laneId;
-        v.s = std::clamp(spawnS, 0.0f, road.length);
-        v.speed = Random::range(m_config.spawnSpeedMin, m_config.spawnSpeedMax);
-        m_vehicles.push_back(v);
+        if (!approaching || ownDistance > m_config.crossroadYieldLookahead) continue;
+
+        const Vec2 ownForward = sampleRoadTangent(vehicle.roadId, vehicle.laneId, ownApproachS);
+        const Vec2 ownRight{ownForward.y, -ownForward.x};
+
+        for (std::size_t otherIndex = 0; otherIndex < m_vehicles.size(); ++otherIndex) {
+            if (otherIndex == vehicleIndex) continue;
+            const Vehicle& other = m_vehicles[otherIndex];
+
+            float otherApproachS = 0.0f;
+            float otherDistance = 999999.0f;
+            bool otherApproaching = false;
+            for (const CrossroadApproach& approach : crossroad.approaches) {
+                if (approach.roadId != other.roadId) continue;
+                const float distance = distanceToCrossroadAlongLane(other, approach.s);
+                if (distance < otherDistance) {
+                    otherDistance = distance;
+                    otherApproachS = approach.s;
+                    otherApproaching = true;
+                }
+            }
+
+            if (!otherApproaching || otherDistance > m_config.crossroadYieldLookahead) continue;
+
+            if (otherDistance < m_config.crossroadStopRadius * 0.35f &&
+                other.speed > vehicle.speed + 0.5f) {
+                continue;
+            }
+
+            const Vec2 otherForward = sampleRoadTangent(other.roadId, other.laneId, otherApproachS);
+            const float rightness = dot(ownRight, otherForward);
+            const float parallel = std::fabs(dot(ownForward, otherForward));
+            if (rightness > 0.20f && parallel < 0.92f) {
+                return true;
+            }
+        }
     }
+
+    return false;
 }
 
 void Simulation::update(float dt) {
@@ -193,7 +341,52 @@ void Simulation::update(float dt) {
         Vehicle& v = next[i];
         const RoadSegment& road = m_network.roads[v.roadId];
         const int dir = road.lanes[static_cast<std::size_t>(v.laneId)].direction;
-        v.acceleration = idmAcceleration(v, nullptr, 9999.0f);
+
+        bool atYieldZone = false;
+        for (const Crossroad& crossroad : m_network.crossroads) {
+            for (const CrossroadApproach& approach : crossroad.approaches) {
+                if (approach.roadId != v.roadId) continue;
+                const float distance = distanceToCrossroadAlongLane(v, approach.s);
+                if (distance <= m_config.crossroadYieldLookahead) {
+                    atYieldZone = true;
+                    break;
+                }
+            }
+            if (atYieldZone) break;
+        }
+
+        const bool rightSideThreat = hasRightSideThreatAtCrossroad(m_vehicles[i], i);
+        bool shouldStop = false;
+
+        if (atYieldZone && rightSideThreat && v.crossroadReleaseTime <= 0.0f) {
+            v.crossroadWaitTime += dt;
+            v.crossroadClearTime = 0.0f;
+            shouldStop = v.crossroadWaitTime < m_config.crossroadMaxWait;
+        } else if (atYieldZone && v.crossroadWaitTime > 0.0f && v.crossroadReleaseTime <= 0.0f) {
+            v.crossroadClearTime += dt;
+            if (v.crossroadClearTime < m_config.crossroadClearDelay) {
+                shouldStop = true;
+            } else {
+                v.crossroadReleaseTime = 1.0f;
+                v.crossroadWaitTime = 0.0f;
+                v.crossroadClearTime = 0.0f;
+            }
+        } else if (!atYieldZone) {
+            v.crossroadWaitTime = 0.0f;
+            v.crossroadClearTime = 0.0f;
+            v.crossroadReleaseTime = 0.0f;
+        }
+
+        if (v.crossroadReleaseTime > 0.0f) {
+            v.crossroadReleaseTime = std::max(0.0f, v.crossroadReleaseTime - dt);
+        }
+
+        if (shouldStop) {
+            v.acceleration = -std::max(m_config.comfortableBraking, v.speed / std::max(0.05f, dt));
+        } else {
+            v.acceleration = idmAcceleration(v, nullptr, 9999.0f);
+        }
+
         v.speed = std::max(0.0f, v.speed + v.acceleration * dt);
         v.s += static_cast<float>(dir) * v.speed * dt;
         if (v.s >= road.length) {
@@ -219,5 +412,6 @@ void Simulation::update(float dt) {
     }
     m_vehicles = std::move(next);
 }
+
 
 } // namespace traffic_flow_cpu
