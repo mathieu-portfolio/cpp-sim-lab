@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 #include <random/Random.hpp>
 
 namespace traffic_flow_cpu {
@@ -28,30 +29,6 @@ void Simulation::reset() {
     m_wrapCountAccumulator = 0;
     m_queueAccumulator = 0.0f;
     m_queueSamples = 0.0f;
-}
-
-std::size_t Simulation::findLeaderIndex(std::size_t vehicleIndex, int lane) const {
-    const Vehicle& vehicle = m_vehicles[vehicleIndex];
-    float bestDelta = std::numeric_limits<float>::max();
-    std::size_t bestIndex = vehicleIndex;
-
-    for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
-        if (i == vehicleIndex || m_vehicles[i].lane != lane) {
-            continue;
-        }
-
-        float delta = m_vehicles[i].s - vehicle.s;
-        if (delta <= 0.0f) {
-            delta += m_config.roadLength;
-        }
-
-        if (delta < bestDelta) {
-            bestDelta = delta;
-            bestIndex = i;
-        }
-    }
-
-    return bestIndex;
 }
 
 float Simulation::gapToLeader(std::size_t followerIndex, std::size_t leaderIndex) const {
@@ -80,7 +57,7 @@ float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader,
         const float desiredGap = m_config.minimumGap +
             vehicle.speed * m_config.desiredTimeHeadway +
             (vehicle.speed * deltaV) / std::max(0.1f, sqrtTerm);
-        interactionTerm = (desiredGap / std::max(0.5f, gap));
+        interactionTerm = std::max(0.0f, desiredGap / std::max(0.5f, gap));
         interactionTerm *= interactionTerm;
     }
 
@@ -93,33 +70,83 @@ bool Simulation::shouldChangeLane(std::size_t vehicleIndex, int targetLane) cons
     }
 
     const Vehicle& vehicle = m_vehicles[vehicleIndex];
-    const std::size_t currentLeaderIndex = findLeaderIndex(vehicleIndex, vehicle.lane);
-    const float currentGap = gapToLeader(vehicleIndex, currentLeaderIndex);
-    const float currentAcc = idmAcceleration(vehicle, &m_vehicles[currentLeaderIndex], currentGap);
+    const auto findNeighborsInLane = [&](int lane) {
+        std::size_t leader = vehicleIndex;
+        std::size_t follower = vehicleIndex;
+        float minAhead = std::numeric_limits<float>::max();
+        float minBehind = std::numeric_limits<float>::max();
+        for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
+            if (i == vehicleIndex || m_vehicles[i].lane != lane) {
+                continue;
+            }
+            float ahead = m_vehicles[i].s - vehicle.s;
+            if (ahead <= 0.0f) {
+                ahead += m_config.roadLength;
+            }
+            if (ahead < minAhead) {
+                minAhead = ahead;
+                leader = i;
+            }
+            float behind = vehicle.s - m_vehicles[i].s;
+            if (behind <= 0.0f) {
+                behind += m_config.roadLength;
+            }
+            if (behind < minBehind) {
+                minBehind = behind;
+                follower = i;
+            }
+        }
+        return std::pair<std::size_t, std::size_t>{leader, follower};
+    };
 
-    const std::size_t targetLeaderIndex = findLeaderIndex(vehicleIndex, targetLane);
+    const auto [currentLeaderIndex, currentFollowerIndex] = findNeighborsInLane(vehicle.lane);
+    const float currentGap = gapToLeader(vehicleIndex, currentLeaderIndex);
+    const float currentAcc = idmAcceleration(
+        vehicle,
+        (currentLeaderIndex == vehicleIndex) ? nullptr : &m_vehicles[currentLeaderIndex],
+        currentGap
+    );
+
+    const auto [targetLeaderIndex, targetFollowerIndex] = findNeighborsInLane(targetLane);
     const float targetGap = gapToLeader(vehicleIndex, targetLeaderIndex);
-    const float targetAcc = idmAcceleration(vehicle, &m_vehicles[targetLeaderIndex], targetGap);
+    const float targetAcc = idmAcceleration(
+        vehicle,
+        (targetLeaderIndex == vehicleIndex) ? nullptr : &m_vehicles[targetLeaderIndex],
+        targetGap
+    );
 
     if (targetAcc < currentAcc + m_config.laneChangeThreshold) {
         return false;
     }
 
-    for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
-        if (i == vehicleIndex || m_vehicles[i].lane != targetLane) {
-            continue;
+    if (targetFollowerIndex != vehicleIndex) {
+        const Vehicle& targetFollower = m_vehicles[targetFollowerIndex];
+        const std::size_t oldLeader = findNeighborsInLane(targetLane).first;
+        const float oldGap = gapToLeader(targetFollowerIndex, oldLeader);
+        const float oldAcc = idmAcceleration(
+            targetFollower,
+            (oldLeader == targetFollowerIndex) ? nullptr : &m_vehicles[oldLeader],
+            oldGap
+        );
+        const float newGap = std::max(0.5f, vehicle.s - targetFollower.s > 0.0f ? vehicle.s - targetFollower.s : vehicle.s - targetFollower.s + m_config.roadLength);
+        const float newAcc = idmAcceleration(targetFollower, &vehicle, std::max(0.5f, newGap - vehicle.length));
+        if (newAcc < -m_config.safeDecelerationLimit || (newAcc - oldAcc) < -m_config.laneChangeThreshold) {
+            return false;
         }
+    }
 
-        float gapBehind = vehicle.s - m_vehicles[i].s;
-        if (gapBehind <= 0.0f) {
-            gapBehind += m_config.roadLength;
-        }
-
-        if (gapBehind < 24.0f) {
-            const float followerAcc = idmAcceleration(m_vehicles[i], &vehicle, std::max(0.5f, gapBehind - vehicle.length));
-            if (followerAcc < -m_config.safeDecelerationLimit) {
-                return false;
-            }
+    if (currentFollowerIndex != vehicleIndex) {
+        const Vehicle& currentFollower = m_vehicles[currentFollowerIndex];
+        const float oldGap = gapToLeader(currentFollowerIndex, vehicleIndex);
+        const float oldAcc = idmAcceleration(currentFollower, &vehicle, oldGap);
+        const float newGap = gapToLeader(currentFollowerIndex, currentLeaderIndex);
+        const float newAcc = idmAcceleration(
+            currentFollower,
+            (currentLeaderIndex == currentFollowerIndex) ? nullptr : &m_vehicles[currentLeaderIndex],
+            newGap
+        );
+        if ((newAcc - oldAcc) < -m_config.laneChangeThreshold) {
+            return false;
         }
     }
 
@@ -144,11 +171,39 @@ void Simulation::update(float dt) {
         }
     }
 
+    m_vehicles = next;
+
+    std::vector<std::vector<std::size_t>> laneVehicleIndices(static_cast<std::size_t>(m_config.laneCount));
+    for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
+        laneVehicleIndices[static_cast<std::size_t>(m_vehicles[i].lane)].push_back(i);
+    }
+    for (auto& laneIndices : laneVehicleIndices) {
+        std::sort(laneIndices.begin(), laneIndices.end(), [&](std::size_t a, std::size_t b) {
+            return m_vehicles[a].s < m_vehicles[b].s;
+        });
+    }
+
+    std::vector<std::size_t> leaders(m_vehicles.size());
+    for (const auto& laneIndices : laneVehicleIndices) {
+        if (laneIndices.empty()) {
+            continue;
+        }
+        if (laneIndices.size() == 1) {
+            leaders[laneIndices.front()] = laneIndices.front();
+            continue;
+        }
+        for (std::size_t k = 0; k < laneIndices.size(); ++k) {
+            const std::size_t follower = laneIndices[k];
+            const std::size_t leader = laneIndices[(k + 1) % laneIndices.size()];
+            leaders[follower] = leader;
+        }
+    }
+
     float speedSum = 0.0f;
     std::size_t slowCount = 0;
 
     for (std::size_t i = 0; i < next.size(); ++i) {
-        const std::size_t leader = findLeaderIndex(i, next[i].lane);
+        const std::size_t leader = leaders[i];
         const float gap = gapToLeader(i, leader);
         const Vehicle* leaderPtr = (leader == i) ? nullptr : &m_vehicles[leader];
 
