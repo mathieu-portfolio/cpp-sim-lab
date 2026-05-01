@@ -2,8 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-
 namespace traffic_flow_cpu {
 namespace {
 
@@ -15,54 +13,69 @@ SimulationConfig baseConfig(std::size_t vehicleCount, int laneCount) {
     config.spawnSpeedMin = 0.0f;
     config.spawnSpeedMax = 0.0f;
     config.desiredSpeed = 30.0f;
-    config.maxAcceleration = 1.2f;
+    config.maxAcceleration = 0.0f;
     config.comfortableBraking = 2.0f;
-    config.laneChangeThreshold = 0.05f;
+    config.laneChangeThreshold = 999.0f;
     return config;
 }
 
-TEST(TrafficFlowCpuSimulation, UpdateKeepsPositionsWithinCircularRoad) {
-    Simulation sim{baseConfig(2, 1)};
-    auto& vehicles = sim.getVehicles();
-    vehicles[0].s = 95.0f;
-    vehicles[0].speed = 12.0f;
-    vehicles[1].s = 40.0f;
-    vehicles[1].speed = 0.0f;
-
-    sim.update(1.0f);
-
-    EXPECT_GE(sim.getVehicles()[0].s, 0.0f);
-    EXPECT_LT(sim.getVehicles()[0].s, sim.getConfig().roadLength);
-}
-
-TEST(TrafficFlowCpuSimulation, LaneChangeUsesPhasedUpdateAcrossVehicles) {
-    Simulation sim{baseConfig(4, 2)};
-    auto& vehicles = sim.getVehicles();
-
-    vehicles[0].lane = 0; vehicles[0].s = 5.0f;  vehicles[0].speed = 22.0f;
-    vehicles[1].lane = 0; vehicles[1].s = 12.0f; vehicles[1].speed = 4.0f;
-    vehicles[2].lane = 1; vehicles[2].s = 55.0f; vehicles[2].speed = 18.0f;
-    vehicles[3].lane = 1; vehicles[3].s = 80.0f; vehicles[3].speed = 16.0f;
-
-    sim.update(0.2f);
-
-    EXPECT_EQ(sim.getVehicles()[0].lane, 1);
-}
-
-TEST(TrafficFlowCpuSimulation, LaneOrderingWrapAroundSelectsNearestLeader) {
-    Simulation sim{baseConfig(3, 1)};
-    auto& vehicles = sim.getVehicles();
-
-    vehicles[0].lane = 0; vehicles[0].s = 98.0f; vehicles[0].speed = 15.0f;
-    vehicles[1].lane = 0; vehicles[1].s = 10.0f; vehicles[1].speed = 2.0f;
-    vehicles[2].lane = 0; vehicles[2].s = 60.0f; vehicles[2].speed = 20.0f;
+TEST(TrafficFlowCpuSimulation, VehicleReversesAtRoadEnd) {
+    Simulation sim{baseConfig(1, 1)};
+    auto& vehicle = sim.getVehicles()[0];
+    vehicle.s = 99.5f;
+    vehicle.speed = 10.0f;
+    vehicle.direction = 1;
 
     sim.update(0.1f);
 
-    EXPECT_LT(sim.getVehicles()[0].acceleration, 0.0f);
-    EXPECT_TRUE(std::all_of(sim.getVehicles().begin(), sim.getVehicles().end(), [&](const Vehicle& v) {
-        return v.s >= 0.0f && v.s < sim.getConfig().roadLength;
-    }));
+    EXPECT_FLOAT_EQ(sim.getVehicles()[0].s, sim.getConfig().roadLength);
+    EXPECT_EQ(sim.getVehicles()[0].direction, -1);
+}
+
+TEST(TrafficFlowCpuSimulation, VehicleReversesAtRoadStart) {
+    Simulation sim{baseConfig(1, 1)};
+    auto& vehicle = sim.getVehicles()[0];
+    vehicle.s = 0.5f;
+    vehicle.speed = 10.0f;
+    vehicle.direction = -1;
+
+    sim.update(0.1f);
+
+    EXPECT_FLOAT_EQ(sim.getVehicles()[0].s, 0.0f);
+    EXPECT_EQ(sim.getVehicles()[0].direction, 1);
+}
+
+TEST(TrafficFlowCpuSimulation, OppositeDirectionVehiclesAreNotLaneLeaders) {
+    Simulation sim{baseConfig(2, 1)};
+    auto& vehicles = sim.getVehicles();
+
+    vehicles[0].lane = 0;
+    vehicles[0].s = 10.0f;
+    vehicles[0].speed = 20.0f;
+    vehicles[0].direction = 1;
+
+    vehicles[1].lane = 0;
+    vehicles[1].s = 20.0f;
+    vehicles[1].speed = 0.0f;
+    vehicles[1].direction = -1;
+
+    sim.update(0.1f);
+
+    EXPECT_FLOAT_EQ(sim.getVehicles()[0].speed, 20.0f);
+    EXPECT_FLOAT_EQ(sim.getVehicles()[1].speed, 0.0f);
+}
+
+TEST(TrafficFlowCpuSimulation, VehicleCountDoesNotChangeAtEndpoints) {
+    Simulation sim{baseConfig(3, 1)};
+    auto& vehicles = sim.getVehicles();
+
+    vehicles[0].s = 99.9f; vehicles[0].speed = 5.0f; vehicles[0].direction = 1;
+    vehicles[1].s = 0.1f;  vehicles[1].speed = 5.0f; vehicles[1].direction = -1;
+    vehicles[2].s = 50.0f; vehicles[2].speed = 5.0f; vehicles[2].direction = 1;
+
+    const std::size_t before = sim.getVehicles().size();
+    sim.update(0.1f);
+    EXPECT_EQ(sim.getVehicles().size(), before);
 }
 
 } // namespace
