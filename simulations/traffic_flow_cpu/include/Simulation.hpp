@@ -63,6 +63,7 @@ struct SimulationConfig {
     float crossroadMaxWait = 2.0f;
     float spawnCrossroadClearance = 36.0f;
     float spawnMinimumGap = 18.0f;
+    float physicsMinimumGap = 3.0f;
     int arcLengthSamplesPerSpan = 24;
     simfw::simulation::SimulationExecutionConfig execution{};
 };

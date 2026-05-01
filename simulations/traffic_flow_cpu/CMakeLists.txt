@@ -1,5 +1,6 @@
 add_library(traffic_flow_cpu_core
     src/Simulation.cpp
+    src/TrafficPhysics.cpp
 )
 
 target_include_directories(traffic_flow_cpu_core

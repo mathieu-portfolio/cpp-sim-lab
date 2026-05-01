@@ -1,4 +1,5 @@
 #include "Simulation.hpp"
+#include "TrafficPhysics.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -266,23 +267,43 @@ void Simulation::generateTraffic() {
         std::vector<float> placedS;
         placedS.reserve(count);
 
-        const std::size_t candidateCount = std::max<std::size_t>(count * 8, 32);
-        for (std::size_t candidate = 0; candidate < candidateCount && placedS.size() < count; ++candidate) {
-            const float s = (static_cast<float>(candidate) + 0.5f) / static_cast<float>(candidateCount) * road.length;
-            if (isInsideCrossroadSpawnClearance(laneRef.first, s)) continue;
+        // Walk the whole lane at the requested spacing and skip only the
+        // forbidden crossroad ranges. Do not stop generation when a crossroad
+        // is met: traffic resumes automatically on the next regular-road
+        // portion.
+        auto tryPlace = [&](float s) {
+            if (isInsideCrossroadSpawnClearance(laneRef.first, s)) return;
 
-            bool tooClose = false;
+            Vehicle candidate;
+            candidate.roadId = laneRef.first;
+            candidate.laneId = laneRef.second;
+            candidate.s = s;
+            candidate.length = 4.5f;
+
+            std::vector<Vehicle> alreadyPlaced = m_vehicles;
+            alreadyPlaced.reserve(m_vehicles.size() + placedS.size());
             for (float existingS : placedS) {
-                const float forward = wrapDistance(s - existingS, road.length);
-                const float backward = wrapDistance(existingS - s, road.length);
-                if (std::min(forward, backward) < spacing) {
-                    tooClose = true;
-                    break;
-                }
+                Vehicle placed;
+                placed.roadId = laneRef.first;
+                placed.laneId = laneRef.second;
+                placed.s = existingS;
+                placed.length = candidate.length;
+                alreadyPlaced.push_back(placed);
             }
-            if (tooClose) continue;
 
-            placedS.push_back(s);
+            if (TrafficPhysics::canSpawnVehicleAt(*this, alreadyPlaced, candidate, spacing)) {
+                placedS.push_back(s);
+            }
+        };
+
+        for (float s = spacing * 0.5f; s < road.length && placedS.size() < count; s += spacing) {
+            tryPlace(s);
+        }
+
+        // Second pass with a different phase to fill valid road portions that
+        // were skipped because the first phase landed inside crossroad zones.
+        for (float s = spacing; s < road.length && placedS.size() < count; s += spacing) {
+            tryPlace(s);
         }
 
         for (float s : placedS) {
@@ -420,31 +441,47 @@ void Simulation::update(float dt) {
         const int dir = road.lanes[static_cast<std::size_t>(v.laneId)].direction;
 
         bool atYieldZone = false;
+        bool insideCrossroad = false;
         for (const Crossroad& crossroad : m_network.crossroads) {
             for (const CrossroadApproach& approach : crossroad.approaches) {
                 if (approach.roadId != v.roadId) continue;
                 const float distance = distanceToCrossroadAlongLane(v, approach.s);
+
                 if (distance <= m_config.crossroadYieldLookahead) {
                     atYieldZone = true;
-                    break;
+                }
+
+                // Once the vehicle has entered the crossroad body, it is
+                // committed. It must keep crossing and must not stop for
+                // right-priority anymore. It can still slow/stop because of a
+                // leader directly in front of it.
+                if (distance <= m_config.crossroadStopRadius ||
+                    distance >= road.length - m_config.crossroadStopRadius) {
+                    insideCrossroad = true;
                 }
             }
-            if (atYieldZone) break;
         }
 
-        const bool rightSideThreat = hasRightSideThreatAtCrossroad(m_vehicles[i], i);
+        if (insideCrossroad) {
+            v.crossroadReleaseTime = std::max(v.crossroadReleaseTime, m_config.crossroadClearDelay);
+            v.crossroadWaitTime = 0.0f;
+            v.crossroadClearTime = 0.0f;
+        }
+
+        const bool committedToCross = insideCrossroad || v.crossroadReleaseTime > 0.0f;
+        const bool rightSideThreat = !committedToCross && hasRightSideThreatAtCrossroad(m_vehicles[i], i);
         bool shouldStop = false;
 
-        if (atYieldZone && rightSideThreat && v.crossroadReleaseTime <= 0.0f) {
+        if (atYieldZone && rightSideThreat) {
             v.crossroadWaitTime += dt;
             v.crossroadClearTime = 0.0f;
             shouldStop = v.crossroadWaitTime < m_config.crossroadMaxWait;
-        } else if (atYieldZone && v.crossroadWaitTime > 0.0f && v.crossroadReleaseTime <= 0.0f) {
+        } else if (atYieldZone && v.crossroadWaitTime > 0.0f && !committedToCross) {
             v.crossroadClearTime += dt;
             if (v.crossroadClearTime < m_config.crossroadClearDelay) {
                 shouldStop = true;
             } else {
-                v.crossroadReleaseTime = 1.0f;
+                v.crossroadReleaseTime = m_config.crossroadClearDelay;
                 v.crossroadWaitTime = 0.0f;
                 v.crossroadClearTime = 0.0f;
             }
@@ -490,6 +527,13 @@ void Simulation::update(float dt) {
             ++m_wrapCountAccumulator;
         }
     }
+    TrafficPhysics::enforceNoOverlap(
+        *this,
+        m_vehicles,
+        next,
+        std::max(m_config.minimumGap, m_config.physicsMinimumGap),
+        dt);
+
     m_vehicles = std::move(next);
 }
 
