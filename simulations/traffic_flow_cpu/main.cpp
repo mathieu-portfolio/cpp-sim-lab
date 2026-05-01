@@ -3,6 +3,7 @@
 
 #include <raylib.h>
 #include <ui/SimulationControls.hpp>
+#include <ui/SimulationFrameHelpers.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
 
