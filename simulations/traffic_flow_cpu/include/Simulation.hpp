@@ -7,6 +7,7 @@
 #include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -47,6 +48,7 @@ struct SimulationConfig {
     float spawnSpeedMin = 8.0f;
     float spawnSpeedMax = 22.0f;
     int arcLengthSamplesPerSpan = 24;
+    float roadGridCellSize = 20.0f;
     simfw::simulation::SimulationExecutionConfig execution{};
 };
 
@@ -72,6 +74,11 @@ public:
 
     Vec2 sampleRoadCenter(std::size_t roadId, float s) const;
     Vec2 sampleLanePosition(std::size_t roadId, int laneId, float s) const;
+    bool paintRoadAtWorld(Vec2 worldPosition, float worldRadius, bool hasRoad);
+    bool roadCellOccupied(std::size_t x, std::size_t y) const;
+    std::size_t roadGridWidth() const { return m_roadGridWidth; }
+    std::size_t roadGridHeight() const { return m_roadGridHeight; }
+    float roadGridCellSize() const { return m_config.roadGridCellSize; }
 
 private:
     SimulationConfig m_config;
@@ -83,8 +90,12 @@ private:
     std::size_t m_wrapCountAccumulator = 0;
     float m_queueAccumulator = 0.0f;
     float m_queueSamples = 0.0f;
+    std::size_t m_roadGridWidth = 0;
+    std::size_t m_roadGridHeight = 0;
+    std::vector<std::uint8_t> m_roadCells;
 
     void rebuildRoadCache(RoadSegment& road);
+    void rebuildRoadGridBounds();
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
 };
 
