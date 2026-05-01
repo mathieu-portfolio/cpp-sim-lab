@@ -23,31 +23,43 @@ Current dependencies:
 
 Set VCPKG_ROOT before configuring:
 
+```bash
 export VCPKG_ROOT=/c/Users/Mathieu/vcpkg
+```
 
 On Windows (Git Bash), prefer Ninja:
 
+```bash
 cmake --preset debug-ninja
 cmake --build --preset debug-ninja
+```
 
 ### Build & Run
 
 Build and run a simulation:
 
+```bash
 scripts/run_sim.sh crowd_cpu debug-ninja --build
+```
 
 Or using default preset:
 
+```bash
 scripts/run_sim.sh crowd_cpu --build
+```
 
 If raylib is not found:
 
+```bash
 "$VCPKG_ROOT/vcpkg.exe" install raylib:x64-windows
+```
 
 Then clean and reconfigure:
 
+```bash
 rm -rf build/debug-ninja
 cmake --preset debug-ninja
+```
 
 ## Structure
 
