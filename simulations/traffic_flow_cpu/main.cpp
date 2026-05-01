@@ -1,7 +1,12 @@
 #include "Simulation.hpp"
+#include "SimulationUiTraits.hpp"
 
 #include <raylib.h>
+#include <ui/SimulationControls.hpp>
+#include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
+
+#include <tuple>
 
 using namespace traffic_flow_cpu;
 
@@ -15,14 +20,23 @@ int main() {
     SetTargetFPS(60);
 
     Simulation sim;
+    simfw::ui::SimulationControls controls;
 
     while (!WindowShouldClose()) {
-        sim.update(GetFrameTime());
+        const float dt = GetFrameTime();
+        auto& config = sim.getConfig();
+        constexpr std::size_t paramCount = std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
+        simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
+        simfw::ui::handleTunableAdjustment(config, controls, dt);
+
+        if (simfw::ui::shouldAdvanceSimulation(controls)) {
+            sim.update(dt);
+            simfw::ui::finishSimulationStep(controls);
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
 
-        const auto& config = sim.getConfig();
         const auto& vehicles = sim.getVehicles();
         const auto& stats = sim.getStats();
 
@@ -44,10 +58,13 @@ int main() {
             DrawRectangleV({x - 6.0f, y - 5.0f}, {12.0f, 10.0f}, color);
         }
 
-        DrawText(TextFormat("Vehicles: %d", static_cast<int>(vehicles.size())), 30, 24, 20, RAYWHITE);
-        DrawText(TextFormat("Throughput (veh/s): %.2f", stats.throughputPerSecond), 30, 52, 20, RAYWHITE);
-        DrawText(TextFormat("Average speed (m/s): %.2f", stats.averageSpeed), 30, 80, 20, RAYWHITE);
-        DrawText(TextFormat("Average queue length: %.2f", stats.averageQueueLength), 30, 108, 20, RAYWHITE);
+        simfw::ui::TextCursor cursor{30, 24, 20};
+        cursor.draw("traffic_flow_cpu", 20, RAYWHITE);
+        cursor.draw(controls.paused ? "Paused" : "Running");
+        cursor.draw(TextFormat("Vehicles: %d", static_cast<int>(vehicles.size())));
+        simfw::ui::drawStats(cursor, stats);
+        cursor.gap(6);
+        simfw::ui::drawTunables(cursor, config, controls.selectedParameter);
 
         EndDrawing();
     }
