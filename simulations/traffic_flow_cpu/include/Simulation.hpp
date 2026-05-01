@@ -23,7 +23,14 @@ struct RoadConnection {
 };
 
 struct RoadSegment {
+    // Raw points painted by the user. They are editing data, not the drivable curve.
     std::vector<Vec2> controlPoints;
+
+    // Smoothed closed-loop points generated from controlPoints and used for
+    // all sampling, tangent, crossroad and vehicle calculations. Keeping this
+    // separate prevents brush spacing/corner artifacts from affecting traffic.
+    std::vector<Vec2> drivePoints;
+
     std::vector<Lane> lanes;
     std::vector<float> arcLengthCache;
     float length = 0.0f;
@@ -65,7 +72,9 @@ struct SimulationConfig {
     float spawnCrossroadClearance = 36.0f;
     float spawnMinimumGap = 18.0f;
     float physicsMinimumGap = 3.0f;
-    int arcLengthSamplesPerSpan = 24;
+    float roadSmoothingIterations = 3.0f;
+    float roadSmoothingMinPointDistance = 10.0f;
+    int arcLengthSamplesPerSpan = 32;
     simfw::simulation::SimulationExecutionConfig execution{};
 };
 

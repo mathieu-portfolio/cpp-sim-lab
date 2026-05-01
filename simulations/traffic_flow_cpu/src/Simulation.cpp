@@ -48,11 +48,50 @@ bool lineIntersection(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& d
     return outU > 0.02f && outU < 0.98f && outV > 0.02f && outV < 0.98f;
 }
 
-Vec2 sampleByT(const RoadSegment& road, float t) {
-    if (road.controlPoints.empty()) return {};
-    if (road.controlPoints.size() == 1) return road.controlPoints.front();
+std::vector<Vec2> buildDrivePoints(const std::vector<Vec2>& rawPoints, float smoothingIterations, float minPointDistance) {
+    if (rawPoints.size() < 3) return rawPoints;
 
-    const int pointCount = static_cast<int>(road.controlPoints.size());
+    std::vector<Vec2> cleaned;
+    cleaned.reserve(rawPoints.size());
+    const float minDistanceSq = minPointDistance * minPointDistance;
+
+    for (const Vec2& point : rawPoints) {
+        if (cleaned.empty() || (point - cleaned.back()).lengthSquared() >= minDistanceSq) {
+            cleaned.push_back(point);
+        }
+    }
+
+    if (cleaned.size() > 2 && (cleaned.front() - cleaned.back()).lengthSquared() < minDistanceSq) {
+        cleaned.pop_back();
+    }
+
+    if (cleaned.size() < 3) return cleaned;
+
+    // Chaikin corner cutting on a closed polyline. This removes brush-corner
+    // artifacts before the Catmull-Rom sampler/tangent code ever sees them.
+    std::vector<Vec2> points = cleaned;
+    const int iterations = static_cast<int>(std::round(std::clamp(smoothingIterations, 0.0f, 5.0f)));
+    for (int iteration = 0; iteration < iterations; ++iteration) {
+        std::vector<Vec2> next;
+        next.reserve(points.size() * 2);
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            const Vec2& a = points[i];
+            const Vec2& b = points[(i + 1) % points.size()];
+            next.push_back(a * 0.75f + b * 0.25f);
+            next.push_back(a * 0.25f + b * 0.75f);
+        }
+        points = std::move(next);
+    }
+
+    return points;
+}
+
+Vec2 sampleByT(const RoadSegment& road, float t) {
+    const std::vector<Vec2>& points = road.drivePoints.empty() ? road.controlPoints : road.drivePoints;
+    if (points.empty()) return {};
+    if (points.size() == 1) return points.front();
+
+    const int pointCount = static_cast<int>(points.size());
     const int spans = pointCount;
     const float wrappedT = t - std::floor(t);
     const float scaled = wrappedT * static_cast<float>(spans);
@@ -62,7 +101,7 @@ Vec2 sampleByT(const RoadSegment& road, float t) {
     const int i1 = wrapIndex(seg, pointCount);
     const int i2 = wrapIndex(seg + 1, pointCount);
     const int i3 = wrapIndex(seg + 2, pointCount);
-    return catmullRom(road.controlPoints[i0], road.controlPoints[i1], road.controlPoints[i2], road.controlPoints[i3], lt);
+    return catmullRom(points[i0], points[i1], points[i2], points[i3], lt);
 }
 
 } // namespace
@@ -89,7 +128,12 @@ void Simulation::rebuildRoadCaches() {
 }
 
 void Simulation::rebuildRoadCache(RoadSegment& road) {
-    const int spans = std::max(1, static_cast<int>(road.controlPoints.size()));
+    road.drivePoints = buildDrivePoints(
+        road.controlPoints,
+        m_config.roadSmoothingIterations,
+        m_config.roadSmoothingMinPointDistance);
+
+    const int spans = std::max(1, static_cast<int>(road.drivePoints.empty() ? road.controlPoints.size() : road.drivePoints.size()));
     const int samples = std::max(2, spans * std::max(2, m_config.arcLengthSamplesPerSpan));
     road.arcLengthCache.assign(static_cast<std::size_t>(samples + 1), 0.0f);
     Vec2 prev = sampleByT(road, 0.0f);
@@ -111,7 +155,7 @@ void Simulation::rebuildCrossroads() {
         const RoadSegment& road = m_network.roads[roadId];
         if (road.length <= 1.0f || road.arcLengthCache.size() < 8) continue;
 
-        const int samples = std::max(32, static_cast<int>(road.controlPoints.size()) * std::max(12, m_config.arcLengthSamplesPerSpan));
+        const int samples = std::max(64, static_cast<int>(road.drivePoints.empty() ? road.controlPoints.size() : road.drivePoints.size()) * std::max(12, m_config.arcLengthSamplesPerSpan));
         struct Sample { Vec2 p; float s; };
         std::vector<Sample> centerline;
         centerline.reserve(static_cast<std::size_t>(samples + 1));

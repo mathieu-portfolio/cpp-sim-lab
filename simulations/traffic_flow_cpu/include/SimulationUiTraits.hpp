@@ -28,7 +28,9 @@ struct ConfigUiTraits<traffic_flow_cpu::SimulationConfig> {
         TunableField{"max wait", &traffic_flow_cpu::SimulationConfig::crossroadMaxWait, 0.1f, 0.5f, 5.0f},
         TunableField{"spawn crossroad clearance", &traffic_flow_cpu::SimulationConfig::spawnCrossroadClearance, 2.0f, 0.0f, 100.0f},
         TunableField{"spawn gap", &traffic_flow_cpu::SimulationConfig::spawnMinimumGap, 1.0f, 6.0f, 60.0f},
-        TunableField{"physics gap", &traffic_flow_cpu::SimulationConfig::physicsMinimumGap, 0.5f, 0.0f, 20.0f}
+        TunableField{"physics gap", &traffic_flow_cpu::SimulationConfig::physicsMinimumGap, 0.5f, 0.0f, 20.0f},
+        TunableField{"road smoothing", &traffic_flow_cpu::SimulationConfig::roadSmoothingIterations, 1.0f, 0.0f, 5.0f},
+        TunableField{"road point min dist", &traffic_flow_cpu::SimulationConfig::roadSmoothingMinPointDistance, 1.0f, 2.0f, 30.0f}
     );
 };
 
