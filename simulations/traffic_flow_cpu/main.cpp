@@ -36,7 +36,7 @@ int main() {
         simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
         simfw::ui::handleTunableAdjustment(config, controls, dt);
 
-        zoomCameraAtScreenPoint(
+        simfw::ui::zoomCameraAtScreenPoint(
             camera,
             GetMousePosition(),
             GetMouseWheelMove(),
@@ -48,7 +48,7 @@ int main() {
         );
 
         if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
-            panCameraByScreenDelta(
+            simfw::ui::panCameraByScreenDelta(
                 camera,
                 GetMouseDelta(),
                 static_cast<float>(WindowWidth),
@@ -57,7 +57,7 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_BACKSPACE)) {
-            resetCameraToBounds(
+            simfw::ui::resetCameraToBounds(
                 camera,
                 static_cast<float>(WindowWidth),
                 static_cast<float>(WindowHeight)
