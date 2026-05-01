@@ -5,121 +5,71 @@
 namespace traffic_flow_cpu {
 namespace {
 
-SimulationConfig baseConfig(std::size_t vehicleCount, int laneCount) {
-    SimulationConfig config;
-    config.vehicleCount = vehicleCount;
-    config.laneCount = laneCount;
-    config.roadLength = 100.0f;
-    config.spawnSpeedMin = 0.0f;
-    config.spawnSpeedMax = 0.0f;
-    config.desiredSpeed = 30.0f;
-    config.maxAcceleration = 0.0f;
-    config.comfortableBraking = 2.0f;
-    config.laneChangeThreshold = 999.0f;
-    return config;
+TEST(TrafficFlowCpuSimulation, SplineSamplingIsDeterministic) {
+    Simulation sim;
+    const auto& road = sim.getRoadNetwork().roads[0];
+    const Vec2 p0 = sim.sampleRoadCenter(0, road.length * 0.25f);
+    const Vec2 p1 = sim.sampleRoadCenter(0, road.length * 0.25f);
+    EXPECT_FLOAT_EQ(p0.x, p1.x);
+    EXPECT_FLOAT_EQ(p0.y, p1.y);
 }
 
-TEST(TrafficFlowCpuSimulation, VehicleSwitchesToBackwardLaneAtRoadEnd) {
-    Simulation sim{baseConfig(1, 2)};
-    auto& vehicle = sim.getVehicles()[0];
-    vehicle.lane = 0;
-    vehicle.s = 99.5f;
-    vehicle.speed = 10.0f;
-    vehicle.direction = 1;
-
-    sim.update(0.1f);
-
-    EXPECT_FLOAT_EQ(sim.getVehicles()[0].s, sim.getConfig().roadLength);
-    EXPECT_EQ(sim.getVehicles()[0].lane, 1);
-    EXPECT_EQ(sim.getVehicles()[0].direction, -1);
+TEST(TrafficFlowCpuSimulation, ArcLengthMovementUsesDistance) {
+    SimulationConfig cfg;
+    cfg.vehicleCount = 1;
+    cfg.maxAcceleration = 0.0f;
+    cfg.spawnSpeedMin = 10.0f;
+    cfg.spawnSpeedMax = 10.0f;
+    Simulation sim{cfg};
+    auto& v = sim.getVehicles()[0];
+    v.laneId = 0;
+    const float start = v.s;
+    sim.update(0.5f);
+    EXPECT_NEAR(sim.getVehicles()[0].s - start, 5.0f, 0.001f);
 }
 
-TEST(TrafficFlowCpuSimulation, VehicleSwitchesToForwardLaneAtRoadStart) {
-    Simulation sim{baseConfig(1, 2)};
-    auto& vehicle = sim.getVehicles()[0];
-    vehicle.lane = 1;
-    vehicle.s = 0.5f;
-    vehicle.speed = 10.0f;
-    vehicle.direction = -1;
-
-    sim.update(0.1f);
-
-    EXPECT_FLOAT_EQ(sim.getVehicles()[0].s, 0.0f);
-    EXPECT_EQ(sim.getVehicles()[0].lane, 0);
-    EXPECT_EQ(sim.getVehicles()[0].direction, 1);
+TEST(TrafficFlowCpuSimulation, LaneOffsetCreatesDistinctPositions) {
+    Simulation sim;
+    const auto& road = sim.getRoadNetwork().roads[0];
+    const float s = road.length * 0.5f;
+    const Vec2 left = sim.sampleLanePosition(0, 0, s);
+    const Vec2 right = sim.sampleLanePosition(0, 1, s);
+    EXPECT_GT((right - left).length(), 1.0f);
 }
 
-TEST(TrafficFlowCpuSimulation, LaneDirectionConsistency) {
-    Simulation sim{baseConfig(4, 4)};
+TEST(TrafficFlowCpuSimulation, LaneDirectionIsFixedByLane) {
+    SimulationConfig cfg;
+    cfg.vehicleCount = 2;
+    cfg.maxAcceleration = 0.0f;
+    cfg.spawnSpeedMin = 5.0f;
+    cfg.spawnSpeedMax = 5.0f;
+    Simulation sim{cfg};
     auto& vehicles = sim.getVehicles();
-    for (std::size_t i = 0; i < vehicles.size(); ++i) {
-        vehicles[i].lane = static_cast<int>(i);
-        vehicles[i].speed = 0.0f;
-        vehicles[i].s = 20.0f;
-        vehicles[i].direction = 0;
-    }
-
-    sim.update(0.1f);
-
-    EXPECT_EQ(sim.getVehicles()[0].direction, 1);
-    EXPECT_EQ(sim.getVehicles()[1].direction, -1);
-    EXPECT_EQ(sim.getVehicles()[2].direction, 1);
-    EXPECT_EQ(sim.getVehicles()[3].direction, -1);
+    vehicles[0].laneId = 0;
+    vehicles[1].laneId = 1;
+    vehicles[0].s = vehicles[1].s = sim.getRoadNetwork().roads[0].length * 0.5f;
+    sim.update(1.0f);
+    EXPECT_GT(sim.getVehicles()[0].s, vehicles[0].s);
+    EXPECT_LT(sim.getVehicles()[1].s, vehicles[1].s);
 }
 
-TEST(TrafficFlowCpuSimulation, OppositeDirectionVehiclesAreNotLaneLeaders) {
-    Simulation sim{baseConfig(2, 2)};
-    auto& vehicles = sim.getVehicles();
-
-    vehicles[0].lane = 0;
-    vehicles[0].s = 10.0f;
-    vehicles[0].speed = 20.0f;
-    vehicles[0].direction = 1;
-
-    vehicles[1].lane = 1;
-    vehicles[1].s = 20.0f;
-    vehicles[1].speed = 0.0f;
-    vehicles[1].direction = -1;
-
+TEST(TrafficFlowCpuSimulation, EndpointConnectionTransfersVehicle) {
+    SimulationConfig cfg;
+    cfg.vehicleCount = 1;
+    cfg.maxAcceleration = 0.0f;
+    cfg.spawnSpeedMin = 5.0f;
+    cfg.spawnSpeedMax = 5.0f;
+    Simulation sim{cfg};
+    RoadSegment extra = sim.getRoadNetwork().roads[0];
+    sim.getRoadNetwork().roads.push_back(extra);
+    sim.getRoadNetwork().roads[0].endConnection = RoadConnection{1, 0};
+    auto& v = sim.getVehicles()[0];
+    v.roadId = 0;
+    v.laneId = 0;
+    v.s = sim.getRoadNetwork().roads[0].length - 0.1f;
     sim.update(0.1f);
-
-    EXPECT_FLOAT_EQ(sim.getVehicles()[0].speed, 20.0f);
-    EXPECT_FLOAT_EQ(sim.getVehicles()[1].speed, 0.0f);
-}
-
-TEST(TrafficFlowCpuSimulation, VehicleCountDoesNotChangeAtEndpoints) {
-    Simulation sim{baseConfig(3, 2)};
-    auto& vehicles = sim.getVehicles();
-
-    vehicles[0].lane = 0; vehicles[0].s = 99.9f; vehicles[0].speed = 5.0f; vehicles[0].direction = 1;
-    vehicles[1].lane = 1; vehicles[1].s = 0.1f;  vehicles[1].speed = 5.0f; vehicles[1].direction = -1;
-    vehicles[2].lane = 0; vehicles[2].s = 50.0f; vehicles[2].speed = 5.0f; vehicles[2].direction = 1;
-
-    const std::size_t before = sim.getVehicles().size();
-    sim.update(0.1f);
-    EXPECT_EQ(sim.getVehicles().size(), before);
-}
-
-TEST(TrafficFlowCpuSimulation, TwoWayRoadMaintainsDirectionByLaneAfterEndpointSwitches) {
-    Simulation sim{baseConfig(2, 2)};
-    auto& vehicles = sim.getVehicles();
-
-    vehicles[0].lane = 0;
-    vehicles[0].s = 99.8f;
-    vehicles[0].speed = 5.0f;
-    vehicles[0].direction = 1;
-
-    vehicles[1].lane = 1;
-    vehicles[1].s = 0.2f;
-    vehicles[1].speed = 5.0f;
-    vehicles[1].direction = -1;
-
-    sim.update(0.1f);
-
-    EXPECT_EQ(sim.getVehicles()[0].lane, 1);
-    EXPECT_EQ(sim.getVehicles()[0].direction, -1);
-    EXPECT_EQ(sim.getVehicles()[1].lane, 0);
-    EXPECT_EQ(sim.getVehicles()[1].direction, 1);
+    EXPECT_EQ(sim.getVehicles()[0].roadId, 1U);
+    EXPECT_NEAR(sim.getVehicles()[0].s, 0.0f, 1e-4f);
 }
 
 } // namespace

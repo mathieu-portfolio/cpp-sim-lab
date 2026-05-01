@@ -6,29 +6,46 @@
 #include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
-#include <utility>
+#include <optional>
 #include <vector>
 
 namespace traffic_flow_cpu {
 
+struct Lane {
+    int direction = 1; // +1 moves toward s=end, -1 toward s=0
+    float lateralOffset = 0.0f;
+};
+
+struct RoadConnection {
+    std::size_t roadId = 0;
+    int laneId = 0;
+};
+
+struct RoadSegment {
+    std::vector<Vec2> controlPoints;
+    std::vector<Lane> lanes;
+    std::vector<float> arcLengthCache;
+    float length = 0.0f;
+    std::optional<RoadConnection> startConnection;
+    std::optional<RoadConnection> endConnection;
+};
+
+struct RoadNetwork {
+    std::vector<RoadSegment> roads;
+};
+
 struct SimulationConfig {
     std::size_t vehicleCount = 70;
-    int laneCount = 2;
-    float roadLength = 700.0f;
-
     float desiredSpeed = 30.0f;
     float maxAcceleration = 1.2f;
     float comfortableBraking = 2.0f;
     float minimumGap = 2.0f;
     float desiredTimeHeadway = 1.4f;
     float accelerationExponent = 4.0f;
-
-    float laneChangeThreshold = 0.2f;
-    float safeDecelerationLimit = 2.5f;
-
     float laneWidth = 22.0f;
     float spawnSpeedMin = 8.0f;
     float spawnSpeedMax = 22.0f;
+    int arcLengthSamplesPerSpan = 24;
     simfw::simulation::SimulationExecutionConfig execution{};
 };
 
@@ -41,7 +58,6 @@ struct SimulationStats {
 class Simulation {
 public:
     explicit Simulation(SimulationConfig config = {});
-
     void reset();
     void update(float dt);
 
@@ -49,10 +65,16 @@ public:
     const SimulationConfig& getConfig() const { return m_config; }
     std::vector<Vehicle>& getVehicles() { return m_vehicles; }
     const std::vector<Vehicle>& getVehicles() const { return m_vehicles; }
+    RoadNetwork& getRoadNetwork() { return m_network; }
+    const RoadNetwork& getRoadNetwork() const { return m_network; }
     const SimulationStats& getStats() const { return m_stats; }
+
+    Vec2 sampleRoadCenter(std::size_t roadId, float s) const;
+    Vec2 sampleLanePosition(std::size_t roadId, int laneId, float s) const;
 
 private:
     SimulationConfig m_config;
+    RoadNetwork m_network;
     std::vector<Vehicle> m_vehicles;
     SimulationStats m_stats;
 
@@ -61,22 +83,8 @@ private:
     float m_queueAccumulator = 0.0f;
     float m_queueSamples = 0.0f;
 
-    using LaneIndexLists = std::vector<std::vector<std::size_t>>;
-
-    float gapToLeader(const std::vector<Vehicle>& vehicles, std::size_t followerIndex, std::size_t leaderIndex) const;
+    void rebuildRoadCache(RoadSegment& road);
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
-    std::pair<std::size_t, std::size_t> findNeighborsInLane(
-        const std::vector<Vehicle>& vehicles,
-        const LaneIndexLists& laneVehicleIndices,
-        std::size_t vehicleIndex,
-        int lane
-    ) const;
-    bool shouldChangeLane(
-        const std::vector<Vehicle>& vehicles,
-        const LaneIndexLists& laneVehicleIndices,
-        std::size_t vehicleIndex,
-        int targetLane
-    ) const;
 };
 
 } // namespace traffic_flow_cpu
