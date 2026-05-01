@@ -23,6 +23,7 @@ struct ConfigUiTraits<traffic_flow_cpu::SimulationConfig> {
         TunableField{"braking", &traffic_flow_cpu::SimulationConfig::comfortableBraking, 0.1f, 0.1f, 5.0f},
         TunableField{"headway", &traffic_flow_cpu::SimulationConfig::desiredTimeHeadway, 0.2f, 0.1f, 4.0f},
         TunableField{"yield lookahead", &traffic_flow_cpu::SimulationConfig::crossroadYieldLookahead, 2.0f, 15.0f, 120.0f},
+        TunableField{"reservation lookahead", &traffic_flow_cpu::SimulationConfig::crossroadReservationLookahead, 2.0f, 15.0f, 140.0f},
         TunableField{"stop radius", &traffic_flow_cpu::SimulationConfig::crossroadStopRadius, 1.0f, 4.0f, 30.0f},
         TunableField{"clear delay", &traffic_flow_cpu::SimulationConfig::crossroadClearDelay, 0.05f, 0.1f, 2.0f},
         TunableField{"max wait", &traffic_flow_cpu::SimulationConfig::crossroadMaxWait, 0.1f, 0.5f, 5.0f},

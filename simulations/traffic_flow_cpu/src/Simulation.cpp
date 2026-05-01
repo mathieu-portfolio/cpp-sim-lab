@@ -107,11 +107,36 @@ Vec2 sampleByT(const RoadSegment& road, float t) {
 } // namespace
 
 Simulation::Simulation(SimulationConfig config) : m_config(config) {
+    sanitizeConfig();
     resetDefaultRoad();
     clearTraffic();
 }
 
+void Simulation::sanitizeConfig() {
+    m_config.vehicleCount = std::clamp<std::size_t>(m_config.vehicleCount, 0, 500);
+    m_config.desiredSpeed = std::clamp(m_config.desiredSpeed, 1.0f, 60.0f);
+    m_config.maxAcceleration = std::clamp(m_config.maxAcceleration, 0.1f, 4.0f);
+    m_config.comfortableBraking = std::clamp(m_config.comfortableBraking, 0.1f, 5.0f);
+    m_config.minimumGap = std::clamp(m_config.minimumGap, 0.0f, 20.0f);
+    m_config.desiredTimeHeadway = std::clamp(m_config.desiredTimeHeadway, 0.1f, 4.0f);
+    m_config.laneWidth = std::clamp(m_config.laneWidth, 4.0f, 80.0f);
+    m_config.spawnSpeedMin = std::clamp(m_config.spawnSpeedMin, 0.0f, 60.0f);
+    m_config.spawnSpeedMax = std::clamp(m_config.spawnSpeedMax, m_config.spawnSpeedMin, 80.0f);
+    m_config.crossroadYieldLookahead = std::clamp(m_config.crossroadYieldLookahead, 15.0f, 120.0f);
+    m_config.crossroadStopRadius = std::clamp(m_config.crossroadStopRadius, 4.0f, 30.0f);
+    m_config.crossroadClearDelay = std::clamp(m_config.crossroadClearDelay, 0.1f, 2.0f);
+    m_config.stoppedRightPriorityGrace = std::clamp(m_config.stoppedRightPriorityGrace, 0.0f, 2.0f);
+    m_config.crossroadReservationLookahead = std::clamp(m_config.crossroadReservationLookahead, 15.0f, 140.0f);
+    m_config.spawnCrossroadClearance = std::clamp(m_config.spawnCrossroadClearance, 0.0f, 100.0f);
+    m_config.spawnMinimumGap = std::clamp(m_config.spawnMinimumGap, 6.0f, 60.0f);
+    m_config.physicsMinimumGap = std::clamp(m_config.physicsMinimumGap, 0.0f, 20.0f);
+    m_config.roadSmoothingIterations = std::clamp(m_config.roadSmoothingIterations, 0.0f, 5.0f);
+    m_config.roadSmoothingMinPointDistance = std::clamp(m_config.roadSmoothingMinPointDistance, 2.0f, 30.0f);
+    m_config.arcLengthSamplesPerSpan = std::clamp(m_config.arcLengthSamplesPerSpan, 8, 96);
+}
+
 void Simulation::resetDefaultRoad() {
+    sanitizeConfig();
     RoadSegment road;
     road.controlPoints = {{80.0f, 350.0f}, {300.0f, 280.0f}, {600.0f, 420.0f}, {1000.0f, 350.0f}};
     road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
@@ -128,6 +153,7 @@ void Simulation::rebuildRoadCaches() {
 }
 
 void Simulation::rebuildRoadCache(RoadSegment& road) {
+    sanitizeConfig();
     road.drivePoints = buildDrivePoints(
         road.controlPoints,
         m_config.roadSmoothingIterations,
@@ -280,6 +306,7 @@ void Simulation::notifyRoadsEdited() {
 }
 
 void Simulation::generateTraffic() {
+    sanitizeConfig();
     clearTraffic();
 
     std::vector<std::pair<std::size_t, int>> spawnLanes;
@@ -422,6 +449,55 @@ const Vehicle* Simulation::findLeader(const Vehicle& vehicle, std::size_t vehicl
     return leader;
 }
 
+bool Simulation::findNearestCrossroadAhead(
+    const Vehicle& vehicle,
+    std::size_t& outCrossroadIndex,
+    float& outApproachS,
+    float& outDistance) const {
+    outCrossroadIndex = static_cast<std::size_t>(-1);
+    outApproachS = 0.0f;
+    outDistance = 999999.0f;
+
+    if (vehicle.roadId >= m_network.roads.size()) return false;
+
+    for (std::size_t crossroadIndex = 0; crossroadIndex < m_network.crossroads.size(); ++crossroadIndex) {
+        const Crossroad& crossroad = m_network.crossroads[crossroadIndex];
+        for (const CrossroadApproach& approach : crossroad.approaches) {
+            if (approach.roadId != vehicle.roadId) continue;
+            const float distance = distanceToCrossroadAlongLane(vehicle, approach.s);
+            if (distance < outDistance) {
+                outDistance = distance;
+                outApproachS = approach.s;
+                outCrossroadIndex = crossroadIndex;
+            }
+        }
+    }
+
+    return outCrossroadIndex != static_cast<std::size_t>(-1);
+}
+
+bool Simulation::isVehicleInsideReservedCrossroad(const Vehicle& vehicle) const {
+    if (vehicle.reservedCrossroadId < 0 || vehicle.roadId >= m_network.roads.size()) return false;
+
+    const std::size_t crossroadIndex = static_cast<std::size_t>(vehicle.reservedCrossroadId);
+    if (crossroadIndex >= m_network.crossroads.size()) return false;
+
+    const RoadSegment& road = m_network.roads[vehicle.roadId];
+    if (road.length <= 0.0f) return false;
+
+    for (const CrossroadApproach& approach : m_network.crossroads[crossroadIndex].approaches) {
+        if (approach.roadId != vehicle.roadId) continue;
+        const float distance = distanceToCrossroadAlongLane(vehicle, approach.s);
+        if (distance <= m_config.crossroadStopRadius ||
+            distance >= road.length - m_config.crossroadStopRadius) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 bool Simulation::hasMovingRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const {
     for (const Crossroad& crossroad : m_network.crossroads) {
         float ownApproachS = 0.0f;
@@ -485,65 +561,148 @@ bool Simulation::hasMovingRightSideThreatAtCrossroad(const Vehicle& vehicle, std
 }
 
 void Simulation::update(float dt) {
+    sanitizeConfig();
     m_elapsedTime += dt;
+
+    struct ReservationOwner {
+        int vehicleIndex = -1;
+        std::size_t roadId = static_cast<std::size_t>(-1);
+        int laneId = -1;
+    };
+
+    std::vector<ReservationOwner> crossroadReservations(m_network.crossroads.size());
+
+    auto reservationMatchesVehicle = [](const ReservationOwner& reservation, const Vehicle& vehicle) {
+        return reservation.vehicleIndex >= 0 &&
+            reservation.roadId == vehicle.roadId &&
+            reservation.laneId == vehicle.laneId;
+    };
+
+    auto reserveForVehicle = [&](std::size_t crossroadIndex, std::size_t vehicleIndex, const Vehicle& vehicle) {
+        if (crossroadIndex >= crossroadReservations.size()) return;
+        ReservationOwner& reservation = crossroadReservations[crossroadIndex];
+        if (reservation.vehicleIndex < 0) {
+            reservation.vehicleIndex = static_cast<int>(vehicleIndex);
+            reservation.roadId = vehicle.roadId;
+            reservation.laneId = vehicle.laneId;
+        }
+    };
+
+    // Reservations are stream-based, not single-car locks. Every vehicle from
+    // the same road/lane may keep feeding the crossroad while that stream owns
+    // the reservation. This avoids stop/go/start oscillation from allowing only
+    // one vehicle at a time into the conflict zone.
+    for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
+        const Vehicle& vehicle = m_vehicles[i];
+        if (vehicle.reservedCrossroadId < 0) continue;
+        const std::size_t reservedIndex = static_cast<std::size_t>(vehicle.reservedCrossroadId);
+        if (reservedIndex >= crossroadReservations.size()) continue;
+
+        std::size_t nearestIndex = 0;
+        float approachS = 0.0f;
+        float distance = 999999.0f;
+        const bool stillApproachingReserved =
+            findNearestCrossroadAhead(vehicle, nearestIndex, approachS, distance) &&
+            nearestIndex == reservedIndex &&
+            distance <= m_config.crossroadReservationLookahead;
+
+        if (vehicle.crossroadEngaged || isVehicleInsideReservedCrossroad(vehicle) || stillApproachingReserved) {
+            const ReservationOwner& reservation = crossroadReservations[reservedIndex];
+            if (reservation.vehicleIndex < 0 || reservationMatchesVehicle(reservation, vehicle)) {
+                reserveForVehicle(reservedIndex, i, vehicle);
+            }
+        }
+    }
 
     std::vector<Vehicle> next = m_vehicles;
     for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
         Vehicle& v = next[i];
+        if (v.roadId >= m_network.roads.size()) continue;
+
         const RoadSegment& road = m_network.roads[v.roadId];
+        if (road.length <= 0.0f || v.laneId < 0 || static_cast<std::size_t>(v.laneId) >= road.lanes.size()) {
+            continue;
+        }
+
         const int dir = road.lanes[static_cast<std::size_t>(v.laneId)].direction;
 
-        bool atYieldZone = false;
-        bool insideCrossroad = false;
-        for (const Crossroad& crossroad : m_network.crossroads) {
-            for (const CrossroadApproach& approach : crossroad.approaches) {
-                if (approach.roadId != v.roadId) continue;
-                const float distance = distanceToCrossroadAlongLane(v, approach.s);
+        std::size_t nearestCrossroadIndex = 0;
+        float nearestApproachS = 0.0f;
+        float nearestCrossroadDistance = 999999.0f;
+        const bool hasNearestCrossroad = findNearestCrossroadAhead(
+            m_vehicles[i],
+            nearestCrossroadIndex,
+            nearestApproachS,
+            nearestCrossroadDistance);
+        const bool atReservationZone = hasNearestCrossroad &&
+            nearestCrossroadDistance <= m_config.crossroadReservationLookahead;
 
-                if (distance <= m_config.crossroadYieldLookahead) {
-                    atYieldZone = true;
-                }
+        bool insideReservedCrossroad = isVehicleInsideReservedCrossroad(v);
+        if (v.reservedCrossroadId >= 0 && !insideReservedCrossroad && !atReservationZone) {
+            const std::size_t reservedIndex = static_cast<std::size_t>(v.reservedCrossroadId);
+            if (reservedIndex < crossroadReservations.size() &&
+                crossroadReservations[reservedIndex].vehicleIndex == static_cast<int>(i)) {
+                crossroadReservations[reservedIndex] = {};
+            }
+            v.reservedCrossroadId = -1;
+            v.crossroadEngaged = false;
+            v.crossroadReleaseTime = 0.0f;
+        }
 
-                // Once the vehicle has entered the crossroad body, it is
-                // committed. It must keep crossing and must not stop for
-                // right-priority anymore. It can still slow/stop because of a
-                // leader directly in front of it.
-                if (distance <= m_config.crossroadStopRadius ||
-                    distance >= road.length - m_config.crossroadStopRadius) {
-                    insideCrossroad = true;
+        bool shouldStop = false;
+        bool ownsReservation = false;
+
+        if (v.reservedCrossroadId >= 0 && static_cast<std::size_t>(v.reservedCrossroadId) < crossroadReservations.size()) {
+            ownsReservation = reservationMatchesVehicle(
+                crossroadReservations[static_cast<std::size_t>(v.reservedCrossroadId)],
+                v);
+        }
+
+        if (v.crossroadEngaged || insideReservedCrossroad) {
+            v.crossroadEngaged = true;
+            ownsReservation = true;
+            v.crossroadWaitTime = 0.0f;
+            v.crossroadClearTime = 0.0f;
+            v.crossroadReleaseTime = std::max(v.crossroadReleaseTime, m_config.crossroadClearDelay);
+        } else if (atReservationZone) {
+            const ReservationOwner& reservationOwner = crossroadReservations[nearestCrossroadIndex];
+            const bool reservationIsFree = reservationOwner.vehicleIndex < 0;
+            const bool sameReservedStream = reservationMatchesVehicle(reservationOwner, v);
+
+            if (sameReservedStream) {
+                v.reservedCrossroadId = static_cast<int>(nearestCrossroadIndex);
+                reserveForVehicle(nearestCrossroadIndex, i, v);
+                ownsReservation = true;
+            } else if (!reservationIsFree) {
+                shouldStop = true;
+                v.crossroadWaitTime += dt;
+                v.crossroadClearTime = 0.0f;
+            } else {
+                const bool movingRightSideThreat = hasMovingRightSideThreatAtCrossroad(m_vehicles[i], i);
+                const bool stoppedRightGrace =
+                    m_elapsedTime - v.lastMovingRightPriorityTime < m_config.stoppedRightPriorityGrace;
+
+                if (movingRightSideThreat) {
+                    v.lastMovingRightPriorityTime = m_elapsedTime;
+                    shouldStop = true;
+                    v.crossroadWaitTime += dt;
+                    v.crossroadClearTime = 0.0f;
+                } else if (stoppedRightGrace) {
+                    shouldStop = true;
+                    v.crossroadClearTime += dt;
+                } else {
+                    v.reservedCrossroadId = static_cast<int>(nearestCrossroadIndex);
+                    reserveForVehicle(nearestCrossroadIndex, i, v);
+                    ownsReservation = true;
+                    v.crossroadWaitTime = 0.0f;
+                    v.crossroadClearTime = 0.0f;
                 }
             }
-        }
 
-        if (insideCrossroad) {
-            v.crossroadReleaseTime = std::max(v.crossroadReleaseTime, m_config.crossroadClearDelay);
-            v.crossroadWaitTime = 0.0f;
-            v.crossroadClearTime = 0.0f;
-        }
-
-        const bool committedToCross = insideCrossroad || v.crossroadReleaseTime > 0.0f;
-        const bool movingRightSideThreat = !committedToCross && hasMovingRightSideThreatAtCrossroad(m_vehicles[i], i);
-        bool shouldStop = false;
-
-        if (committedToCross) {
-            // Once engaged, traffic rules no longer make the vehicle stop in the
-            // crossroad. Only the leader/physics constraints below can block it.
-            v.crossroadWaitTime = 0.0f;
-            v.crossroadClearTime = 0.0f;
-        } else if (atYieldZone && movingRightSideThreat) {
-            v.lastMovingRightPriorityTime = m_elapsedTime;
-            v.crossroadWaitTime += dt;
-            v.crossroadClearTime = 0.0f;
-            shouldStop = true;
-        } else if (atYieldZone &&
-                   m_elapsedTime - v.lastMovingRightPriorityTime < m_config.stoppedRightPriorityGrace) {
-            // The right-side vehicle has just stopped. Keep yielding for a short
-            // grace period, then ignore it so the junction can recover.
-            v.crossroadClearTime += dt;
-            shouldStop = true;
-        } else if (atYieldZone) {
-            v.crossroadWaitTime = 0.0f;
-            v.crossroadClearTime = 0.0f;
+            if (ownsReservation && nearestCrossroadDistance <= m_config.crossroadStopRadius) {
+                v.crossroadEngaged = true;
+                v.crossroadReleaseTime = std::max(v.crossroadReleaseTime, m_config.crossroadClearDelay);
+            }
         } else {
             v.crossroadWaitTime = 0.0f;
             v.crossroadClearTime = 0.0f;
@@ -558,7 +717,7 @@ void Simulation::update(float dt) {
         float leaderGap = 999999.0f;
         const Vehicle* leader = findLeader(m_vehicles[i], i, leaderGap);
 
-        if (shouldStop) {
+        if (shouldStop && !v.crossroadEngaged) {
             v.acceleration = -std::max(m_config.comfortableBraking, v.speed / std::max(0.05f, dt));
         } else {
             v.acceleration = idmAcceleration(v, leader, leaderGap);
@@ -596,6 +755,5 @@ void Simulation::update(float dt) {
 
     m_vehicles = std::move(next);
 }
-
 
 } // namespace traffic_flow_cpu

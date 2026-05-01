@@ -15,6 +15,8 @@ struct Vehicle {
     float crossroadClearTime = 0.0f;
     float crossroadReleaseTime = 0.0f;
     float lastMovingRightPriorityTime = -1000000.0f;
+    int reservedCrossroadId = -1;
+    bool crossroadEngaged = false;
 };
 
 } // namespace traffic_flow_cpu

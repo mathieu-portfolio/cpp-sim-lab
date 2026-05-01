@@ -69,6 +69,7 @@ struct SimulationConfig {
     float crossroadClearDelay = 0.45f;
     float crossroadMaxWait = 2.0f; // Deprecated: right-priority now waits while right traffic is moving.
     float stoppedRightPriorityGrace = 0.45f;
+    float crossroadReservationLookahead = 60.0f;
     float spawnCrossroadClearance = 36.0f;
     float spawnMinimumGap = 18.0f;
     float physicsMinimumGap = 3.0f;
@@ -118,10 +119,13 @@ private:
     float m_elapsedTime = 0.0f;
 
     void resetDefaultRoad();
+    void sanitizeConfig();
     void rebuildRoadCaches();
     void rebuildRoadCache(RoadSegment& road);
     void rebuildCrossroads();
     float distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const;
+    bool findNearestCrossroadAhead(const Vehicle& vehicle, std::size_t& outCrossroadIndex, float& outApproachS, float& outDistance) const;
+    bool isVehicleInsideReservedCrossroad(const Vehicle& vehicle) const;
     bool hasMovingRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const;
     bool isInsideCrossroadSpawnClearance(std::size_t roadId, float s) const;
     float distanceAheadOnLane(const Vehicle& follower, const Vehicle& leader) const;

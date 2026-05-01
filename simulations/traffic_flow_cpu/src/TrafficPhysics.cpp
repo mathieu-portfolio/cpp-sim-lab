@@ -256,6 +256,10 @@ void TrafficPhysics::enforceGlobalFootprintProjection(
             }
         }
 
+        if (a.crossroadEngaged != b.crossroadEngaged) {
+            return a.crossroadEngaged ? rhs : lhs;
+        }
+
         const bool aNearCrossroad = isNearCrossroad(simulation, a);
         const bool bNearCrossroad = isNearCrossroad(simulation, b);
 
