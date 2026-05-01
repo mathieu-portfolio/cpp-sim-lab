@@ -9,6 +9,10 @@ struct Vec2 {
     constexpr Vec2() = default;
     constexpr Vec2(float x_, float y_) : x(x_), y(y_) {}
 
+    constexpr Vec2 operator-() const {
+        return {-x, -y};
+    }
+
     constexpr Vec2 operator+(const Vec2& other) const {
         return {x + other.x, y + other.y};
     }
@@ -62,7 +66,7 @@ struct Vec2 {
         return len > 0.0f ? Vec2{x / len, y / len} : Vec2{};
     }
 
-    float dot(const Vec2& other) {
+    float dot(const Vec2& other) const {
         return x * other.x + y * other.y;
     }
 
@@ -70,3 +74,7 @@ struct Vec2 {
         return a.x * b.x + a.y * b.y;
     }
 };
+
+constexpr Vec2 operator*(float scalar, const Vec2& v) {
+    return {v.x * scalar, v.y * scalar};
+}

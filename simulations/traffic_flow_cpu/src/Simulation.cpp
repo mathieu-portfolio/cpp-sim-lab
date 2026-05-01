@@ -78,7 +78,7 @@ Vec2 Simulation::sampleLanePosition(std::size_t roadId, int laneId, float s) con
     const Vec2 p0 = sampleRoadCenter(roadId, std::max(0.0f, s - eps));
     const Vec2 p1 = sampleRoadCenter(roadId, std::min(road.length, s + eps));
     Vec2 t = p1 - p0;
-    if (t.lengthSqr() < 1e-6f) t = {1.0f, 0.0f};
+    if (t.lengthSquared() < 1e-6f) t = {1.0f, 0.0f};
     else t = t.normalized();
     const Vec2 n{-t.y, t.x};
     return c + n * road.lanes[static_cast<std::size_t>(laneId)].lateralOffset;

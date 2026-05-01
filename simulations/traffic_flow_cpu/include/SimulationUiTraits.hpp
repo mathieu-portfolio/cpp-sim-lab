@@ -21,8 +21,7 @@ struct ConfigUiTraits<traffic_flow_cpu::SimulationConfig> {
         TunableField{"desired speed", &traffic_flow_cpu::SimulationConfig::desiredSpeed, 1.0f, 1.0f, 60.0f},
         TunableField{"max accel", &traffic_flow_cpu::SimulationConfig::maxAcceleration, 0.1f, 0.1f, 4.0f},
         TunableField{"braking", &traffic_flow_cpu::SimulationConfig::comfortableBraking, 0.1f, 0.1f, 5.0f},
-        TunableField{"headway", &traffic_flow_cpu::SimulationConfig::desiredTimeHeadway, 0.2f, 0.1f, 4.0f},
-        TunableField{"lane threshold", &traffic_flow_cpu::SimulationConfig::laneChangeThreshold, 0.0f, 0.05f, 2.0f}
+        TunableField{"headway", &traffic_flow_cpu::SimulationConfig::desiredTimeHeadway, 0.2f, 0.1f, 4.0f}
     );
 };
 

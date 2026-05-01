@@ -2,6 +2,7 @@
 
 #include "Vehicle.hpp"
 
+#include <math/Vec2.hpp>
 #include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
 
