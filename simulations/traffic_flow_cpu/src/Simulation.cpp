@@ -36,6 +36,7 @@ Simulation::Simulation(SimulationConfig config) : m_config(config) {
     road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
     rebuildRoadCache(road);
     m_network.roads = {road};
+    rebuildRoadGridBounds();
     reset();
 }
 
@@ -53,6 +54,21 @@ void Simulation::rebuildRoadCache(RoadSegment& road) {
         prev = p;
     }
     road.length = len;
+}
+
+void Simulation::rebuildRoadGridBounds() {
+    float maxX = 0.0f;
+    float maxY = 0.0f;
+    for (const RoadSegment& road : m_network.roads) {
+        for (const Vec2& p : road.controlPoints) {
+            maxX = std::max(maxX, p.x);
+            maxY = std::max(maxY, p.y);
+        }
+    }
+    const float cellSize = std::max(1.0f, m_config.roadGridCellSize);
+    m_roadGridWidth = static_cast<std::size_t>(maxX / cellSize) + 2;
+    m_roadGridHeight = static_cast<std::size_t>(maxY / cellSize) + 2;
+    m_roadCells.assign(m_roadGridWidth * m_roadGridHeight, 0);
 }
 
 Vec2 Simulation::sampleRoadCenter(std::size_t roadId, float s) const {
@@ -78,10 +94,45 @@ Vec2 Simulation::sampleLanePosition(std::size_t roadId, int laneId, float s) con
     const Vec2 p0 = sampleRoadCenter(roadId, std::max(0.0f, s - eps));
     const Vec2 p1 = sampleRoadCenter(roadId, std::min(road.length, s + eps));
     Vec2 t = p1 - p0;
-    if (t.lengthSqr() < 1e-6f) t = {1.0f, 0.0f};
+    if (t.lengthSquared() < 1e-6f) t = {1.0f, 0.0f};
     else t = t.normalized();
     const Vec2 n{-t.y, t.x};
     return c + n * road.lanes[static_cast<std::size_t>(laneId)].lateralOffset;
+}
+
+bool Simulation::paintRoadAtWorld(Vec2 worldPosition, float worldRadius, bool hasRoad) {
+    if (m_roadGridWidth == 0 || m_roadGridHeight == 0) {
+        return false;
+    }
+    const float cellSize = std::max(1.0f, m_config.roadGridCellSize);
+    const float safeRadius = std::max(0.0f, worldRadius);
+    const int minX = std::max(0, static_cast<int>((worldPosition.x - safeRadius) / cellSize));
+    const int maxX = std::min(static_cast<int>(m_roadGridWidth - 1), static_cast<int>((worldPosition.x + safeRadius) / cellSize));
+    const int minY = std::max(0, static_cast<int>((worldPosition.y - safeRadius) / cellSize));
+    const int maxY = std::min(static_cast<int>(m_roadGridHeight - 1), static_cast<int>((worldPosition.y + safeRadius) / cellSize));
+    bool changed = false;
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            const Vec2 center{(static_cast<float>(x) + 0.5f) * cellSize, (static_cast<float>(y) + 0.5f) * cellSize};
+            if ((center - worldPosition).length() > safeRadius) {
+                continue;
+            }
+            const std::size_t idx = static_cast<std::size_t>(y) * m_roadGridWidth + static_cast<std::size_t>(x);
+            const std::uint8_t next = hasRoad ? 1U : 0U;
+            if (m_roadCells[idx] != next) {
+                m_roadCells[idx] = next;
+                changed = true;
+            }
+        }
+    }
+    return changed;
+}
+
+bool Simulation::roadCellOccupied(std::size_t x, std::size_t y) const {
+    if (x >= m_roadGridWidth || y >= m_roadGridHeight) {
+        return false;
+    }
+    return m_roadCells[y * m_roadGridWidth + x] != 0;
 }
 
 float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const {
