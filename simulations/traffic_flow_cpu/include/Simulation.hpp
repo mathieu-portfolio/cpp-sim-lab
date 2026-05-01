@@ -46,6 +46,7 @@ public:
 
     SimulationConfig& getConfig() { return m_config; }
     const SimulationConfig& getConfig() const { return m_config; }
+    std::vector<Vehicle>& getVehicles() { return m_vehicles; }
     const std::vector<Vehicle>& getVehicles() const { return m_vehicles; }
     const SimulationStats& getStats() const { return m_stats; }
 
