@@ -25,7 +25,9 @@ struct ConfigUiTraits<traffic_flow_cpu::SimulationConfig> {
         TunableField{"yield lookahead", &traffic_flow_cpu::SimulationConfig::crossroadYieldLookahead, 2.0f, 15.0f, 120.0f},
         TunableField{"stop radius", &traffic_flow_cpu::SimulationConfig::crossroadStopRadius, 1.0f, 4.0f, 30.0f},
         TunableField{"clear delay", &traffic_flow_cpu::SimulationConfig::crossroadClearDelay, 0.05f, 0.1f, 2.0f},
-        TunableField{"max wait", &traffic_flow_cpu::SimulationConfig::crossroadMaxWait, 0.1f, 0.5f, 5.0f}
+        TunableField{"max wait", &traffic_flow_cpu::SimulationConfig::crossroadMaxWait, 0.1f, 0.5f, 5.0f},
+        TunableField{"spawn crossroad clearance", &traffic_flow_cpu::SimulationConfig::spawnCrossroadClearance, 2.0f, 0.0f, 100.0f},
+        TunableField{"spawn gap", &traffic_flow_cpu::SimulationConfig::spawnMinimumGap, 1.0f, 6.0f, 60.0f}
     );
 };
 

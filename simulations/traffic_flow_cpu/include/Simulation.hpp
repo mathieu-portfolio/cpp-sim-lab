@@ -61,6 +61,8 @@ struct SimulationConfig {
     float crossroadStopRadius = 11.0f;
     float crossroadClearDelay = 0.45f;
     float crossroadMaxWait = 2.0f;
+    float spawnCrossroadClearance = 36.0f;
+    float spawnMinimumGap = 18.0f;
     int arcLengthSamplesPerSpan = 24;
     simfw::simulation::SimulationExecutionConfig execution{};
 };
@@ -109,6 +111,9 @@ private:
     void rebuildCrossroads();
     float distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const;
     bool hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const;
+    bool isInsideCrossroadSpawnClearance(std::size_t roadId, float s) const;
+    float distanceAheadOnLane(const Vehicle& follower, const Vehicle& leader) const;
+    const Vehicle* findLeader(const Vehicle& vehicle, std::size_t vehicleIndex, float& outGap) const;
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
 };
 
