@@ -1,4 +1,5 @@
 #include "Simulation.hpp"
+#include "RoadBrush.hpp"
 #include "SimulationUiTraits.hpp"
 
 #include <raylib.h>
@@ -9,6 +10,7 @@
 #include <ui/SimulationControlHints.hpp>
 #include <ui/RaylibCamera.hpp>
 
+#include <algorithm>
 #include <tuple>
 
 using namespace traffic_flow_cpu;
@@ -16,6 +18,9 @@ using namespace traffic_flow_cpu;
 namespace {
 constexpr int WindowWidth = 1100;
 constexpr int WindowHeight = 700;
+constexpr float MinRoadLength = 100.0f;
+constexpr float MaxRoadLength = 4000.0f;
+constexpr float RoadBrushRadius = 18.0f;
 }
 
 int main() {
@@ -28,6 +33,7 @@ int main() {
         static_cast<float>(WindowWidth),
         static_cast<float>(WindowHeight)
     );
+    RoadBrush roadBrush;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -62,6 +68,24 @@ int main() {
                 static_cast<float>(WindowWidth),
                 static_cast<float>(WindowHeight)
             );
+        }
+
+        {
+            const Vec2 mouseWorld = simfw::ui::screenToWorld(GetMousePosition(), camera);
+            const float roadX = 80.0f;
+            const float roadW = 920.0f;
+            const float roadPixelsPerSimUnit = roadW / std::max(1.0f, config.roadLength);
+            const bool roadChanged = roadBrush.paint(
+                IsMouseButtonDown(MOUSE_RIGHT_BUTTON),
+                mouseWorld,
+                RoadBrushRadius / camera.zoom,
+                roadX,
+                roadPixelsPerSimUnit,
+                MinRoadLength,
+                MaxRoadLength,
+                config.roadLength
+            );
+            (void)roadChanged;
         }
 
         if (simfw::ui::shouldAdvanceSimulation(controls)) {
@@ -122,6 +146,7 @@ int main() {
                     "F1: UI mode",
                     "Wheel: zoom",
                     "Middle mouse: pan",
+                    "Right mouse: extend road",
                     "Backspace: reset camera",
                     "Tab: select tunable",
                     "Left/Right: adjust",
