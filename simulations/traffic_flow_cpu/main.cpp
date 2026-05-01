@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <tuple>
+#include <ui/EntitySelection.hpp>
 
 using namespace traffic_flow_cpu;
 
