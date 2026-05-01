@@ -22,6 +22,33 @@ constexpr int WindowHeight = 700;
 constexpr float MinRoadLength = 100.0f;
 constexpr float MaxRoadLength = 4000.0f;
 constexpr float RoadBrushRadius = 18.0f;
+
+Vector2 roadCenterPoint(float t, float roadX, float roadY, float roadW, float roadH) {
+    const float clampedT = std::clamp(t, 0.0f, 1.0f);
+    const float x = roadX + clampedT * roadW;
+    const float centerY = roadY + roadH * 0.5f;
+    const float amplitude = roadH * 0.9f;
+    const float y = centerY + std::sin(clampedT * PI * 2.2f) * amplitude;
+    return {x, y};
+}
+
+Vector2 roadPoint(float t, float lateralOffset, float roadX, float roadY, float roadW, float roadH) {
+    constexpr float tangentStep = 0.0015f;
+    const Vector2 center = roadCenterPoint(t, roadX, roadY, roadW, roadH);
+    const Vector2 prev = roadCenterPoint(t - tangentStep, roadX, roadY, roadW, roadH);
+    const Vector2 next = roadCenterPoint(t + tangentStep, roadX, roadY, roadW, roadH);
+    Vector2 tangent{next.x - prev.x, next.y - prev.y};
+    const float tangentLength = std::sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
+    if (tangentLength < 1e-4f) {
+        tangent = {1.0f, 0.0f};
+    } else {
+        tangent.x /= tangentLength;
+        tangent.y /= tangentLength;
+    }
+
+    const Vector2 normal{-tangent.y, tangent.x};
+    return {center.x + normal.x * lateralOffset, center.y + normal.y * lateralOffset};
+}
 }
 
 int main() {
@@ -107,17 +134,40 @@ int main() {
 
         BeginMode2D(camera);
 
-        DrawRectangleLinesEx({roadX, roadY, roadW, roadH}, 2.0f, DARKGRAY);
+        const int roadSamples = std::max(32, static_cast<int>(roadW / 8.0f));
+        const float halfRoadWidth = roadH * 0.5f;
+
+        for (int i = 1; i <= roadSamples; ++i) {
+            const float t0 = static_cast<float>(i - 1) / static_cast<float>(roadSamples);
+            const float t1 = static_cast<float>(i) / static_cast<float>(roadSamples);
+            const Vector2 left0 = roadPoint(t0, -halfRoadWidth, roadX, roadY, roadW, roadH);
+            const Vector2 left1 = roadPoint(t1, -halfRoadWidth, roadX, roadY, roadW, roadH);
+            const Vector2 right0 = roadPoint(t0, halfRoadWidth, roadX, roadY, roadW, roadH);
+            const Vector2 right1 = roadPoint(t1, halfRoadWidth, roadX, roadY, roadW, roadH);
+            DrawLineEx(left0, left1, 2.0f, DARKGRAY);
+            DrawLineEx(right0, right1, 2.0f, DARKGRAY);
+        }
+
         for (int lane = 1; lane < config.laneCount; ++lane) {
-            const float y = roadY + config.laneWidth * static_cast<float>(lane);
-            DrawLineEx({roadX, y}, {roadX + roadW, y}, 1.0f, GRAY);
+            const float offset = -halfRoadWidth + config.laneWidth * static_cast<float>(lane);
+            for (int i = 1; i <= roadSamples; ++i) {
+                const float t0 = static_cast<float>(i - 1) / static_cast<float>(roadSamples);
+                const float t1 = static_cast<float>(i) / static_cast<float>(roadSamples);
+                DrawLineEx(
+                    roadPoint(t0, offset, roadX, roadY, roadW, roadH),
+                    roadPoint(t1, offset, roadX, roadY, roadW, roadH),
+                    1.0f,
+                    GRAY
+                );
+            }
         }
 
         for (const Vehicle& v : vehicles) {
-            const float x = roadX + (v.s / config.roadLength) * roadW;
-            const float y = roadY + (static_cast<float>(v.lane) + 0.5f) * config.laneWidth;
+            const float t = v.s / std::max(1.0f, config.roadLength);
+            const float laneOffset = -halfRoadWidth + (static_cast<float>(v.lane) + 0.5f) * config.laneWidth;
+            const Vector2 pos = roadPoint(t, laneOffset, roadX, roadY, roadW, roadH);
             const Color color = v.speed < 3.0f ? ORANGE : SKYBLUE;
-            DrawRectangleV({x - 6.0f, y - 5.0f}, {12.0f, 10.0f}, color);
+            DrawRectangleV({pos.x - 6.0f, pos.y - 5.0f}, {12.0f, 10.0f}, color);
         }
 
         EndMode2D();
