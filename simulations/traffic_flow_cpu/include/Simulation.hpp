@@ -6,6 +6,7 @@
 #include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace traffic_flow_cpu {
@@ -60,10 +61,22 @@ private:
     float m_queueAccumulator = 0.0f;
     float m_queueSamples = 0.0f;
 
-    std::size_t findLeaderIndex(std::size_t vehicleIndex, int lane) const;
-    float gapToLeader(std::size_t followerIndex, std::size_t leaderIndex) const;
+    using LaneIndexLists = std::vector<std::vector<std::size_t>>;
+
+    float gapToLeader(const std::vector<Vehicle>& vehicles, std::size_t followerIndex, std::size_t leaderIndex) const;
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
-    bool shouldChangeLane(std::size_t vehicleIndex, int targetLane) const;
+    std::pair<std::size_t, std::size_t> findNeighborsInLane(
+        const std::vector<Vehicle>& vehicles,
+        const LaneIndexLists& laneVehicleIndices,
+        std::size_t vehicleIndex,
+        int lane
+    ) const;
+    bool shouldChangeLane(
+        const std::vector<Vehicle>& vehicles,
+        const LaneIndexLists& laneVehicleIndices,
+        std::size_t vehicleIndex,
+        int targetLane
+    ) const;
 };
 
 } // namespace traffic_flow_cpu
