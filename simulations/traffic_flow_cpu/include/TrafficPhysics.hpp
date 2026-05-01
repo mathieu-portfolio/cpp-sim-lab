@@ -17,8 +17,9 @@ public:
     // Hard invariant pass. Behavior proposes speeds/positions, then physics
     // repairs them. Same-lane vehicles are solved as an ordered 1D chain along
     // the lane, so non-crossroad cars are clamped behind their leader instead of
-    // being frozen by pairwise rejection artifacts. Crossroad footprint checks
-    // remain a conservative fallback for vehicles from different lanes.
+    // being frozen by pairwise rejection artifacts. A final global footprint
+    // projection pass then enforces the absolute invariant that no two vehicle
+    // safety circles overlap, including at crossroads.
     static void enforceNoOverlap(
         const Simulation& simulation,
         const std::vector<Vehicle>& current,
@@ -41,6 +42,13 @@ private:
         float dt);
 
     static void enforceCrossroadFootprints(
+        const Simulation& simulation,
+        const std::vector<Vehicle>& current,
+        std::vector<Vehicle>& proposed,
+        float minimumCenterDistance,
+        float dt);
+
+    static void enforceGlobalFootprintProjection(
         const Simulation& simulation,
         const std::vector<Vehicle>& current,
         std::vector<Vehicle>& proposed,

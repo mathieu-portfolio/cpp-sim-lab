@@ -214,6 +214,117 @@ void TrafficPhysics::enforceCrossroadFootprints(
     }
 }
 
+void TrafficPhysics::enforceGlobalFootprintProjection(
+    const Simulation& simulation,
+    const std::vector<Vehicle>& current,
+    std::vector<Vehicle>& proposed,
+    float minimumCenterDistance,
+    float dt) {
+    const RoadNetwork& network = simulation.getRoadNetwork();
+    if (proposed.size() < 2) return;
+
+    auto positionOf = [&](const Vehicle& vehicle) {
+        return simulation.sampleLanePosition(vehicle.roadId, vehicle.laneId, vehicle.s);
+    };
+
+    auto moveBackwardAlongLane = [&](Vehicle& vehicle, float amount) {
+        if (vehicle.roadId >= network.roads.size()) return;
+        const RoadSegment& road = network.roads[vehicle.roadId];
+        if (road.length <= 0.0f || vehicle.laneId < 0 ||
+            static_cast<std::size_t>(vehicle.laneId) >= road.lanes.size()) {
+            return;
+        }
+
+        const float q = travelCoordinate(road, vehicle);
+        vehicle.s = roadCoordinateFromTravel(road, vehicle.laneId, q - amount);
+    };
+
+    auto chooseVehicleToProject = [&](std::size_t lhs, std::size_t rhs) {
+        const Vehicle& a = proposed[lhs];
+        const Vehicle& b = proposed[rhs];
+
+        // Same lane is a 1D ordered-chain problem: always project the follower
+        // behind the leader, never push the leader forward.
+        if (a.roadId == b.roadId && a.laneId == b.laneId && a.roadId < network.roads.size()) {
+            const RoadSegment& road = network.roads[a.roadId];
+            if (road.length > 0.0f) {
+                const float qa = travelCoordinate(road, a);
+                const float qb = travelCoordinate(road, b);
+                const float aToB = wrapDistance(qb - qa, road.length);
+                const float bToA = wrapDistance(qa - qb, road.length);
+                return aToB <= bToA ? lhs : rhs;
+            }
+        }
+
+        const bool aNearCrossroad = isNearCrossroad(simulation, a);
+        const bool bNearCrossroad = isNearCrossroad(simulation, b);
+
+        // If one vehicle is already in/near a conflict zone and the other is
+        // not, the outside vehicle is the one that must yield. This keeps a car
+        // that has engaged a crossroad moving through unless directly blocked.
+        if (aNearCrossroad != bNearCrossroad) {
+            return aNearCrossroad ? rhs : lhs;
+        }
+
+        // Prefer preserving the vehicle that has advanced more this frame.
+        // Projecting the lower-progress vehicle backward avoids update-order
+        // swaps at crossings and keeps the result deterministic.
+        auto progress = [&](std::size_t index) {
+            if (index >= current.size()) return 0.0f;
+            const Vehicle& before = current[index];
+            const Vehicle& after = proposed[index];
+            if (before.roadId != after.roadId || before.laneId != after.laneId || after.roadId >= network.roads.size()) {
+                return after.speed * dt;
+            }
+            const RoadSegment& road = network.roads[after.roadId];
+            if (road.length <= 0.0f) return after.speed * dt;
+            return wrapDistance(travelCoordinate(road, after) - travelCoordinate(road, before), road.length);
+        };
+
+        const float aProgress = progress(lhs);
+        const float bProgress = progress(rhs);
+        if (std::fabs(aProgress - bProgress) > 0.001f) {
+            return aProgress < bProgress ? lhs : rhs;
+        }
+
+        if (std::fabs(a.speed - b.speed) > 0.001f) {
+            return a.speed < b.speed ? lhs : rhs;
+        }
+
+        return lhs > rhs ? lhs : rhs;
+    };
+
+    constexpr int maxProjectionIterations = 12;
+    constexpr float projectionSlop = 0.02f;
+
+    for (int iteration = 0; iteration < maxProjectionIterations; ++iteration) {
+        bool changed = false;
+
+        for (std::size_t i = 0; i < proposed.size(); ++i) {
+            for (std::size_t j = i + 1; j < proposed.size(); ++j) {
+                const Vec2 pi = positionOf(proposed[i]);
+                const Vec2 pj = positionOf(proposed[j]);
+                const float requiredDistance = vehicleClearanceDistance(proposed[i], proposed[j], minimumCenterDistance);
+                const float distanceSq = (pi - pj).lengthSquared();
+
+                if (distanceSq >= requiredDistance * requiredDistance) continue;
+
+                const float distance = std::sqrt(std::max(0.0001f, distanceSq));
+                const float penetration = requiredDistance - distance + projectionSlop;
+                const std::size_t projectedIndex = chooseVehicleToProject(i, j);
+
+                moveBackwardAlongLane(proposed[projectedIndex], penetration);
+                proposed[projectedIndex].speed = std::min(proposed[projectedIndex].speed, proposed[projectedIndex == i ? j : i].speed);
+                proposed[projectedIndex].acceleration =
+                    (proposed[projectedIndex].speed - current[projectedIndex].speed) / std::max(0.05f, dt);
+                changed = true;
+            }
+        }
+
+        if (!changed) break;
+    }
+}
+
 void TrafficPhysics::enforceNoOverlap(
     const Simulation& simulation,
     const std::vector<Vehicle>& current,
@@ -224,6 +335,7 @@ void TrafficPhysics::enforceNoOverlap(
 
     enforceLaneOrderSpacing(simulation, current, proposed, minimumCenterDistance, dt);
     enforceCrossroadFootprints(simulation, current, proposed, minimumCenterDistance, dt);
+    enforceGlobalFootprintProjection(simulation, current, proposed, minimumCenterDistance, dt);
 }
 
 } // namespace traffic_flow_cpu
