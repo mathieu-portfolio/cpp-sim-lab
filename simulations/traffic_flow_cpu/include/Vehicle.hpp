@@ -14,6 +14,7 @@ struct Vehicle {
     float crossroadWaitTime = 0.0f;
     float crossroadClearTime = 0.0f;
     float crossroadReleaseTime = 0.0f;
+    float lastMovingRightPriorityTime = -1000000.0f;
 };
 
 } // namespace traffic_flow_cpu

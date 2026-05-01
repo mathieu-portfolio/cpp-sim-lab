@@ -227,6 +227,7 @@ void Simulation::clearTraffic() {
     m_queueAccumulator = 0.0f;
     m_queueSamples = 0.0f;
     m_stats = {};
+    m_elapsedTime = 0.0f;
 }
 
 void Simulation::notifyRoadsEdited() {
@@ -377,7 +378,7 @@ const Vehicle* Simulation::findLeader(const Vehicle& vehicle, std::size_t vehicl
     return leader;
 }
 
-bool Simulation::hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const {
+bool Simulation::hasMovingRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const {
     for (const Crossroad& crossroad : m_network.crossroads) {
         float ownApproachS = 0.0f;
         float ownDistance = 999999.0f;
@@ -416,6 +417,12 @@ bool Simulation::hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size
 
             if (!otherApproaching || otherDistance > m_config.crossroadYieldLookahead) continue;
 
+            // Right-priority only belongs to moving traffic. A stopped right-side
+            // vehicle is handled by the caller through a short per-vehicle grace
+            // period, then ignored to avoid deadlocks.
+            constexpr float movingSpeedEpsilon = 0.15f;
+            if (other.speed <= movingSpeedEpsilon) continue;
+
             if (otherDistance < m_config.crossroadStopRadius * 0.35f &&
                 other.speed > vehicle.speed + 0.5f) {
                 continue;
@@ -434,6 +441,8 @@ bool Simulation::hasRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size
 }
 
 void Simulation::update(float dt) {
+    m_elapsedTime += dt;
+
     std::vector<Vehicle> next = m_vehicles;
     for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
         Vehicle& v = next[i];
@@ -469,26 +478,33 @@ void Simulation::update(float dt) {
         }
 
         const bool committedToCross = insideCrossroad || v.crossroadReleaseTime > 0.0f;
-        const bool rightSideThreat = !committedToCross && hasRightSideThreatAtCrossroad(m_vehicles[i], i);
+        const bool movingRightSideThreat = !committedToCross && hasMovingRightSideThreatAtCrossroad(m_vehicles[i], i);
         bool shouldStop = false;
 
-        if (atYieldZone && rightSideThreat) {
+        if (committedToCross) {
+            // Once engaged, traffic rules no longer make the vehicle stop in the
+            // crossroad. Only the leader/physics constraints below can block it.
+            v.crossroadWaitTime = 0.0f;
+            v.crossroadClearTime = 0.0f;
+        } else if (atYieldZone && movingRightSideThreat) {
+            v.lastMovingRightPriorityTime = m_elapsedTime;
             v.crossroadWaitTime += dt;
             v.crossroadClearTime = 0.0f;
-            shouldStop = v.crossroadWaitTime < m_config.crossroadMaxWait;
-        } else if (atYieldZone && v.crossroadWaitTime > 0.0f && !committedToCross) {
+            shouldStop = true;
+        } else if (atYieldZone &&
+                   m_elapsedTime - v.lastMovingRightPriorityTime < m_config.stoppedRightPriorityGrace) {
+            // The right-side vehicle has just stopped. Keep yielding for a short
+            // grace period, then ignore it so the junction can recover.
             v.crossroadClearTime += dt;
-            if (v.crossroadClearTime < m_config.crossroadClearDelay) {
-                shouldStop = true;
-            } else {
-                v.crossroadReleaseTime = m_config.crossroadClearDelay;
-                v.crossroadWaitTime = 0.0f;
-                v.crossroadClearTime = 0.0f;
-            }
-        } else if (!atYieldZone) {
+            shouldStop = true;
+        } else if (atYieldZone) {
+            v.crossroadWaitTime = 0.0f;
+            v.crossroadClearTime = 0.0f;
+        } else {
             v.crossroadWaitTime = 0.0f;
             v.crossroadClearTime = 0.0f;
             v.crossroadReleaseTime = 0.0f;
+            v.lastMovingRightPriorityTime = -1000000.0f;
         }
 
         if (v.crossroadReleaseTime > 0.0f) {
