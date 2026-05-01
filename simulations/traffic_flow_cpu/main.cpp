@@ -147,7 +147,7 @@ int main() {
                     "F1: UI mode",
                     "Wheel: zoom",
                     "Middle mouse: pan",
-                    "Right mouse: extend road",
+                    "Right mouse: brush road extension",
                     "Backspace: reset camera",
                     "Tab: select tunable",
                     "Left/Right: adjust",
