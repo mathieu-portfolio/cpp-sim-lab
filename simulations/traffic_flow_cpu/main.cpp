@@ -6,6 +6,7 @@
 #include <ui/SimulationFrameHelpers.hpp>
 #include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
+#include <ui/SimulationControlHints.hpp>
 
 #include <tuple>
 
@@ -66,6 +67,24 @@ int main() {
         simfw::ui::drawStats(cursor, stats);
         cursor.gap(6);
         simfw::ui::drawTunables(cursor, config, controls.selectedParameter);
+
+        if (controls.uiMode == simfw::ui::UiMode::Full) {
+            simfw::ui::TextCursor controlsCursor =
+                simfw::ui::makeRightSideControlCursor(340, 10, 20);
+
+            simfw::ui::drawControlHints(
+                controlsCursor,
+                {
+                    "Space: pause",
+                    "N: step",
+                    "R: reset",
+                    "F1: UI mode",
+                    "Tab: select tunable",
+                    "Left/Right: adjust",
+                    "Shift: fast adjust"
+                }
+            );
+        }
 
         EndDrawing();
     }
