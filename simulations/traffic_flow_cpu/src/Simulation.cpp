@@ -18,6 +18,26 @@ std::size_t laneDirectionBucket(int lane, int laneCount, int direction) {
     return directionOffset + laneIndex;
 }
 
+int directionForLane(int lane) {
+    return (lane % 2 == 0) ? 1 : -1;
+}
+
+int findClosestLaneWithDirection(int currentLane, int laneCount, int direction) {
+    int bestLane = currentLane;
+    int bestDistance = std::numeric_limits<int>::max();
+    for (int lane = 0; lane < laneCount; ++lane) {
+        if (directionForLane(lane) != direction) {
+            continue;
+        }
+        const int distance = std::abs(lane - currentLane);
+        if (distance < bestDistance || (distance == bestDistance && lane < bestLane)) {
+            bestDistance = distance;
+            bestLane = lane;
+        }
+    }
+    return bestLane;
+}
+
 LaneIndexLists buildLaneIndexLists(const std::vector<Vehicle>& vehicles, int laneCount) {
     LaneIndexLists laneVehicleIndices(static_cast<std::size_t>(laneCount * 2));
     for (std::size_t i = 0; i < vehicles.size(); ++i) {
@@ -46,6 +66,7 @@ void Simulation::reset() {
     for (std::size_t i = 0; i < m_config.vehicleCount; ++i) {
         Vehicle vehicle;
         vehicle.lane = static_cast<int>(i % static_cast<std::size_t>(m_config.laneCount));
+        vehicle.direction = directionForLane(vehicle.lane);
         vehicle.s = (static_cast<float>(i) / static_cast<float>(m_config.vehicleCount)) * m_config.roadLength;
         vehicle.speed = Random::range(m_config.spawnSpeedMin, m_config.spawnSpeedMax);
         m_vehicles.push_back(vehicle);
@@ -67,7 +88,7 @@ float Simulation::gapToLeader(
         return m_config.roadLength;
     }
 
-const Vehicle& follower = vehicles[followerIndex];
+    const Vehicle& follower = vehicles[followerIndex];
     const Vehicle& leader = vehicles[leaderIndex];
 
     float gap = 0.0f;
@@ -112,7 +133,7 @@ std::pair<std::size_t, std::size_t> Simulation::findNeighborsInLane(
         return {vehicleIndex, vehicleIndex};
     }
 
-const auto& indices = laneVehicleIndices[laneDirectionBucket(lane, m_config.laneCount, vehicles[vehicleIndex].direction)];
+    const auto& indices = laneVehicleIndices[laneDirectionBucket(lane, m_config.laneCount, directionForLane(lane))];
     if (indices.empty()) {
         return {vehicleIndex, vehicleIndex};
     }
@@ -151,6 +172,9 @@ bool Simulation::shouldChangeLane(
     int targetLane
 ) const {
     if (targetLane < 0 || targetLane >= m_config.laneCount) {
+        return false;
+    }
+    if (directionForLane(targetLane) != directionForLane(vehicles[vehicleIndex].lane)) {
         return false;
     }
 
@@ -222,6 +246,7 @@ void Simulation::update(float dt) {
     // Phase 2: lane-change decisions.
     std::vector<Vehicle> laneUpdatedVehicles = currentVehicles;
     for (std::size_t i = 0; i < currentVehicles.size(); ++i) {
+        laneUpdatedVehicles[i].direction = directionForLane(laneUpdatedVehicles[i].lane);
         const int leftLane = currentVehicles[i].lane - 1;
         const int rightLane = currentVehicles[i].lane + 1;
 
@@ -264,15 +289,18 @@ void Simulation::update(float dt) {
         const float acc = idmAcceleration(laneUpdatedVehicles[i], leaderPtr, gap);
         next[i].acceleration = acc;
         next[i].speed = std::max(0.0f, laneUpdatedVehicles[i].speed + acc * dt);
-        next[i].s = laneUpdatedVehicles[i].s + static_cast<float>(laneUpdatedVehicles[i].direction) * next[i].speed * dt;
+        next[i].direction = directionForLane(laneUpdatedVehicles[i].lane);
+        next[i].s = laneUpdatedVehicles[i].s + static_cast<float>(next[i].direction) * next[i].speed * dt;
 
         if (next[i].s >= m_config.roadLength) {
+            next[i].lane = findClosestLaneWithDirection(next[i].lane, m_config.laneCount, -1);
+            next[i].direction = directionForLane(next[i].lane);
             next[i].s = m_config.roadLength;
-            next[i].direction = -1;
             ++m_wrapCountAccumulator;
         } else if (next[i].s <= 0.0f) {
+            next[i].lane = findClosestLaneWithDirection(next[i].lane, m_config.laneCount, 1);
+            next[i].direction = directionForLane(next[i].lane);
             next[i].s = 0.0f;
-            next[i].direction = 1;
             ++m_wrapCountAccumulator;
         }
 
