@@ -26,8 +26,8 @@ int main() {
     SetTargetFPS(60);
 
     Simulation sim;
-    RoadBrush roadBrush;
     simfw::ui::SimulationControls controls;
+    RoadBrush roadBrush;
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
         static_cast<float>(WindowHeight)
@@ -68,16 +68,28 @@ int main() {
             );
         }
 
+        if (IsKeyPressed(KEY_G)) {
+            sim.generateTraffic();
+        }
+
+        const Vector2 mouseScreen = GetMousePosition();
+        const Vector2 mouseWorldRaylib = GetScreenToWorld2D(mouseScreen, camera);
+        const Vec2 mouseWorld{mouseWorldRaylib.x, mouseWorldRaylib.y};
+        constexpr float roadBrushSpacing = 28.0f;
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            auto& road = sim.getRoadNetwork().roads[0];
+            road.controlPoints.clear();
+        }
+        if (roadBrush.paint(IsMouseButtonDown(MOUSE_LEFT_BUTTON), mouseWorld, roadBrushSpacing)) {
+            auto& road = sim.getRoadNetwork().roads[0];
+            road.controlPoints.push_back(mouseWorld);
+            sim.notifyRoadsEdited();
+        }
+
         if (simfw::ui::shouldAdvanceSimulation(controls)) {
             sim.update(dt);
             simfw::ui::finishSimulationStep(controls);
         }
-        const bool painting = IsMouseButtonDown(MOUSE_LEFT_BUTTON) || IsMouseButtonDown(MOUSE_RIGHT_BUTTON);
-        const bool eraseMode = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-        const float brushRadius = std::max(4.0f, sim.roadGridCellSize() * 0.9f);
-        const Vector2 mouseWorldRay = GetScreenToWorld2D(GetMousePosition(), camera);
-        const Vec2 mouseWorld{mouseWorldRay.x, mouseWorldRay.y};
-        roadBrush.paint(sim, painting, mouseWorld, brushRadius, !eraseMode);
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -86,20 +98,18 @@ int main() {
         const auto& stats = sim.getStats();
 
         BeginMode2D(camera);
-        const float cellSize = sim.roadGridCellSize();
-        for (std::size_t y = 0; y < sim.roadGridHeight(); ++y) {
-            for (std::size_t x = 0; x < sim.roadGridWidth(); ++x) {
-                if (!sim.roadCellOccupied(x, y)) {
-                    continue;
-                }
-                DrawRectangleV(
-                    {static_cast<float>(x) * cellSize, static_cast<float>(y) * cellSize},
-                    {cellSize, cellSize},
-                    Color{65, 65, 65, 255}
-                );
+        const auto& road = sim.getRoadNetwork().roads[0];
+        if (road.controlPoints.size() >= 2 && road.length > 0.0f) {
+            constexpr int roadDrawSamples = 96;
+            Vec2 previous = sim.sampleRoadCenter(0, 0.0f);
+            for (int i = 1; i <= roadDrawSamples; ++i) {
+                const float s = road.length * static_cast<float>(i) / static_cast<float>(roadDrawSamples);
+                const Vec2 current = sim.sampleRoadCenter(0, s);
+                DrawLineEx({previous.x, previous.y}, {current.x, current.y}, config.laneWidth * 2.0f, DARKGRAY);
+                DrawLineEx({previous.x, previous.y}, {current.x, current.y}, 2.0f, YELLOW);
+                previous = current;
             }
         }
-
         for (const Vehicle& v : vehicles) {
             const Vec2 p = sim.sampleLanePosition(v.roadId, v.laneId, v.s);
             const Vector2 pos{p.x,p.y};
@@ -131,15 +141,15 @@ int main() {
                     "Space: pause",
                     "N: step",
                     "R: reset",
+                    "G: generate traffic",
+                    "Left mouse: paint road",
                     "F1: UI mode",
                     "Wheel: zoom",
                     "Middle mouse: pan",
                     "Backspace: reset camera",
                     "Tab: select tunable",
                     "Left/Right: adjust",
-                    "Shift: fast adjust",
-                    "LMB: paint roads",
-                    "RMB/Shift+LMB: erase roads",
+                    "Shift: fast adjust"
                 }
             );
         }

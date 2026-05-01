@@ -4,6 +4,8 @@
 #include <cmath>
 #include <random/Random.hpp>
 
+#include <utility>
+
 namespace traffic_flow_cpu {
 namespace {
 
@@ -14,34 +16,57 @@ Vec2 catmullRom(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, 
                    (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
 }
 
+int wrapIndex(int index, int count) {
+    return (index % count + count) % count;
+}
+
+float wrapDistance(float s, float length) {
+    if (length <= 0.0f) return 0.0f;
+    float wrapped = std::fmod(s, length);
+    if (wrapped < 0.0f) wrapped += length;
+    return wrapped;
+}
+
 Vec2 sampleByT(const RoadSegment& road, float t) {
     if (road.controlPoints.empty()) return {};
     if (road.controlPoints.size() == 1) return road.controlPoints.front();
-    const int spans = static_cast<int>(road.controlPoints.size()) - 1;
-    const float scaled = std::clamp(t, 0.0f, 1.0f) * static_cast<float>(spans);
+
+    const int pointCount = static_cast<int>(road.controlPoints.size());
+    const int spans = pointCount;
+    const float wrappedT = t - std::floor(t);
+    const float scaled = wrappedT * static_cast<float>(spans);
     const int seg = std::min(spans - 1, static_cast<int>(scaled));
     const float lt = scaled - static_cast<float>(seg);
-    const int i0 = std::max(0, seg - 1);
-    const int i1 = seg;
-    const int i2 = std::min(seg + 1, spans);
-    const int i3 = std::min(seg + 2, spans);
+    const int i0 = wrapIndex(seg - 1, pointCount);
+    const int i1 = wrapIndex(seg, pointCount);
+    const int i2 = wrapIndex(seg + 1, pointCount);
+    const int i3 = wrapIndex(seg + 2, pointCount);
     return catmullRom(road.controlPoints[i0], road.controlPoints[i1], road.controlPoints[i2], road.controlPoints[i3], lt);
 }
 
 } // namespace
 
 Simulation::Simulation(SimulationConfig config) : m_config(config) {
+    resetDefaultRoad();
+    clearTraffic();
+}
+
+void Simulation::resetDefaultRoad() {
     RoadSegment road;
     road.controlPoints = {{80.0f, 350.0f}, {300.0f, 280.0f}, {600.0f, 420.0f}, {1000.0f, 350.0f}};
     road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
     rebuildRoadCache(road);
     m_network.roads = {road};
-    rebuildRoadGridBounds();
-    reset();
+}
+
+void Simulation::rebuildRoadCaches() {
+    for (RoadSegment& road : m_network.roads) {
+        rebuildRoadCache(road);
+    }
 }
 
 void Simulation::rebuildRoadCache(RoadSegment& road) {
-    const int spans = std::max(1, static_cast<int>(road.controlPoints.size()) - 1);
+    const int spans = std::max(1, static_cast<int>(road.controlPoints.size()));
     const int samples = std::max(2, spans * std::max(2, m_config.arcLengthSamplesPerSpan));
     road.arcLengthCache.assign(static_cast<std::size_t>(samples + 1), 0.0f);
     Vec2 prev = sampleByT(road, 0.0f);
@@ -56,25 +81,10 @@ void Simulation::rebuildRoadCache(RoadSegment& road) {
     road.length = len;
 }
 
-void Simulation::rebuildRoadGridBounds() {
-    float maxX = 0.0f;
-    float maxY = 0.0f;
-    for (const RoadSegment& road : m_network.roads) {
-        for (const Vec2& p : road.controlPoints) {
-            maxX = std::max(maxX, p.x);
-            maxY = std::max(maxY, p.y);
-        }
-    }
-    const float cellSize = std::max(1.0f, m_config.roadGridCellSize);
-    m_roadGridWidth = static_cast<std::size_t>(maxX / cellSize) + 2;
-    m_roadGridHeight = static_cast<std::size_t>(maxY / cellSize) + 2;
-    m_roadCells.assign(m_roadGridWidth * m_roadGridHeight, 0);
-}
-
 Vec2 Simulation::sampleRoadCenter(std::size_t roadId, float s) const {
     const RoadSegment& road = m_network.roads[roadId];
     if (road.length <= 0.0f || road.arcLengthCache.size() < 2) return sampleByT(road, 0.0f);
-    const float clampedS = std::clamp(s, 0.0f, road.length);
+    const float clampedS = wrapDistance(s, road.length);
     const auto it = std::lower_bound(road.arcLengthCache.begin(), road.arcLengthCache.end(), clampedS);
     const std::size_t hi = static_cast<std::size_t>(std::distance(road.arcLengthCache.begin(), it));
     if (hi == 0) return sampleByT(road, 0.0f);
@@ -91,48 +101,13 @@ Vec2 Simulation::sampleLanePosition(std::size_t roadId, int laneId, float s) con
     const RoadSegment& road = m_network.roads[roadId];
     const Vec2 c = sampleRoadCenter(roadId, s);
     const float eps = 0.2f;
-    const Vec2 p0 = sampleRoadCenter(roadId, std::max(0.0f, s - eps));
-    const Vec2 p1 = sampleRoadCenter(roadId, std::min(road.length, s + eps));
+    const Vec2 p0 = sampleRoadCenter(roadId, s - eps);
+    const Vec2 p1 = sampleRoadCenter(roadId, s + eps);
     Vec2 t = p1 - p0;
     if (t.lengthSquared() < 1e-6f) t = {1.0f, 0.0f};
     else t = t.normalized();
     const Vec2 n{-t.y, t.x};
     return c + n * road.lanes[static_cast<std::size_t>(laneId)].lateralOffset;
-}
-
-bool Simulation::paintRoadAtWorld(Vec2 worldPosition, float worldRadius, bool hasRoad) {
-    if (m_roadGridWidth == 0 || m_roadGridHeight == 0) {
-        return false;
-    }
-    const float cellSize = std::max(1.0f, m_config.roadGridCellSize);
-    const float safeRadius = std::max(0.0f, worldRadius);
-    const int minX = std::max(0, static_cast<int>((worldPosition.x - safeRadius) / cellSize));
-    const int maxX = std::min(static_cast<int>(m_roadGridWidth - 1), static_cast<int>((worldPosition.x + safeRadius) / cellSize));
-    const int minY = std::max(0, static_cast<int>((worldPosition.y - safeRadius) / cellSize));
-    const int maxY = std::min(static_cast<int>(m_roadGridHeight - 1), static_cast<int>((worldPosition.y + safeRadius) / cellSize));
-    bool changed = false;
-    for (int y = minY; y <= maxY; ++y) {
-        for (int x = minX; x <= maxX; ++x) {
-            const Vec2 center{(static_cast<float>(x) + 0.5f) * cellSize, (static_cast<float>(y) + 0.5f) * cellSize};
-            if ((center - worldPosition).length() > safeRadius) {
-                continue;
-            }
-            const std::size_t idx = static_cast<std::size_t>(y) * m_roadGridWidth + static_cast<std::size_t>(x);
-            const std::uint8_t next = hasRoad ? 1U : 0U;
-            if (m_roadCells[idx] != next) {
-                m_roadCells[idx] = next;
-                changed = true;
-            }
-        }
-    }
-    return changed;
-}
-
-bool Simulation::roadCellOccupied(std::size_t x, std::size_t y) const {
-    if (x >= m_roadGridWidth || y >= m_roadGridHeight) {
-        return false;
-    }
-    return m_roadCells[y * m_roadGridWidth + x] != 0;
 }
 
 float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const {
@@ -149,13 +124,64 @@ float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader,
 }
 
 void Simulation::reset() {
+    resetDefaultRoad();
+    clearTraffic();
+}
+
+void Simulation::clearTraffic() {
     m_vehicles.clear();
-    const RoadSegment& road = m_network.roads.front();
+    m_throughputAccumulator = 0.0f;
+    m_wrapCountAccumulator = 0;
+    m_queueAccumulator = 0.0f;
+    m_queueSamples = 0.0f;
+    m_stats = {};
+}
+
+void Simulation::notifyRoadsEdited() {
+    rebuildRoadCaches();
+    clearTraffic();
+}
+
+void Simulation::generateTraffic() {
+    clearTraffic();
+
+    std::vector<std::pair<std::size_t, int>> spawnLanes;
+    float totalLaneLength = 0.0f;
+    for (std::size_t roadId = 0; roadId < m_network.roads.size(); ++roadId) {
+        const RoadSegment& road = m_network.roads[roadId];
+        if (road.length <= 1.0f || road.lanes.empty()) continue;
+        for (std::size_t laneId = 0; laneId < road.lanes.size(); ++laneId) {
+            spawnLanes.emplace_back(roadId, static_cast<int>(laneId));
+            totalLaneLength += road.length;
+        }
+    }
+
+    if (spawnLanes.empty() || totalLaneLength <= 0.0f) return;
+
     for (std::size_t i = 0; i < m_config.vehicleCount; ++i) {
+        const float target = (static_cast<float>(i) + 0.5f) /
+                             std::max(1.0f, static_cast<float>(m_config.vehicleCount)) * totalLaneLength;
+        float cursor = 0.0f;
+        std::size_t roadId = spawnLanes.back().first;
+        int laneId = spawnLanes.back().second;
+        float spawnS = 0.0f;
+
+        for (const auto& laneRef : spawnLanes) {
+            const RoadSegment& road = m_network.roads[laneRef.first];
+            if (target <= cursor + road.length) {
+                roadId = laneRef.first;
+                laneId = laneRef.second;
+                spawnS = target - cursor;
+                break;
+            }
+            cursor += road.length;
+        }
+
+        const RoadSegment& road = m_network.roads[roadId];
         Vehicle v;
-        v.roadId = 0;
-        v.laneId = static_cast<int>(i % road.lanes.size());
-        v.s = (static_cast<float>(i) / std::max(1.0f, static_cast<float>(m_config.vehicleCount))) * road.length;
+        v.roadId = roadId;
+        v.laneId = laneId;
+        v.s = std::clamp(spawnS, 0.0f, road.length);
         v.speed = Random::range(m_config.spawnSpeedMin, m_config.spawnSpeedMax);
         m_vehicles.push_back(v);
     }
@@ -172,17 +198,21 @@ void Simulation::update(float dt) {
         v.s += static_cast<float>(dir) * v.speed * dt;
         if (v.s >= road.length) {
             if (road.endConnection.has_value()) {
-                v.roadId = road.endConnection->roadId; v.laneId = road.endConnection->laneId; v.s = 0.0f;
+                v.roadId = road.endConnection->roadId;
+                v.laneId = road.endConnection->laneId;
+                v.s = wrapDistance(v.s - road.length, m_network.roads[v.roadId].length);
             } else {
-                v.s = road.length;
+                v.s = wrapDistance(v.s, road.length);
             }
             ++m_wrapCountAccumulator;
-        } else if (v.s <= 0.0f) {
+        } else if (v.s < 0.0f) {
             if (road.startConnection.has_value()) {
                 const auto& c = *road.startConnection;
-                v.roadId = c.roadId; v.laneId = c.laneId; v.s = m_network.roads[c.roadId].length;
+                v.roadId = c.roadId;
+                v.laneId = c.laneId;
+                v.s = wrapDistance(m_network.roads[c.roadId].length + v.s, m_network.roads[c.roadId].length);
             } else {
-                v.s = 0.0f;
+                v.s = wrapDistance(v.s, road.length);
             }
             ++m_wrapCountAccumulator;
         }

@@ -1,20 +1,30 @@
 #pragma once
 
-#include "Simulation.hpp"
-#include <ui/BrushStroke.hpp>
+#include <math/Vec2.hpp>
+
+#include <optional>
 
 namespace traffic_flow_cpu {
 
 class RoadBrush {
 public:
-    bool paint(Simulation& sim, bool isPainting, Vec2 worldPosition, float worldRadius, bool hasRoad) {
-        return m_stroke.paint(isPainting, worldPosition, worldRadius, [&](Vec2 point) {
-            return sim.paintRoadAtWorld(point, worldRadius, hasRoad);
-        });
+    bool paint(bool isPainting, Vec2 worldPosition, float minStampSpacing) {
+        if (!isPainting) {
+            m_previousStampPosition.reset();
+            return false;
+        }
+
+        if (!m_previousStampPosition.has_value() ||
+            (worldPosition - *m_previousStampPosition).lengthSquared() >= minStampSpacing * minStampSpacing) {
+            m_previousStampPosition = worldPosition;
+            return true;
+        }
+
+        return false;
     }
 
 private:
-    simfw::ui::BrushStroke m_stroke;
+    std::optional<Vec2> m_previousStampPosition;
 };
 
 } // namespace traffic_flow_cpu
