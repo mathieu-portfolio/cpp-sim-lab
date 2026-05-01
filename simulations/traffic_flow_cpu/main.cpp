@@ -7,6 +7,7 @@
 #include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
 #include <ui/SimulationControlHints.hpp>
+#include <ui/RaylibCamera.hpp>
 
 #include <tuple>
 
@@ -23,6 +24,10 @@ int main() {
 
     Simulation sim;
     simfw::ui::SimulationControls controls;
+    Camera2D camera = simfw::ui::makeCenteredCamera(
+        static_cast<float>(WindowWidth),
+        static_cast<float>(WindowHeight)
+    );
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -30,6 +35,34 @@ int main() {
         constexpr std::size_t paramCount = std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
         simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
         simfw::ui::handleTunableAdjustment(config, controls, dt);
+
+        zoomCameraAtScreenPoint(
+            camera,
+            GetMousePosition(),
+            GetMouseWheelMove(),
+            0.1f,
+            0.5f,
+            8.0f,
+            static_cast<float>(WindowWidth),
+            static_cast<float>(WindowHeight)
+        );
+
+        if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
+            panCameraByScreenDelta(
+                camera,
+                GetMouseDelta(),
+                static_cast<float>(WindowWidth),
+                static_cast<float>(WindowHeight)
+            );
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            resetCameraToBounds(
+                camera,
+                static_cast<float>(WindowWidth),
+                static_cast<float>(WindowHeight)
+            );
+        }
 
         if (simfw::ui::shouldAdvanceSimulation(controls)) {
             sim.update(dt);
@@ -47,6 +80,8 @@ int main() {
         const float roadW = 920.0f;
         const float roadH = config.laneWidth * static_cast<float>(config.laneCount);
 
+        BeginMode2D(camera);
+
         DrawRectangleLinesEx({roadX, roadY, roadW, roadH}, 2.0f, DARKGRAY);
         for (int lane = 1; lane < config.laneCount; ++lane) {
             const float y = roadY + config.laneWidth * static_cast<float>(lane);
@@ -60,13 +95,19 @@ int main() {
             DrawRectangleV({x - 6.0f, y - 5.0f}, {12.0f, 10.0f}, color);
         }
 
-        simfw::ui::TextCursor cursor{30, 24, 20};
-        cursor.draw("traffic_flow_cpu", 20, RAYWHITE);
-        cursor.draw(controls.paused ? "Paused" : "Running");
-        cursor.draw(TextFormat("Vehicles: %d", static_cast<int>(vehicles.size())));
-        simfw::ui::drawStats(cursor, stats);
-        cursor.gap(6);
-        simfw::ui::drawTunables(cursor, config, controls.selectedParameter);
+        EndMode2D();
+
+        if (controls.uiMode != simfw::ui::UiMode::None) {
+            simfw::ui::TextCursor cursor{30, 24, 20};
+            cursor.draw("traffic_flow_cpu", 20, RAYWHITE);
+            cursor.draw(controls.paused ? "Paused" : "Running");
+            cursor.draw(TextFormat("Vehicles: %d", static_cast<int>(vehicles.size())));
+            simfw::ui::drawStats(cursor, stats);
+            cursor.gap(6);
+            simfw::ui::drawTunables(cursor, config, controls.selectedParameter);
+            cursor.gap(8);
+            cursor.draw(TextFormat("Zoom: %.2fx", camera.zoom), 18, GRAY);
+        }
 
         if (controls.uiMode == simfw::ui::UiMode::Full) {
             simfw::ui::TextCursor controlsCursor =
@@ -79,6 +120,9 @@ int main() {
                     "N: step",
                     "R: reset",
                     "F1: UI mode",
+                    "Wheel: zoom",
+                    "Middle mouse: pan",
+                    "Backspace: reset camera",
                     "Tab: select tunable",
                     "Left/Right: adjust",
                     "Shift: fast adjust"
