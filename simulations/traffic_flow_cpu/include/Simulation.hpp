@@ -2,6 +2,9 @@
 
 #include "Vehicle.hpp"
 
+#include <simulation/SimulationBase.hpp>
+#include <simulation/SimulationExecutionConfig.hpp>
+
 #include <cstddef>
 #include <vector>
 
@@ -25,6 +28,7 @@ struct SimulationConfig {
     float laneWidth = 22.0f;
     float spawnSpeedMin = 8.0f;
     float spawnSpeedMax = 22.0f;
+    simfw::simulation::SimulationExecutionConfig execution{};
 };
 
 struct SimulationStats {
