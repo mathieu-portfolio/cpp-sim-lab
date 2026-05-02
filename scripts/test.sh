@@ -52,7 +52,7 @@ if ! preset_exists "$PRESET"; then
 fi
 
 if [[ "$BUILD_FIRST" == true ]]; then
-    ./scripts/build.sh "$PRESET" test
+    ./scripts/build.sh "$PRESET"
 else
     echo "Skipping build (pass --build to compile tests first)."
 fi
