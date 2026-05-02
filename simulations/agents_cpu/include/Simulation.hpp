@@ -114,6 +114,7 @@ public:
     const simfw::simulation::ObstacleMask& obstacleMask() const { return m_obstacleMask; }
 
     void clearObstacles();
+    void addObstacle(Vec2 center);
 
 private:
     using AgentUpdateScratch = simfw::simulation::NeighborScratch<std::size_t>;
