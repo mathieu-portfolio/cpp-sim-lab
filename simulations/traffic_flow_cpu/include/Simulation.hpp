@@ -67,8 +67,9 @@ struct SimulationConfig {
     float crossroadYieldLookahead = 55.0f;
     float crossroadStopRadius = 11.0f;
     float crossroadClearDelay = 0.45f;
-    float crossroadMaxWait = 2.0f; // Deprecated: right-priority now waits while right traffic is moving.
+    float crossroadMaxWait = 2.0f; // Deprecated: replaced by policy-specific wait/deadlock handling.
     float stoppedRightPriorityGrace = 0.45f;
+    float crossroadDeadlockBreakerWait = 2.5f;
     float crossroadReservationLookahead = 60.0f;
     float spawnCrossroadClearance = 36.0f;
     float spawnMinimumGap = 18.0f;
@@ -106,6 +107,12 @@ public:
     Vec2 sampleLanePosition(std::size_t roadId, int laneId, float s) const;
     Vec2 sampleRoadTangent(std::size_t roadId, int laneId, float s) const;
 
+    // Read-only traffic queries used by behavior/policy/physics layers.
+    float distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const;
+    bool findNearestCrossroadAhead(const Vehicle& vehicle, std::size_t& outCrossroadIndex, float& outApproachS, float& outDistance) const;
+    bool isVehicleInsideCrossroad(const Vehicle& vehicle, std::size_t crossroadIndex) const;
+    float distanceAheadOnLane(const Vehicle& follower, const Vehicle& leader) const;
+
 private:
     SimulationConfig m_config;
     RoadNetwork m_network;
@@ -123,12 +130,7 @@ private:
     void rebuildRoadCaches();
     void rebuildRoadCache(RoadSegment& road);
     void rebuildCrossroads();
-    float distanceToCrossroadAlongLane(const Vehicle& vehicle, float crossroadS) const;
-    bool findNearestCrossroadAhead(const Vehicle& vehicle, std::size_t& outCrossroadIndex, float& outApproachS, float& outDistance) const;
-    bool isVehicleInsideReservedCrossroad(const Vehicle& vehicle) const;
-    bool hasMovingRightSideThreatAtCrossroad(const Vehicle& vehicle, std::size_t vehicleIndex) const;
     bool isInsideCrossroadSpawnClearance(std::size_t roadId, float s) const;
-    float distanceAheadOnLane(const Vehicle& follower, const Vehicle& leader) const;
     const Vehicle* findLeader(const Vehicle& vehicle, std::size_t vehicleIndex, float& outGap) const;
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
 };

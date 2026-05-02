@@ -1,6 +1,8 @@
 add_library(traffic_flow_cpu_core
     src/Simulation.cpp
+    src/CrossroadPolicy.cpp
     src/TrafficPhysics.cpp
+    src/VehicleBehavior.cpp
 )
 
 target_include_directories(traffic_flow_cpu_core
