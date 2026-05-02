@@ -9,10 +9,17 @@ namespace traffic_flow_cpu {
 
 class Simulation;
 
-struct CrossroadReservation {
-    int vehicleIndex = -1;
+struct MovementId {
+    std::size_t crossroadId = static_cast<std::size_t>(-1);
     std::size_t roadId = static_cast<std::size_t>(-1);
     int laneId = -1;
+    std::size_t entryApproachIndex = static_cast<std::size_t>(-1);
+    std::size_t exitApproachIndex = static_cast<std::size_t>(-1);
+};
+
+struct CrossroadReservation {
+    int vehicleIndex = -1;
+    MovementId movement{};
 };
 
 struct CrossroadPolicyDecision {
@@ -57,12 +64,35 @@ public:
         float now) const override;
 
 private:
-    static bool reservationMatchesVehicle(const CrossroadReservation& reservation, const Vehicle& vehicle);
-    static void reserveForVehicle(
-        std::vector<CrossroadReservation>& reservations,
+    static bool sameMovement(const MovementId& lhs, const MovementId& rhs);
+    static bool sameCrossroad(const MovementId& lhs, const MovementId& rhs);
+
+    bool findMovementForVehicle(
+        const Simulation& simulation,
+        const Vehicle& vehicle,
         std::size_t crossroadIndex,
+        MovementId& outMovement) const;
+
+    bool movementsAreCompatible(
+        const Simulation& simulation,
+        const MovementId& lhs,
+        const MovementId& rhs) const;
+
+    bool movementIsActiveOrCompatible(
+        const Simulation& simulation,
+        const std::vector<CrossroadReservation>& reservations,
+        const MovementId& movement) const;
+
+    bool fairnessGateAllowsAdmission(
+        const Simulation& simulation,
+        const std::vector<Vehicle>& vehicles,
+        const std::vector<CrossroadReservation>& reservations,
+        const MovementId& candidateMovement) const;
+
+    static void reserveMovementForVehicle(
+        std::vector<CrossroadReservation>& reservations,
         std::size_t vehicleIndex,
-        const Vehicle& vehicle);
+        const MovementId& movement);
 
     bool hasMovingRightSideThreatAtCrossroad(
         const Simulation& simulation,
