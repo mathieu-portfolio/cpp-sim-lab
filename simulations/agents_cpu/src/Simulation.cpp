@@ -147,6 +147,16 @@ void Simulation::clearObstacles() {
     updateStatsCount();
 }
 
+void Simulation::addObstacle(Vec2 center) {
+    const Vec2 clampedCenter = clampToWorld(center, m_config.width, m_config.height);
+    m_obstacleMask.paintCircle(
+        clampedCenter,
+        m_config.obstacleRadius,
+        simfw::simulation::ObstaclePaintMode::Block
+    );
+    updateStatsCount();
+}
+
 void Simulation::beginFrame() {
     normalizeConfigCounts();
 
