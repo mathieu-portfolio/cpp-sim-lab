@@ -111,7 +111,7 @@ Vec2 sampleByT(const RoadSegment& road, float t) {
 Simulation::Simulation(SimulationConfig config) : m_config(config) {
     sanitizeConfig();
     resetDefaultRoad();
-    clearTraffic();
+    generateTraffic();
 }
 
 void Simulation::sanitizeConfig() {
@@ -296,7 +296,7 @@ float Simulation::idmAcceleration(const Vehicle& vehicle, const Vehicle* leader,
 
 void Simulation::reset() {
     resetDefaultRoad();
-    clearTraffic();
+    generateTraffic();
 }
 
 void Simulation::clearTraffic() {

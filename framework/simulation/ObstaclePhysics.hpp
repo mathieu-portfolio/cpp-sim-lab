@@ -51,8 +51,13 @@ inline ObstacleCollisionResult resolveObstacleCollisionWithNormal(
                 if (!mask.isBlocked(x, y)) {
                     continue;
                 }
-                const Vec2 cellCenter{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
-                Vec2 delta = resolved - cellCenter;
+                const float minCellX = static_cast<float>(x);
+                const float maxCellX = minCellX + 1.0f;
+                const float minCellY = static_cast<float>(y);
+                const float maxCellY = minCellY + 1.0f;
+                const float closestX = std::clamp(resolved.x, minCellX, maxCellX);
+                const float closestY = std::clamp(resolved.y, minCellY, maxCellY);
+                Vec2 delta = resolved - Vec2{closestX, closestY};
                 float distSq = delta.lengthSquared();
                 if (distSq >= expandedSq) {
                     continue;
@@ -63,10 +68,7 @@ inline ObstacleCollisionResult resolveObstacleCollisionWithNormal(
                 if (distSq <= 1e-8f) {
                     delta = (resolved - previousPos).normalized();
                     if (delta.lengthSquared() <= 1e-8f) {
-                        delta = Vec2{resolved.x - static_cast<float>(mask.width()) * 0.5f, resolved.y - static_cast<float>(mask.height()) * 0.5f}.normalized();
-                        if (delta.lengthSquared() <= 1e-8f) {
-                            delta = Vec2{1.0f, 0.0f};
-                        }
+                        delta = Vec2{1.0f, 0.0f};
                     }
                     distSq = 1e-8f;
                 }
