@@ -247,6 +247,9 @@ Vec2 Simulation::sampleRoadCenter(std::size_t roadId, float s) const {
 
 Vec2 Simulation::sampleRoadTangent(std::size_t roadId, int laneId, float s) const {
     const RoadSegment& road = m_network.roads[roadId];
+    if (laneId < 0 || static_cast<std::size_t>(laneId) >= road.lanes.size()) {
+        return {1.0f, 0.0f};
+    }
     const float eps = 0.5f;
     const Vec2 p0 = sampleRoadCenter(roadId, s - eps);
     const Vec2 p1 = sampleRoadCenter(roadId, s + eps);
@@ -259,6 +262,9 @@ Vec2 Simulation::sampleRoadTangent(std::size_t roadId, int laneId, float s) cons
 
 Vec2 Simulation::sampleLanePosition(std::size_t roadId, int laneId, float s) const {
     const RoadSegment& road = m_network.roads[roadId];
+    if (laneId < 0 || static_cast<std::size_t>(laneId) >= road.lanes.size()) {
+        return sampleRoadCenter(roadId, s);
+    }
     const Vec2 c = sampleRoadCenter(roadId, s);
 
     // Use the centerline tangent for lane offsets. sampleRoadTangent() includes
@@ -587,9 +593,16 @@ void Simulation::update(float dt) {
         v.s += static_cast<float>(dir) * v.speed * dt;
         if (v.s >= road.length) {
             if (road.endConnection.has_value()) {
-                v.roadId = road.endConnection->roadId;
-                v.laneId = road.endConnection->laneId;
-                v.s = wrapDistance(v.s - road.length, m_network.roads[v.roadId].length);
+                const auto& c = *road.endConnection;
+                if (c.roadId < m_network.roads.size() && c.laneId >= 0 &&
+                    static_cast<std::size_t>(c.laneId) < m_network.roads[c.roadId].lanes.size() &&
+                    m_network.roads[c.roadId].length > 0.0f) {
+                    v.roadId = c.roadId;
+                    v.laneId = c.laneId;
+                    v.s = wrapDistance(v.s - road.length, m_network.roads[v.roadId].length);
+                } else {
+                    v.s = wrapDistance(v.s, road.length);
+                }
             } else {
                 v.s = wrapDistance(v.s, road.length);
             }
@@ -597,9 +610,15 @@ void Simulation::update(float dt) {
         } else if (v.s < 0.0f) {
             if (road.startConnection.has_value()) {
                 const auto& c = *road.startConnection;
-                v.roadId = c.roadId;
-                v.laneId = c.laneId;
-                v.s = wrapDistance(m_network.roads[c.roadId].length + v.s, m_network.roads[c.roadId].length);
+                if (c.roadId < m_network.roads.size() && c.laneId >= 0 &&
+                    static_cast<std::size_t>(c.laneId) < m_network.roads[c.roadId].lanes.size() &&
+                    m_network.roads[c.roadId].length > 0.0f) {
+                    v.roadId = c.roadId;
+                    v.laneId = c.laneId;
+                    v.s = wrapDistance(m_network.roads[c.roadId].length + v.s, m_network.roads[c.roadId].length);
+                } else {
+                    v.s = wrapDistance(v.s, road.length);
+                }
             } else {
                 v.s = wrapDistance(v.s, road.length);
             }

@@ -203,10 +203,10 @@ void Simulation::buildFlowField() {
 
       const int minX = std::max(0, static_cast<int>(std::floor(minWorldX)));
       const int maxX = std::min(m_obstacleMask.width() - 1,
-                                static_cast<int>(std::ceil(maxWorldX)));
+                                static_cast<int>(std::ceil(maxWorldX)) - 1);
       const int minY = std::max(0, static_cast<int>(std::floor(minWorldY)));
       const int maxY = std::min(m_obstacleMask.height() - 1,
-                                static_cast<int>(std::ceil(maxWorldY)));
+                                static_cast<int>(std::ceil(maxWorldY)) - 1);
 
       bool blocked = false;
       for (int py = minY; py <= maxY && !blocked; ++py) {

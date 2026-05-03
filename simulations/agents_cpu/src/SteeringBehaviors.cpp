@@ -290,7 +290,7 @@ Vec2 avoidObstacles(std::size_t agentIndex, BehaviorContext& context) {
     Vec2 force{};
     int obstacleCount = 0;
 
-    const float step = std::max(4.0f, config.obstacleAvoidanceRadius * 0.25f);
+    const float step = std::max(1.0f, config.obstacleAvoidanceRadius * 0.25f);
     for (float y = -config.obstacleAvoidanceRadius; y <= config.obstacleAvoidanceRadius; y += step) {
         for (float x = -config.obstacleAvoidanceRadius; x <= config.obstacleAvoidanceRadius; x += step) {
             const Vec2 delta{x, y};
@@ -318,7 +318,7 @@ std::optional<AgentIntent> avoidObstacleIntent(
     const SimulationConfig& config = context.config;
     const Agent& agent = context.agents[agentIndex];
 
-    const float step = std::max(4.0f, config.obstacleIntentRadius * 0.25f);
+    const float step = std::max(1.0f, config.obstacleIntentRadius * 0.25f);
     for (float y = -config.obstacleIntentRadius; y <= config.obstacleIntentRadius; y += step) {
         for (float x = -config.obstacleIntentRadius; x <= config.obstacleIntentRadius; x += step) {
             const Vec2 delta{x, y};
