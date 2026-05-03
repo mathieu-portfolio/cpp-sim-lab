@@ -61,7 +61,8 @@ if ! preset_exists "$PRESET"; then
 fi
 
 BUILD_DIR="build/$PRESET"
-BENCH_SRC_DIR="benchmarks/simulations/$BENCH_NAME"
+BENCH_SRC_DIR="benchmarks/simulations/*/$BENCH_NAME"
+BENCH_SRC_DIR=$(echo $BENCH_SRC_DIR)
 OUT_DIR="$BENCH_SRC_DIR/results"
 OUT="$OUT_DIR/results.csv"
 BENCH_EXE="${BENCH_NAME}_bench"

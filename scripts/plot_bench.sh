@@ -10,7 +10,8 @@ if [[ $# -lt 1 ]]; then
 fi
 
 BENCH_NAME=$1
-BENCH_DIR="benchmarks/simulations/$BENCH_NAME"
+BENCH_DIR="benchmarks/simulations/*/$BENCH_NAME"
+BENCH_DIR=$(echo $BENCH_DIR)
 
 if [[ ! -d "$BENCH_DIR" ]]; then
     echo "Error: benchmark directory not found for $BENCH_NAME"
