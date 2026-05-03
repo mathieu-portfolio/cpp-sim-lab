@@ -20,12 +20,18 @@ float vehicleClearanceDistance(const Vehicle& a, const Vehicle& b, float configu
 }
 
 float travelCoordinate(const RoadSegment& road, const Vehicle& vehicle) {
+    if (vehicle.laneId < 0 || static_cast<std::size_t>(vehicle.laneId) >= road.lanes.size()) {
+        return wrapDistance(vehicle.s, road.length);
+    }
     const int direction = road.lanes[static_cast<std::size_t>(vehicle.laneId)].direction;
     return direction >= 0 ? wrapDistance(vehicle.s, road.length)
                           : wrapDistance(road.length - vehicle.s, road.length);
 }
 
 float roadCoordinateFromTravel(const RoadSegment& road, int laneId, float q) {
+    if (laneId < 0 || static_cast<std::size_t>(laneId) >= road.lanes.size()) {
+        return wrapDistance(q, road.length);
+    }
     const int direction = road.lanes[static_cast<std::size_t>(laneId)].direction;
     const float wrappedQ = wrapDistance(q, road.length);
     return direction >= 0 ? wrappedQ : wrapDistance(road.length - wrappedQ, road.length);

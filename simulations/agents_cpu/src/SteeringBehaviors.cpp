@@ -318,7 +318,7 @@ std::optional<AgentIntent> avoidObstacleIntent(
     const SimulationConfig& config = context.config;
     const Agent& agent = context.agents[agentIndex];
 
-    const float step = std::max(1.0f, config.obstacleIntentRadius * 0.25f);
+    const float step = std::clamp(config.obstacleIntentRadius * 0.1f, 1.0f, 4.0f);
     for (float y = -config.obstacleIntentRadius; y <= config.obstacleIntentRadius; y += step) {
         for (float x = -config.obstacleIntentRadius; x <= config.obstacleIntentRadius; x += step) {
             const Vec2 delta{x, y};

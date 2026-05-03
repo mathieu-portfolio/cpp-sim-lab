@@ -323,9 +323,16 @@ void Simulation::updateAgents(float dt) {
       const Agent &p = m_previousAgents[i];
       a.velocity = limitLength(p.velocity + acc * dt, m_config.maxSpeed);
       const Vec2 proposed = p.position + a.velocity * dt;
+      Vec2 collisionStart = p.position;
+      if (simfw::simulation::isBlockedWorld(m_obstacleMask, collisionStart)) {
+        const Vec2 backstepDir = a.velocity.lengthSquared() > 1e-6f
+            ? (a.velocity.normalized() * -1.0f)
+            : Vec2{-1.0f, 0.0f};
+        collisionStart = p.position + backstepDir * (a.radius + 1.0f);
+      }
       const simfw::simulation::ObstacleCollisionResult collision =
           simfw::simulation::resolveObstacleCollisionWithNormal(
-              m_obstacleMask, p.position, proposed, a.radius);
+              m_obstacleMask, collisionStart, proposed, a.radius);
       a.position = collision.position;
       if (collision.collided && collision.normal.lengthSquared() > 1e-6f) {
         const float normalSpeed = a.velocity.dot(collision.normal);
