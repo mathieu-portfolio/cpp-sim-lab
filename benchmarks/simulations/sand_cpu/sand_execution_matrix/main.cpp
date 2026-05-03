@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 
 #include <cstddef>
@@ -54,6 +55,9 @@ int main() {
     const std::vector<std::size_t> gridSizes{128, 192, 256, 320, 384};
     const std::vector<ExecutionMode> modes{{"default", "single_thread", false}, {"default", "parallel", true}};
 
+    const std::size_t totalCases = gridSizes.size() * modes.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout << "simulation,entity_count,backend,threading,frames,total_ms,avg_frame_ms,relative_to_single,particle_count,active_chunks,moved_cells\n";
 
     for (std::size_t gridSize : gridSizes) {
@@ -69,9 +73,12 @@ int main() {
             if (baselineAvgFrameMs == 0.0) baselineAvgFrameMs = result.avgFrameMs;
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
 
+            progress.advance();
             std::cout << "sand_cpu," << entityCount << "," << mode.backend << "," << mode.threading << "," << MeasuredFrames << "," << result.totalMs << "," << result.avgFrameMs << "," << relative << "," << result.particleCount << "," << result.activeChunks << "," << result.movedCells << "\n";
         }
     }
+
+    progress.finish();
 
     return 0;
 }

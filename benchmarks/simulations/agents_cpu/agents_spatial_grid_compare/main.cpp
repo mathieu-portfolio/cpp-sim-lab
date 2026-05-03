@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
@@ -109,6 +110,9 @@ int main() {
         5000
     };
 
+    const std::size_t totalCases = agentCounts.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout
         << "agent_count,"
         << "obstacles,"
@@ -159,6 +163,7 @@ int main() {
 
         const double speedup = naive.avgFrameMs / grid.avgFrameMs;
 
+        progress.advance();
         std::cout
             << agentCount << ","
             << ObstacleCount << ","
@@ -177,6 +182,8 @@ int main() {
             << grid.occupiedGridCells
             << "\n";
     }
+
+    progress.finish();
 
     return 0;
 }

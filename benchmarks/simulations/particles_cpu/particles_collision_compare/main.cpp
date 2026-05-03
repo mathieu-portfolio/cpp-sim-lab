@@ -1,6 +1,7 @@
 #include "Particle.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
@@ -136,6 +137,9 @@ int main() {
 
     std::cout << "particles,naive_ms,grid_ms,speedup,naive_checks,grid_checks,naive_resolved,grid_resolved\n";
 
+    constexpr std::size_t totalCases = 5;
+    bench::ProgressBar progress(totalCases);
+
     for (std::size_t count : {100ull, 500ull, 1000ull, 2000ull, 5000ull}) {
         const std::uint32_t seed = bench::seedFor(BaseSeed, count);
 
@@ -144,6 +148,7 @@ int main() {
 
         double speedup = naive.msPerStep / grid.msPerStep;
 
+        progress.advance();
         std::cout << count << ","
                   << naive.msPerStep << ","
                   << grid.msPerStep << ","
@@ -153,6 +158,8 @@ int main() {
                   << naive.resolvedPerStep << ","
                   << grid.resolvedPerStep << "\n";
     }
+
+    progress.finish();
 
     return 0;
 }
