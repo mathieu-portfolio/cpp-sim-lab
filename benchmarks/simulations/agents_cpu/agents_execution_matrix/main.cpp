@@ -16,6 +16,7 @@ namespace {
 constexpr std::uint32_t BaseSeed = 3030u;
 constexpr float Dt = 1.0f / 60.0f;
 constexpr std::size_t ObstacleCount = 64;
+constexpr std::size_t MaxNaiveEntityCount = 2000;
 
 struct ExecutionMode {
     std::string_view backend;
@@ -153,6 +154,10 @@ int main() {
         double baselineAvgFrameMs = 0.0;
 
         for (const ExecutionMode& mode : modes) {
+            if (!mode.useSpatialGrid && entityCount > MaxNaiveEntityCount) {
+                continue;
+            }
+
             const BenchResult result = runBenchmark(
                 baseConfig,
                 mode,
@@ -168,7 +173,7 @@ int main() {
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
 
             std::cout
-                << "agents_cpu," 
+                << "agents_cpu,"
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","
