@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
@@ -26,6 +27,9 @@ int main() {
         2000,
         3000
     };
+
+    const std::size_t totalCases = boidCounts.size();
+    bench::ProgressBar progress(totalCases);
 
     std::cout
         << "boid_count,"
@@ -58,6 +62,7 @@ int main() {
         const SimulationStats stats = sim.getStats();
         const double avgFrameMs = totalMs / static_cast<double>(MeasuredFrames);
 
+        progress.advance();
         std::cout
             << boidCount << ","
             << MeasuredFrames << ","
@@ -66,6 +71,8 @@ int main() {
             << stats.neighborChecks
             << "\n";
     }
+
+    progress.finish();
 
     return 0;
 }

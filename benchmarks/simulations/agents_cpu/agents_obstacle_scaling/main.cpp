@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
@@ -112,6 +113,9 @@ int main() {
         512
     };
 
+    const std::size_t totalCases = obstacleCounts.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout
         << "agent_count,"
         << "obstacles,"
@@ -156,6 +160,8 @@ int main() {
             << result.occupiedGridCells
             << "\n";
     }
+
+    progress.finish();
 
     return 0;
 }

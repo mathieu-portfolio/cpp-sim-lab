@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
@@ -131,6 +132,9 @@ int main() {
         {"grid", "parallel", true, true}
     };
 
+    const std::size_t totalCases = entityCounts.size() * modes.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout
         << "simulation,"
         << "entity_count,"
@@ -172,6 +176,7 @@ int main() {
 
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
 
+            progress.advance();
             std::cout
                 << "agents_cpu,"
                 << entityCount << ","
@@ -188,6 +193,8 @@ int main() {
                 << "\n";
         }
     }
+
+    progress.finish();
 
     return 0;
 }

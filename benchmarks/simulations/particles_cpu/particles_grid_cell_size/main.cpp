@@ -1,6 +1,7 @@
 #include "Particle.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <math/Vec2.hpp>
 #include <random/Random.hpp>
 #include <spatial/SpatialHashGrid.hpp>
@@ -131,6 +132,9 @@ int main() {
         64.0f
     };
 
+    const std::size_t totalCases = particleCounts.size() * cellSizes.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout
         << "particles,cell_size,total_ms,build_ms,query_collision_ms,checks,resolved\n";
 
@@ -138,6 +142,7 @@ int main() {
         for (float cellSize : cellSizes) {
             BenchResult result = benchGrid(count, cellSize, steps);
 
+            progress.advance();
             std::cout << count << ","
                       << cellSize << ","
                       << result.totalMsPerStep << ","
@@ -147,6 +152,8 @@ int main() {
                       << result.resolvedPerStep << "\n";
         }
     }
+
+    progress.finish();
 
     return 0;
 }

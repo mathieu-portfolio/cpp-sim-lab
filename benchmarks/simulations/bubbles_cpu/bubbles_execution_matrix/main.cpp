@@ -1,6 +1,7 @@
 #include "Simulation.hpp"
 
 #include <BenchTimer.hpp>
+#include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
 #include <random/Random.hpp>
 
@@ -61,6 +62,9 @@ int main() {
     const std::vector<std::size_t> entityCounts{100, 250, 500, 750, 1000, 1200};
     const std::vector<ExecutionMode> modes{{"default", "single_thread", false}, {"default", "parallel", true}};
 
+    const std::size_t totalCases = entityCounts.size() * modes.size();
+    bench::ProgressBar progress(totalCases);
+
     std::cout << "simulation,entity_count,backend,threading,frames,total_ms,avg_frame_ms,relative_to_single,bubble_count,interaction_checks,collisions_resolved\n";
 
     for (std::size_t entityCount : entityCounts) {
@@ -76,9 +80,12 @@ int main() {
             if (baselineAvgFrameMs == 0.0) baselineAvgFrameMs = result.avgFrameMs;
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
 
+            progress.advance();
             std::cout << "bubbles_cpu," << entityCount << "," << mode.backend << "," << mode.threading << "," << MeasuredFrames << "," << result.totalMs << "," << result.avgFrameMs << "," << relative << "," << result.bubbleCount << "," << result.interactionChecks << "," << result.collisionsResolved << "\n";
         }
     }
+
+    progress.finish();
 
     return 0;
 }
