@@ -117,7 +117,7 @@ Simulation::Simulation(SimulationConfig config) : m_config(config) {
 void Simulation::sanitizeConfig() {
     m_config.vehicleCount = std::clamp<std::size_t>(m_config.vehicleCount, 0, 500);
     m_config.desiredSpeed = std::clamp(m_config.desiredSpeed, 1.0f, 60.0f);
-    m_config.maxAcceleration = std::clamp(m_config.maxAcceleration, 0.1f, 4.0f);
+    m_config.maxAcceleration = std::clamp(m_config.maxAcceleration, 0.0f, 4.0f);
     m_config.comfortableBraking = std::clamp(m_config.comfortableBraking, 0.1f, 5.0f);
     m_config.minimumGap = std::clamp(m_config.minimumGap, 0.0f, 20.0f);
     m_config.desiredTimeHeadway = std::clamp(m_config.desiredTimeHeadway, 0.1f, 4.0f);
@@ -599,7 +599,10 @@ void Simulation::update(float dt) {
                     m_network.roads[c.roadId].length > 0.0f) {
                     v.roadId = c.roadId;
                     v.laneId = c.laneId;
-                    v.s = wrapDistance(v.s - road.length, m_network.roads[v.roadId].length);
+                    // Crossing an explicit road connection resets the lane-progress
+                    // to the start of the destination lane instead of carrying
+                    // residual distance from the source road.
+                    v.s = 0.0f;
                 } else {
                     v.s = wrapDistance(v.s, road.length);
                 }
@@ -615,7 +618,9 @@ void Simulation::update(float dt) {
                     m_network.roads[c.roadId].length > 0.0f) {
                     v.roadId = c.roadId;
                     v.laneId = c.laneId;
-                    v.s = wrapDistance(m_network.roads[c.roadId].length + v.s, m_network.roads[c.roadId].length);
+                    // Same behavior for start-connection transfers: enter the
+                    // destination lane at its canonical start.
+                    v.s = 0.0f;
                 } else {
                     v.s = wrapDistance(v.s, road.length);
                 }
