@@ -48,9 +48,11 @@ TEST(TrafficFlowCpuSimulation, LaneDirectionIsFixedByLane) {
     vehicles[0].laneId = 0;
     vehicles[1].laneId = 1;
     vehicles[0].s = vehicles[1].s = sim.getRoadNetwork().roads[0].length * 0.5f;
+    const float startS0 = vehicles[0].s;
+    const float startS1 = vehicles[1].s;
     sim.update(1.0f);
-    EXPECT_GT(sim.getVehicles()[0].s, vehicles[0].s);
-    EXPECT_LT(sim.getVehicles()[1].s, vehicles[1].s);
+    EXPECT_GT(sim.getVehicles()[0].s, startS0);
+    EXPECT_LT(sim.getVehicles()[1].s, startS1);
 }
 
 TEST(TrafficFlowCpuSimulation, EndpointConnectionTransfersVehicle) {
