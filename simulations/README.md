@@ -32,3 +32,8 @@ Each simulation is independent and demonstrates a different system.
 - IDM longitudinal control
 - simple MOBIL-style lane changes
 - throughput / speed / queue metrics
+
+## epidemic_cpu
+- SIR-style epidemic spread over moving agents
+- proximity/contact-time infection probability
+- recovery timer and epidemic metrics (R_t proxy, peak infection, extinction time)
