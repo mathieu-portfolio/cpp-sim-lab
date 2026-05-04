@@ -16,6 +16,10 @@ inline float clampMin(float value, float minValue) {
     return std::max(value, minValue);
 }
 
+inline float clampRange(float value, float minValue, float maxValue) {
+    return std::clamp(value, minValue, maxValue);
+}
+
 inline UiMode nextUiMode(UiMode mode) {
     return static_cast<UiMode>((static_cast<int>(mode) + 1) % 3);
 }
@@ -47,10 +51,11 @@ inline void adjustTunable(
         return;
     }
 
-    const float step = (fast ? parameter.fastStep : parameter.normalStep) * dt;
-    *parameter.value = clampMin(
-        *parameter.value + direction * step,
-        parameter.minValue
+    const float appliedStep = parameter.step * (fast ? parameter.fastMultiplier : 1.0f) * dt;
+    *parameter.value = clampRange(
+        *parameter.value + direction * appliedStep,
+        parameter.minValue,
+        parameter.maxValue
     );
 }
 

@@ -15,6 +15,13 @@ Each simulation is independent and demonstrates a different system.
   - separation
   - wander
 
+
+## predator_prey_cpu
+- two-population boids (prey + predators)
+- prey flocking plus predator avoidance
+- predator nearest-target chase and catch
+- simple predator energy drain/respawn loop
+
 ## agents_cpu
 - goal-oriented agents
 - behavior + intent system

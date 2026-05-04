@@ -56,9 +56,9 @@ void adjustTunables(
                 TunableParameter p{
                     field.name,
                     &(config.*(field.member)),
+                    field.step,
                     field.minValue,
-                    field.normalStep,
-                    field.fastStep
+                    field.maxValue
                 };
 
                 adjustTunable(p, direction, dt, fast);
@@ -67,9 +67,9 @@ void adjustTunables(
                 TunableParameter p{
                     field.name,
                     &value,
+                    field.step,
                     field.minValue,
-                    field.normalStep,
-                    field.fastStep
+                    field.maxValue
                 };
 
                 adjustTunable(p, direction, dt, fast);
