@@ -128,16 +128,6 @@ Key learnings:
 
 ---
 
-## Future (after multiple sims)
-
-### Parallelization
-- Multithreading (task-based, data parallel)
-- SIMD
-- GPU (optional later)
-
-Rule:
-Only parallelize after identifying real bottlenecks.
-
 ### GPU readiness checkpoint
 
 We should only start a GPU port when all of the following are true for a simulation:
