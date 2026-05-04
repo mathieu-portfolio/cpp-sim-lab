@@ -74,6 +74,7 @@ BenchResult runBenchmark(
 int main() {
     constexpr int WarmupFrames = 30;
     constexpr int MeasuredFrames = 300;
+    constexpr double SlowFrameThresholdMs = 40.0;
 
     const std::vector<std::size_t> entityCounts{
         100,
@@ -113,6 +114,8 @@ int main() {
         << "occupied_grid_cells,"
         << "reached_goal_count\n";
 
+    std::vector<bool> skipMode(modes.size(), false);
+
     for (std::size_t entityCount : entityCounts) {
         SimulationConfig baseConfig;
         baseConfig.agentCount = entityCount;
@@ -122,7 +125,12 @@ int main() {
         const std::uint32_t seed = bench::seedFor(BaseSeed, entityCount);
         double baselineAvgFrameMs = 0.0;
 
-        for (const ExecutionMode& mode : modes) {
+        for (std::size_t modeIndex = 0; modeIndex < modes.size(); ++modeIndex) {
+            const ExecutionMode& mode = modes[modeIndex];
+            if (skipMode[modeIndex]) {
+                continue;
+            }
+
             const BenchResult result = runBenchmark(
                 baseConfig,
                 mode,
@@ -136,6 +144,9 @@ int main() {
             }
 
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
+            if (bench::exceedsSlowThreshold({result.totalMs, result.avgFrameMs, static_cast<std::size_t>(MeasuredFrames)}, SlowFrameThresholdMs)) {
+                skipMode[modeIndex] = true;
+            }
 
             progress.advance();
             std::cout
