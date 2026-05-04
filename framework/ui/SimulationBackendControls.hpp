@@ -1,5 +1,6 @@
 #pragma once
 
+#include <simulation/SimulationExecutionConfig.hpp>
 #include <ui/SpatialGridDebugDraw.hpp>
 #include <ui/UiHelpers.hpp>
 
@@ -23,6 +24,22 @@ void handleSimulationBackendControls(
     if (IsKeyPressed(KEY_P)) {
         config.execution.useParallelUpdate = !config.execution.useParallelUpdate;
     }
+
+    if (IsKeyPressed(KEY_B)) {
+        using simfw::simulation::ComputeBackend;
+
+        switch (config.execution.computeBackend) {
+        case ComputeBackend::CpuScalar:
+            config.execution.computeBackend = ComputeBackend::CpuParallel;
+            break;
+        case ComputeBackend::CpuParallel:
+            config.execution.computeBackend = ComputeBackend::GpuCompute;
+            break;
+        case ComputeBackend::GpuCompute:
+            config.execution.computeBackend = ComputeBackend::CpuScalar;
+            break;
+        }
+    }
 }
 
 template <typename Config>
@@ -41,6 +58,17 @@ void drawSimulationBackendStatus(
         config.execution.useParallelUpdate ? "Execution: parallel" : "Execution: single-thread",
         16,
         config.execution.useParallelUpdate ? GREEN : LIGHTGRAY
+    );
+
+    cursor.draw(
+        TextFormat(
+            "Compute backend: %s",
+            simfw::simulation::computeBackendName(config.execution.computeBackend)
+        ),
+        16,
+        config.execution.computeBackend == simfw::simulation::ComputeBackend::GpuCompute
+            ? SKYBLUE
+            : LIGHTGRAY
     );
 
     cursor.draw(
