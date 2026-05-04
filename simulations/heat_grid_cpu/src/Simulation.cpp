@@ -62,6 +62,29 @@ void Simulation::applyFixedPoints(std::vector<float>& field) {
     }
 }
 
+
+void Simulation::addHeatSource(std::size_t x, std::size_t y, float temperature) {
+    if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
+        return;
+    }
+
+    m_heatSources.push_back({x, y, temperature});
+    applyFixedPoints(m_temperature);
+    applyFixedPoints(m_nextTemperature);
+    rebuildStats();
+}
+
+void Simulation::addHeatSink(std::size_t x, std::size_t y, float temperature) {
+    if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
+        return;
+    }
+
+    m_heatSinks.push_back({x, y, temperature});
+    applyFixedPoints(m_temperature);
+    applyFixedPoints(m_nextTemperature);
+    rebuildStats();
+}
+
 void Simulation::update(float) {
     for (std::size_t y = 0; y < m_config.gridHeight; ++y) {
         for (std::size_t x = 0; x < m_config.gridWidth; ++x) {

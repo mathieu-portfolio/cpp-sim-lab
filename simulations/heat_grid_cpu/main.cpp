@@ -67,13 +67,30 @@ int main() {
         if (IsKeyDown(KEY_LEFT)) simfw::ui::adjustTunables(simConfig, controls.selectedParameter, -1.0f, dt, fastAdjust);
         if (IsKeyDown(KEY_RIGHT)) simfw::ui::adjustTunables(simConfig, controls.selectedParameter, 1.0f, dt, fastAdjust);
 
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            const Vector2 mouse = GetMousePosition();
+            const int gx = static_cast<int>(mouse.x / simConfig.cellSize);
+            const int gy = static_cast<int>(mouse.y / simConfig.cellSize);
+            if (gx >= 0 && gy >= 0
+                && gx < static_cast<int>(simConfig.gridWidth)
+                && gy < static_cast<int>(simConfig.gridHeight)) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    sim.addHeatSource(static_cast<std::size_t>(gx), static_cast<std::size_t>(gy), 1.0f);
+                }
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                    sim.addHeatSink(static_cast<std::size_t>(gx), static_cast<std::size_t>(gy), -1.0f);
+                }
+            }
+        }
+
         if (simfw::ui::shouldAdvanceSimulation(controls)) {
             sim.update(dt);
             simfw::ui::finishSimulationStep(controls);
         }
 
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(DARKGREEN);
 
         const auto& temperature = sim.getTemperature();
         for (std::size_t y = 0; y < simConfig.gridHeight; ++y) {
@@ -92,12 +109,12 @@ int main() {
         if (controls.uiMode != simfw::ui::UiMode::None) {
             simfw::ui::TextCursor cursor{10, 10, 22};
             cursor.draw("heat_grid_cpu", 20, RAYWHITE);
-            cursor.draw(controls.paused ? "Paused" : "Running");
+            cursor.draw(controls.paused ? "Paused" : "Running", 18, GREEN);
             simfw::ui::drawStats(cursor, sim.getStats());
             cursor.gap(6);
             simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter);
             cursor.gap(8);
-            cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, LIGHTGRAY);
+            cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, LIME);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 auto controlsCursor = simfw::ui::makeRightSideControlCursor(320, 10, 20);
@@ -111,7 +128,9 @@ int main() {
                         "F1: UI mode",
                         "Tab: select tunable",
                         "Left/Right: adjust",
-                        "Shift: fast adjust"
+                        "Shift: fast adjust",
+                        "LMB: add heat source",
+                        "RMB: add heat sink"
                     }
                 );
             }
