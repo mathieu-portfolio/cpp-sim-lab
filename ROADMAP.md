@@ -7,7 +7,7 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
 
 ## Completed
 
-### particles_cpu
+### particles
 - Particle system (position, velocity, radius)
 - Gravity + integration
 - Boundary collisions
@@ -148,7 +148,7 @@ We should only start a GPU port when all of the following are true for a simulat
 - clear state layout suitable for SoA-style buffers
 
 Current best candidates (ordered):
-1. `particles_cpu`
+1. `particles`
    - strongest data-parallel structure (integration + collision passes)
    - existing execution matrix benchmark
 2. `boids_cpu`
@@ -191,7 +191,7 @@ When to split anyway (exception):
 - shared code drops below ~60% and maintenance overhead clearly rises
 
 Incremental rollout plan:
-1. Port `particles_cpu` first as `particles` with selectable backend.
+1. Port `particles` first as `particles` with selectable backend.
 2. Keep authoritative correctness checks on CPU; compare GPU statistically/tolerance-based.
 3. Reuse same scene generators and benchmark harness for cpu/gpu runs.
 4. After two successful ports, reevaluate whether unified structure still pays off.

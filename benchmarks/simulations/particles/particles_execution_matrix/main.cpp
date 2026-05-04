@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-using namespace particles_cpu;
+using namespace particles;
 
 namespace {
 constexpr std::uint32_t BaseSeed = 1010u;
@@ -182,7 +182,7 @@ int main() {
 
             progress.advance();
             std::cout
-                << "particles_cpu," 
+                << "particles," 
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","

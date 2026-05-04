@@ -16,7 +16,7 @@
 
 #include <optional>
 
-using namespace particles_cpu;
+using namespace particles;
 
 namespace {
 constexpr float SelectionPickRadius = 14.0f;
@@ -115,7 +115,7 @@ int main() {
     if (controls.uiMode != simfw::ui::UiMode::None) {
       simfw::ui::TextCursor cursor{10, 10, 22};
 
-      cursor.draw("particles_cpu", 20, RAYWHITE);
+      cursor.draw("particles", 20, RAYWHITE);
       cursor.draw(controls.paused ? "Paused" : "Running");
 
       simfw::ui::drawStats(cursor, sim.getStats());

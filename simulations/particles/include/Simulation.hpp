@@ -12,7 +12,7 @@
 
 class ThreadPool;
 
-namespace particles_cpu {
+namespace particles {
 
 struct SimulationConfig {
     float width = 800.0f;
@@ -83,4 +83,4 @@ private:
     void resolveCollisions();
 };
 
-} // namespace particles_cpu
+} // namespace particles

@@ -1,6 +1,6 @@
 #include "ParticlePhysics.hpp"
 
-namespace particles_cpu {
+namespace particles {
 namespace {
 constexpr float Epsilon = 0.0001f;
 }
@@ -78,4 +78,4 @@ bool resolveParticleCollision(
     return true;
 }
 
-} // namespace particles_cpu
+} // namespace particles

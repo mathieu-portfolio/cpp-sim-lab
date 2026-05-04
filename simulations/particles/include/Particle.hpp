@@ -2,7 +2,7 @@
 
 #include <math/Vec2.hpp>
 
-namespace particles_cpu {
+namespace particles {
 
 struct Particle {
     Vec2 position;
@@ -10,4 +10,4 @@ struct Particle {
     float radius = 4.0f;
 };
 
-} // namespace particles_cpu
+} // namespace particles
