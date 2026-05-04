@@ -1,0 +1,112 @@
+#include "Simulation.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+namespace heat_grid_cpu {
+
+Simulation::Simulation(SimulationConfig config) : Base(config) {
+    m_config.entityCount = m_config.gridWidth * m_config.gridHeight;
+    m_temperature.assign(m_config.entityCount, m_config.ambientTemperature);
+    m_nextTemperature = m_temperature;
+    seedFixedPoints();
+    applyFixedPoints(m_temperature);
+    applyFixedPoints(m_nextTemperature);
+    rebuildStats();
+}
+
+std::size_t Simulation::idx(std::size_t x, std::size_t y) const {
+    return y * m_config.gridWidth + x;
+}
+
+float Simulation::sample(int x, int y) const {
+    const int w = static_cast<int>(m_config.gridWidth);
+    const int h = static_cast<int>(m_config.gridHeight);
+
+    if (m_config.boundaryMode == BoundaryMode::Wrap) {
+        const int nx = (x % w + w) % w;
+        const int ny = (y % h + h) % h;
+        return m_temperature[idx(static_cast<std::size_t>(nx), static_cast<std::size_t>(ny))];
+    }
+
+    if (m_config.boundaryMode == BoundaryMode::Clamp) {
+        const int nx = std::clamp(x, 0, w - 1);
+        const int ny = std::clamp(y, 0, h - 1);
+        return m_temperature[idx(static_cast<std::size_t>(nx), static_cast<std::size_t>(ny))];
+    }
+
+    if (x < 0 || y < 0 || x >= w || y >= h) {
+        return m_config.ambientTemperature;
+    }
+
+    return m_temperature[idx(static_cast<std::size_t>(x), static_cast<std::size_t>(y))];
+}
+
+void Simulation::seedFixedPoints() {
+    m_heatSources.clear();
+    m_heatSinks.clear();
+
+    m_heatSources.push_back({m_config.gridWidth / 4, m_config.gridHeight / 2, 1.0f});
+    m_heatSources.push_back({(m_config.gridWidth * 3) / 4, m_config.gridHeight / 2, 0.85f});
+    m_heatSinks.push_back({m_config.gridWidth / 2, m_config.gridHeight / 3, -0.6f});
+    m_heatSinks.push_back({m_config.gridWidth / 2, (m_config.gridHeight * 2) / 3, -0.5f});
+}
+
+void Simulation::applyFixedPoints(std::vector<float>& field) {
+    for (const HeatPoint& src : m_heatSources) {
+        field[idx(src.x, src.y)] = src.temperature;
+    }
+    for (const HeatPoint& sink : m_heatSinks) {
+        field[idx(sink.x, sink.y)] = sink.temperature;
+    }
+}
+
+void Simulation::update(float) {
+    for (std::size_t y = 0; y < m_config.gridHeight; ++y) {
+        for (std::size_t x = 0; x < m_config.gridWidth; ++x) {
+            const float c = sample(static_cast<int>(x), static_cast<int>(y));
+            const float l = sample(static_cast<int>(x) - 1, static_cast<int>(y));
+            const float r = sample(static_cast<int>(x) + 1, static_cast<int>(y));
+            const float u = sample(static_cast<int>(x), static_cast<int>(y) - 1);
+            const float d = sample(static_cast<int>(x), static_cast<int>(y) + 1);
+            const float laplacian = (l + r + u + d) - (4.0f * c);
+            m_nextTemperature[idx(x, y)] = c + (m_config.diffusion * laplacian);
+        }
+    }
+
+    applyFixedPoints(m_nextTemperature);
+    std::swap(m_temperature, m_nextTemperature);
+    rebuildStats();
+}
+
+void Simulation::clear() {
+    std::fill(m_temperature.begin(), m_temperature.end(), m_config.ambientTemperature);
+    std::fill(m_nextTemperature.begin(), m_nextTemperature.end(), m_config.ambientTemperature);
+    applyFixedPoints(m_temperature);
+    applyFixedPoints(m_nextTemperature);
+    rebuildStats();
+}
+
+void Simulation::reset() {
+    clear();
+}
+
+void Simulation::rebuildStats() {
+    float minT = std::numeric_limits<float>::max();
+    float maxT = std::numeric_limits<float>::lowest();
+    float sum = 0.0f;
+
+    for (float t : m_temperature) {
+        minT = std::min(minT, t);
+        maxT = std::max(maxT, t);
+        sum += t;
+    }
+
+    m_stats.minTemperature = minT;
+    m_stats.maxTemperature = maxT;
+    m_stats.avgTemperature = sum / static_cast<float>(m_temperature.size());
+    m_stats.entityCount = m_temperature.size();
+}
+
+} // namespace heat_grid_cpu
