@@ -36,7 +36,7 @@ int main() {
   config.maxParticleCount = 1000;
 
   InitWindow(static_cast<int>(config.width), static_cast<int>(config.height),
-             "particles_cpu");
+             "particles (cpu/gpu backends)");
 
   SetTargetFPS(60);
 
@@ -152,7 +152,7 @@ int main() {
              "D: debug grid", "F1: UI mode", "Tab: select tunable",
              "Left/Right: adjust", "Shift: fast adjust",
              "G: toggle grid backend", "H: grid debug mode",
-             "P: parallel update"});
+             "P: parallel update", "B: compute backend (cpu/gpu)"});
       }
     }
 

@@ -46,6 +46,14 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
 ### bubbles_cpu
 - Bubble interactions and boundary behavior
 
+### heat_grid_cpu
+- 2D diffusion / heat propagation over dense grids
+- boundary-condition handling and temperature-source injection
+
+### predactor_prey_cpu
+- predator-prey population dynamics over spatial agents
+- local interaction rules (hunt, flee, reproduce, decay)
+
 ---
 
 ## Planned Simulations
@@ -129,6 +137,64 @@ Key learnings:
 
 Rule:
 Only parallelize after identifying real bottlenecks.
+
+### GPU readiness checkpoint
+
+We should only start a GPU port when all of the following are true for a simulation:
+- stable CPU feature set (no frequent behavior changes)
+- deterministic enough tests to catch regressions
+- benchmark coverage across entity-count scaling and backends
+- dominant time spent in data-parallel hot loops (not UI or branching-heavy control)
+- clear state layout suitable for SoA-style buffers
+
+Current best candidates (ordered):
+1. `particles_cpu`
+   - strongest data-parallel structure (integration + collision passes)
+   - existing execution matrix benchmark
+2. `boids_cpu`
+   - per-entity steering accumulation is GPU-friendly
+   - existing execution matrix benchmark
+3. `crowd_cpu`
+   - many independent agent updates with shared spatial queries
+   - existing execution matrix benchmark
+
+Secondary candidates:
+- `bubbles_cpu` (similar interaction profile to particles, but less benchmark depth)
+- `traffic_flow_cpu` (has benchmark matrix, but lane-change logic is branchier)
+- `heat_grid_cpu` (dense grid stencils are very GPU-friendly, pending backend matrix benchmarks)
+
+Not yet ideal first GPU ports:
+- `agents_cpu` (behavior + intent transitions add control divergence)
+- `sand_cpu` (cell rule dependencies can require careful sync design)
+- `epidemic_cpu` (currently has population scaling benchmark, but less backend-matrix coverage)
+- `predactor_prey_cpu` (branch-heavy interaction rules and variable neighborhood work per agent)
+
+### GPU project structure decision
+
+Recommendation: **do not split into a separate GPU project**.
+Keep one simulation per domain and expose `cpu`/`gpu` execution backends behind the same simulation entry point.
+
+Why:
+- preserves feature parity pressure (same UI, same scenario, same metrics)
+- avoids duplicated product surface and drift between cpu/gpu variants
+- keeps benchmarking apples-to-apples inside one binary/config space
+- aligns with existing backend toggles (naive/grid, single-thread/parallel)
+
+Naming convention:
+- keep current simulation names (`particles`, `boids`, `crowd`, ...)
+- use runtime/backend labels for execution mode (`cpu_scalar`, `cpu_parallel`, `gpu_compute`)
+- reserve `_cpu` suffix in target names only as temporary migration detail
+
+When to split anyway (exception):
+- different numerical model is required on GPU
+- platform/toolchain constraints make unified build too costly
+- shared code drops below ~60% and maintenance overhead clearly rises
+
+Incremental rollout plan:
+1. Port `particles_cpu` first as `particles` with selectable backend.
+2. Keep authoritative correctness checks on CPU; compare GPU statistically/tolerance-based.
+3. Reuse same scene generators and benchmark harness for cpu/gpu runs.
+4. After two successful ports, reevaluate whether unified structure still pays off.
 
 ---
 

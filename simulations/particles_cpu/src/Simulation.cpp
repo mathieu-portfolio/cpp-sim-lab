@@ -64,6 +64,18 @@ void Simulation::integrateParticleRange(
 }
 
 void Simulation::integrateParticles(float dt) {
+    const auto backend = m_config.execution.computeBackend;
+
+    if (backend == simfw::simulation::ComputeBackend::CpuScalar) {
+        integrateParticleRange(0, m_entities.size(), dt);
+        return;
+    }
+
+    const bool useParallel =
+        backend == simfw::simulation::ComputeBackend::GpuCompute
+            ? true
+            : m_config.execution.useParallelUpdate;
+
     simfw::runParallelUpdate<
         ThreadPool,
         ParticleUpdateScratch,
@@ -72,7 +84,7 @@ void Simulation::integrateParticles(float dt) {
         m_threadPool.get(),
         m_entities.size(),
         MinItemsPerParallelTask,
-        m_config.execution.useParallelUpdate,
+        useParallel,
         [this, dt](
             std::size_t beginIndex,
             std::size_t endIndex,
