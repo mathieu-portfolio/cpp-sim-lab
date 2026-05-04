@@ -6,7 +6,7 @@
 
 #include <cstddef>
 
-using namespace particles_cpu;
+using namespace particles;
 
 namespace {
 constexpr float Epsilon = 0.0001f;

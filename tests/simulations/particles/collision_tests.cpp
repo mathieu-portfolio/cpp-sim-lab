@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-using namespace particles_cpu;
+using namespace particles;
 
 namespace {
 bool nearlyEqual(float a, float b, float epsilon = 0.0001f) {
