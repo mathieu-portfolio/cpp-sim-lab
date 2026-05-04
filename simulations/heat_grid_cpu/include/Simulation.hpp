@@ -58,14 +58,13 @@ public:
 
     const std::vector<float>& getTemperature() const { return m_temperature; }
 
-    void addHeatSource(std::size_t x, std::size_t y, float temperature);
-    void addHeatSink(std::size_t x, std::size_t y, float temperature);
+    void adjustHeatSource(std::size_t x, std::size_t y, float delta);
+    void clearHeatSource(std::size_t x, std::size_t y);
 
 private:
     std::vector<float> m_temperature;
     std::vector<float> m_nextTemperature;
-    std::vector<HeatPoint> m_heatSources;
-    std::vector<HeatPoint> m_heatSinks;
+    std::vector<float> m_sourceTemperature;
 
     [[nodiscard]] std::size_t idx(std::size_t x, std::size_t y) const;
     [[nodiscard]] float sample(int x, int y) const;

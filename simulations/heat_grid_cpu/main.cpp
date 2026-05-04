@@ -71,6 +71,7 @@ int main() {
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
             const Vector2 mouse = GetMousePosition();
+            const bool eraseMode = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
             const int gx = static_cast<int>(mouse.x / simConfig.cellSize);
             const int gy = static_cast<int>(mouse.y / simConfig.cellSize);
             if (gx >= 0 && gy >= 0
@@ -89,11 +90,17 @@ int main() {
                             || py >= static_cast<int>(simConfig.gridHeight)) {
                             continue;
                         }
+                        const std::size_t ux = static_cast<std::size_t>(px);
+                        const std::size_t uy = static_cast<std::size_t>(py);
+                        if (eraseMode) {
+                            sim.clearHeatSource(ux, uy);
+                            continue;
+                        }
                         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                            sim.addHeatSource(static_cast<std::size_t>(px), static_cast<std::size_t>(py), 1.0f);
+                            sim.adjustHeatSource(ux, uy, 0.05f);
                         }
                         if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-                            sim.addHeatSink(static_cast<std::size_t>(px), static_cast<std::size_t>(py), -1.0f);
+                            sim.adjustHeatSource(ux, uy, -0.05f);
                         }
                     }
                 }
@@ -145,8 +152,9 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "LMB drag: paint heat source",
-                        "RMB drag: paint heat sink"
+                        "LMB drag: increase source",
+                        "RMB drag: decrease source",
+                        "Ctrl + drag: erase source"
                     }
                 );
             }

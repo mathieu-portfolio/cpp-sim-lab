@@ -10,6 +10,7 @@ Simulation::Simulation(SimulationConfig config) : Base(config) {
     m_config.entityCount = m_config.gridWidth * m_config.gridHeight;
     m_temperature.assign(m_config.entityCount, m_config.ambientTemperature);
     m_nextTemperature = m_temperature;
+    m_sourceTemperature.assign(m_config.entityCount, 0.0f);
     seedFixedPoints();
     applyFixedPoints(m_temperature);
     applyFixedPoints(m_nextTemperature);
@@ -50,42 +51,41 @@ float Simulation::sample(int x, int y) const {
 }
 
 void Simulation::seedFixedPoints() {
-    m_heatSources.clear();
-    m_heatSinks.clear();
+    std::fill(m_sourceTemperature.begin(), m_sourceTemperature.end(), 0.0f);
 
-    m_heatSources.push_back({m_config.gridWidth / 4, m_config.gridHeight / 2, 1.0f});
-    m_heatSources.push_back({(m_config.gridWidth * 3) / 4, m_config.gridHeight / 2, 0.85f});
-    m_heatSinks.push_back({m_config.gridWidth / 2, m_config.gridHeight / 3, -0.6f});
-    m_heatSinks.push_back({m_config.gridWidth / 2, (m_config.gridHeight * 2) / 3, -0.5f});
+    m_sourceTemperature[idx(m_config.gridWidth / 4, m_config.gridHeight / 2)] = 1.0f;
+    m_sourceTemperature[idx((m_config.gridWidth * 3) / 4, m_config.gridHeight / 2)] = 0.85f;
+    m_sourceTemperature[idx(m_config.gridWidth / 2, m_config.gridHeight / 3)] = -0.6f;
+    m_sourceTemperature[idx(m_config.gridWidth / 2, (m_config.gridHeight * 2) / 3)] = -0.5f;
 }
 
 void Simulation::applyFixedPoints(std::vector<float>& field) {
-    for (const HeatPoint& src : m_heatSources) {
-        field[idx(src.x, src.y)] = src.temperature;
-    }
-    for (const HeatPoint& sink : m_heatSinks) {
-        field[idx(sink.x, sink.y)] = sink.temperature;
+    for (std::size_t i = 0; i < m_sourceTemperature.size(); ++i) {
+        if (std::abs(m_sourceTemperature[i]) > 0.0001f) {
+            field[i] = m_sourceTemperature[i];
+        }
     }
 }
 
 
-void Simulation::addHeatSource(std::size_t x, std::size_t y, float temperature) {
+void Simulation::adjustHeatSource(std::size_t x, std::size_t y, float delta) {
     if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
         return;
     }
 
-    m_heatSources.push_back({x, y, temperature});
+    const std::size_t sourceIndex = idx(x, y);
+    m_sourceTemperature[sourceIndex] = std::clamp(m_sourceTemperature[sourceIndex] + delta, -1.0f, 1.0f);
     applyFixedPoints(m_temperature);
     applyFixedPoints(m_nextTemperature);
     rebuildStats();
 }
 
-void Simulation::addHeatSink(std::size_t x, std::size_t y, float temperature) {
+void Simulation::clearHeatSource(std::size_t x, std::size_t y) {
     if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
         return;
     }
 
-    m_heatSinks.push_back({x, y, temperature});
+    m_sourceTemperature[idx(x, y)] = 0.0f;
     applyFixedPoints(m_temperature);
     applyFixedPoints(m_nextTemperature);
     rebuildStats();
@@ -138,6 +138,7 @@ void Simulation::clear() {
 }
 
 void Simulation::reset() {
+    seedFixedPoints();
     clear();
 }
 
