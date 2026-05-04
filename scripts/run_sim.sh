@@ -8,7 +8,7 @@ source "$ROOT_DIR/scripts/find_bin.sh"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: ./scripts/run_sim.sh <simulation_name> [preset] [--build]"
-    echo "Example: ./scripts/run_sim.sh particles_cpu debug-ninja --build"
+    echo "Example: ./scripts/run_sim.sh particles debug-ninja --build"
     exit 1
 fi
 
@@ -18,7 +18,7 @@ BUILD_FIRST=false
 
 usage() {
     echo "Usage: ./scripts/run_sim.sh <simulation_name> [preset] [--build]"
-    echo "Example: ./scripts/run_sim.sh particles_cpu debug-ninja --build"
+    echo "Example: ./scripts/run_sim.sh particles debug-ninja --build"
 }
 
 preset_exists() {

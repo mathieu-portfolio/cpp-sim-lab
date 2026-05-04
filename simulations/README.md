@@ -2,7 +2,7 @@
 
 Each simulation is independent and demonstrates a different system.
 
-## particles_cpu
+## particles
 - particle collisions
 - spatial partitioning
 - pipeline-based update (passes, not behaviors)

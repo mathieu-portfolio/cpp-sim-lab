@@ -182,7 +182,7 @@ int main() {
 
             progress.advance();
             std::cout
-                << "particles_cpu," 
+                << "particles," 
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","

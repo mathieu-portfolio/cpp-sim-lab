@@ -68,7 +68,7 @@ cmake --preset debug-ninja
 
 - simulations/
   Independent simulations built on the framework:
-  - particles_cpu
+  - particles
   - boids_cpu
   - agents_cpu
   - crowd_cpu

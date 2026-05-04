@@ -36,7 +36,7 @@ int main() {
   config.maxParticleCount = 1000;
 
   InitWindow(static_cast<int>(config.width), static_cast<int>(config.height),
-             "particles_cpu");
+             "particles");
 
   SetTargetFPS(60);
 
@@ -115,7 +115,7 @@ int main() {
     if (controls.uiMode != simfw::ui::UiMode::None) {
       simfw::ui::TextCursor cursor{10, 10, 22};
 
-      cursor.draw("particles_cpu", 20, RAYWHITE);
+      cursor.draw("particles", 20, RAYWHITE);
       cursor.draw(controls.paused ? "Paused" : "Running");
 
       simfw::ui::drawStats(cursor, sim.getStats());
@@ -152,7 +152,7 @@ int main() {
              "D: debug grid", "F1: UI mode", "Tab: select tunable",
              "Left/Right: adjust", "Shift: fast adjust",
              "G: toggle grid backend", "H: grid debug mode",
-             "P: parallel update"});
+             "P: parallel update", "B: compute backend (cpu/gpu)"});
       }
     }
 
