@@ -12,16 +12,21 @@ usage() {
     echo "Example: ./scripts/build.sh debug-ninja crowd_cpu"
 }
 
-preset_exists() {
+configure_preset_exists() {
     local preset="$1"
     cmake --list-presets=configure 2>/dev/null | grep -Eq "^[[:space:]]*\"${preset}\""
+}
+
+build_preset_exists() {
+    local preset="$1"
+    cmake --list-presets=build 2>/dev/null | grep -Eq "^[[:space:]]*\"${preset}\""
 }
 
 for arg in "$@"; do
     case "$arg" in
     -*)
         candidate="${arg#-}"
-        if preset_exists "$candidate"; then
+        if configure_preset_exists "$candidate" || build_preset_exists "$candidate"; then
             PRESET="$candidate"
         else
             echo "Error: unknown argument '$arg'"
@@ -30,7 +35,7 @@ for arg in "$@"; do
         fi
         ;;
     *)
-        if preset_exists "$arg"; then
+        if configure_preset_exists "$arg" || build_preset_exists "$arg"; then
             PRESET="$arg"
         elif [[ -z "$TARGET" ]]; then
             TARGET="$arg"
@@ -43,18 +48,31 @@ for arg in "$@"; do
     esac
 done
 
-if ! preset_exists "$PRESET"; then
-    echo "Error: unknown or invalid CMake configure preset '$PRESET'"
+if ! configure_preset_exists "$PRESET" && ! build_preset_exists "$PRESET"; then
+    echo "Error: unknown CMake preset '$PRESET'"
     echo "Available configure presets:"
     cmake --list-presets=configure || true
+    echo "Available build presets:"
+    cmake --list-presets=build || true
     exit 1
 fi
 
-cmake --preset "$PRESET"
+if configure_preset_exists "$PRESET"; then
+    cmake --preset "$PRESET"
+fi
 
 echo "Building: $PRESET"
-if [[ -n "$TARGET" ]]; then
-    cmake --build --preset "$PRESET" --target "$TARGET"
+if build_preset_exists "$PRESET"; then
+    if [[ -n "$TARGET" ]]; then
+        cmake --build --preset "$PRESET" --target "$TARGET"
+    else
+        cmake --build --preset "$PRESET"
+    fi
 else
-    cmake --build --preset "$PRESET"
+    BUILD_DIR="build/$PRESET"
+    if [[ -n "$TARGET" ]]; then
+        cmake --build "$BUILD_DIR" --target "$TARGET"
+    else
+        cmake --build "$BUILD_DIR"
+    fi
 fi
