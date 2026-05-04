@@ -15,6 +15,11 @@
 namespace {
 using heat_grid_cpu::BoundaryMode;
 
+enum class BrushMode {
+    Source = 0,
+    Noise = 1,
+};
+
 Color heatColor(float t) {
     const float n = std::clamp((t + 1.0f) * 0.5f, 0.0f, 1.0f);
     return Color{
@@ -49,6 +54,7 @@ int main() {
     heat_grid_cpu::Simulation sim{config};
     sim.reset();
     simfw::ui::SimulationControls controls;
+    BrushMode brushMode = BrushMode::Source;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -62,6 +68,10 @@ int main() {
             if (simConfig.boundaryMode == BoundaryMode::Clamp) simConfig.boundaryMode = BoundaryMode::Wrap;
             else if (simConfig.boundaryMode == BoundaryMode::Wrap) simConfig.boundaryMode = BoundaryMode::Insulated;
             else simConfig.boundaryMode = BoundaryMode::Clamp;
+        }
+
+        if (IsKeyPressed(KEY_M)) {
+            brushMode = (brushMode == BrushMode::Source) ? BrushMode::Noise : BrushMode::Source;
         }
 
         const bool fastAdjust = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
@@ -96,11 +106,20 @@ int main() {
                             sim.clearHeatSource(ux, uy);
                             continue;
                         }
-                        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                            sim.adjustHeatSource(ux, uy, 0.05f);
-                        }
-                        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-                            sim.adjustHeatSource(ux, uy, -0.05f);
+                        if (brushMode == BrushMode::Source) {
+                            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                                sim.setHeatSource(ux, uy, 1.0f);
+                            }
+                            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                                sim.setHeatSource(ux, uy, -1.0f);
+                            }
+                        } else {
+                            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                                sim.addTemperatureImpulse(ux, uy, 0.08f);
+                            }
+                            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                                sim.addTemperatureImpulse(ux, uy, -0.08f);
+                            }
                         }
                     }
                 }
@@ -138,6 +157,7 @@ int main() {
             simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter, DARKGRAY, BLACK);
             cursor.gap(8);
             cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
+            cursor.draw(TextFormat("Brush mode: %s (M to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 auto controlsCursor = simfw::ui::makeRightSideControlCursor(320, 10, 20);
@@ -152,8 +172,9 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "LMB drag: increase source",
-                        "RMB drag: decrease source",
+                        "M: toggle brush mode",
+                        "Source mode: LMB=hot, RMB=cold",
+                        "Noise mode: LMB/RMB add momentary heat",
                         "Ctrl + drag: erase source"
                     }
                 );

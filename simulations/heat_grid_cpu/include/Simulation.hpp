@@ -58,7 +58,8 @@ public:
 
     const std::vector<float>& getTemperature() const { return m_temperature; }
 
-    void adjustHeatSource(std::size_t x, std::size_t y, float delta);
+    void setHeatSource(std::size_t x, std::size_t y, float temperature);
+    void addTemperatureImpulse(std::size_t x, std::size_t y, float delta);
     void clearHeatSource(std::size_t x, std::size_t y);
 
 private:
