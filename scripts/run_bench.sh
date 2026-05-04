@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 source "$ROOT_DIR/scripts/find_bin.sh"
+source "$ROOT_DIR/scripts/benchmark_registry.sh"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: ./scripts/run_bench.sh <benchmark_name> [preset] [--build]"
@@ -61,20 +62,20 @@ if ! preset_exists "$PRESET"; then
 fi
 
 BUILD_DIR="build/$PRESET"
-BENCH_SRC_DIR="benchmarks/simulations/*/$BENCH_NAME"
-BENCH_SRC_DIR=$(echo $BENCH_SRC_DIR)
+ENTRY="$(benchmark_registry_entry_by_id "$PRESET" "$BENCH_NAME")"
+if [[ -z "$ENTRY" ]]; then
+    echo "Error: benchmark not registered in CMake: $BENCH_NAME"
+    exit 1
+fi
+
+IFS='|' read -r _ BENCH_EXE BENCH_SRC_DIR <<< "$ENTRY"
+
 OUT_DIR="$BENCH_SRC_DIR/results"
 OUT="$OUT_DIR/results.csv"
-BENCH_EXE="${BENCH_NAME}_bench"
 BENCHMARK_TIME_LIMIT_SEC="${BENCHMARK_TIME_LIMIT_SEC:-0}"
 
 if ! [[ "$BENCHMARK_TIME_LIMIT_SEC" =~ ^[0-9]+$ ]]; then
     echo "Error: BENCHMARK_TIME_LIMIT_SEC must be a non-negative integer (seconds)."
-    exit 1
-fi
-
-if [[ ! -d "$BENCH_SRC_DIR" ]]; then
-    echo "Error: benchmark directory not found for $BENCH_NAME"
     exit 1
 fi
 

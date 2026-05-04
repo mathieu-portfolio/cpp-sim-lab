@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+source "$ROOT_DIR/scripts/benchmark_registry.sh"
+
 PRESET=${1:-release}
 BUILD_FIRST="${2:-}"
 BENCHMARK_TIME_LIMIT_SEC="${BENCHMARK_TIME_LIMIT_SEC:-0}"
@@ -16,11 +18,10 @@ fi
 
 echo "Running all benchmarks with preset: $PRESET"
 
-for bench_dir in benchmarks/simulations/*/*; do
-    [[ -d "$bench_dir" ]] || continue
-    [[ -f "$bench_dir/main.cpp" ]] || continue
+REGISTRY="$(benchmark_registry_require "$PRESET")"
 
-    BENCH_NAME="${bench_dir##*/}"
+while IFS='|' read -r BENCH_NAME _ _; do
+    [[ -n "$BENCH_NAME" ]] || continue
 
     if (( BENCHMARK_TIME_LIMIT_SEC > 0 )); then
         NOW_TS=$(date +%s)
@@ -40,6 +41,6 @@ for bench_dir in benchmarks/simulations/*/*; do
     else
         ./scripts/run_and_plot.sh "$BENCH_NAME" "$PRESET"
     fi
-done
+done < "$REGISTRY"
 
 echo "All benchmarks done."

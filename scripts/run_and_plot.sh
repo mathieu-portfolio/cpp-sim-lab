@@ -39,4 +39,4 @@ if [[ "$BUILD_FIRST" == true ]]; then
 fi
 
 ./scripts/run_bench.sh "${RUN_BENCH_ARGS[@]}"
-./scripts/plot_bench.sh "$BENCH_NAME"
+./scripts/plot_bench.sh "$BENCH_NAME" "$PRESET"
