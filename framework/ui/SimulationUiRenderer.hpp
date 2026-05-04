@@ -24,13 +24,15 @@ void forEach(Tuple&& t, Func&& f) {
 
 // -------- stats --------
 template <typename Stats>
-void drawStats(TextCursor& cursor, const Stats& stats) {
+void drawStats(TextCursor& cursor, const Stats& stats, Color color = LIGHTGRAY) {
     forEach(StatsUiTraits<Stats>::fields, [&](auto field) {
         cursor.draw(
             TextFormat("%s: %d",
                 field.name,
                 static_cast<int>(stats.*(field.member))
-            )
+            ),
+            16,
+            color
         );
     });
 }
@@ -82,7 +84,9 @@ template <typename Config>
 void drawTunables(
     TextCursor& cursor,
     const Config& config,
-    std::size_t selected
+    std::size_t selected,
+    Color normalColor = LIGHTGRAY,
+    Color selectedColor = YELLOW
 ) {
     std::size_t index = 0;
 
@@ -97,7 +101,7 @@ void drawTunables(
                     (index == selected ? " <" : "")
                 ),
                 16,
-                (index == selected ? YELLOW : LIGHTGRAY)
+                (index == selected ? selectedColor : normalColor)
             );
         } else {
             cursor.draw(
@@ -107,7 +111,7 @@ void drawTunables(
                     (index == selected ? " <" : "")
                 ),
                 16,
-                (index == selected ? YELLOW : LIGHTGRAY)
+                (index == selected ? selectedColor : normalColor)
             );
         }
 

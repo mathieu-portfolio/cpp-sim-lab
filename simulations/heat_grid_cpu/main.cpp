@@ -108,13 +108,13 @@ int main() {
 
         if (controls.uiMode != simfw::ui::UiMode::None) {
             simfw::ui::TextCursor cursor{10, 10, 22};
-            cursor.draw("heat_grid_cpu", 20, RAYWHITE);
-            cursor.draw(controls.paused ? "Paused" : "Running", 18, GREEN);
-            simfw::ui::drawStats(cursor, sim.getStats());
+            cursor.draw("heat_grid_cpu", 20, BLACK);
+            cursor.draw(controls.paused ? "Paused" : "Running", 18, DARKGRAY);
+            simfw::ui::drawStats(cursor, sim.getStats(), DARKGRAY);
             cursor.gap(6);
-            simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter);
+            simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter, DARKGRAY, BLACK);
             cursor.gap(8);
-            cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, LIME);
+            cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 auto controlsCursor = simfw::ui::makeRightSideControlCursor(320, 10, 20);
