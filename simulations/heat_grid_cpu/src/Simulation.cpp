@@ -104,8 +104,11 @@ void Simulation::clearHeatSource(std::size_t x, std::size_t y) {
 
 void Simulation::update(float dt) {
     const float frameScale = std::max(dt, 0.0f) * 60.0f;
+    const float advectionX = std::clamp(m_config.advectionX, -2.0f, 2.0f);
+    const float advectionY = std::clamp(m_config.advectionY, -2.0f, 2.0f);
+    const float diffusion = std::clamp(m_config.diffusion, 0.0f, 0.25f);
     const float advectionScale = frameScale;
-    const float diffusionStep = m_config.diffusion * frameScale;
+    const float diffusionStep = diffusion * frameScale;
 
     for (std::size_t y = 0; y < m_config.gridHeight; ++y) {
         for (std::size_t x = 0; x < m_config.gridWidth; ++x) {
@@ -116,8 +119,8 @@ void Simulation::update(float dt) {
             const float d = sample(static_cast<int>(x), static_cast<int>(y) + 1);
             const float laplacian = (l + r + u + d) - (4.0f * c);
 
-            const float sampleX = static_cast<float>(x) - (m_config.advectionX * advectionScale);
-            const float sampleY = static_cast<float>(y) - (m_config.advectionY * advectionScale);
+            const float sampleX = static_cast<float>(x) - (advectionX * advectionScale);
+            const float sampleY = static_cast<float>(y) - (advectionY * advectionScale);
             const int x0 = static_cast<int>(std::floor(sampleX));
             const int y0 = static_cast<int>(std::floor(sampleY));
             const int x1 = x0 + 1;
