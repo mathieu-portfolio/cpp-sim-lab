@@ -10,13 +10,17 @@ if [[ $# -lt 1 ]]; then
 fi
 
 BENCH_NAME=$1
-BENCH_DIR="benchmarks/simulations/*/$BENCH_NAME"
-BENCH_DIR=$(echo $BENCH_DIR)
+PRESET=${2:-release}
 
-if [[ ! -d "$BENCH_DIR" ]]; then
-    echo "Error: benchmark directory not found for $BENCH_NAME"
+source "$ROOT_DIR/scripts/benchmark_registry.sh"
+
+ENTRY="$(benchmark_registry_entry_by_id "$PRESET" "$BENCH_NAME")"
+if [[ -z "$ENTRY" ]]; then
+    echo "Error: benchmark not registered in CMake: $BENCH_NAME"
     exit 1
 fi
+
+IFS='|' read -r _ _ BENCH_DIR <<< "$ENTRY"
 
 CSV="$BENCH_DIR/results/results.csv"
 PLOT="$BENCH_DIR/plot.py"
