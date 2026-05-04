@@ -4,6 +4,7 @@
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationBackendControls.hpp>
 #include <ui/SimulationControlHints.hpp>
+#include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
 #include <ui/SpatialGridDebugDraw.hpp>
 
