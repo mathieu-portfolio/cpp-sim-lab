@@ -176,7 +176,9 @@ int main() {
                         "Source mode: LMB=hot, RMB=cold",
                         "Noise mode: LMB/RMB add momentary heat",
                         "Ctrl + drag: erase source"
-                    }
+                    },
+                    DARKGRAY,
+                    DARKGRAY
                 );
             }
         }
