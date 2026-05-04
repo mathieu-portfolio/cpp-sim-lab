@@ -146,3 +146,23 @@ TEST(ParticleSimulationBackends, EmptyNaiveBackendLeavesEmptyGridAndZeroCollisio
     EXPECT_EQ(sim.getStats().collisionChecks, 0U);
     EXPECT_EQ(sim.getStats().collisionsResolved, 0U);
 }
+
+TEST(ParticleSimulationBackends, CpuAndGpuComputeBackendsMatchForDeterministicPair) {
+    SimulationConfig cpuConfig = makeCollisionConfig(true);
+    SimulationConfig gpuConfig = makeCollisionConfig(true);
+
+    cpuConfig.execution.computeBackend = simfw::simulation::ComputeBackend::CpuParallel;
+    gpuConfig.execution.computeBackend = simfw::simulation::ComputeBackend::GpuCompute;
+
+    Simulation cpuSim{cpuConfig};
+    Simulation gpuSim{gpuConfig};
+
+    spawnDeterministicPair(cpuSim);
+    spawnDeterministicPair(gpuSim);
+
+    cpuSim.update(1.0f / 120.0f);
+    gpuSim.update(1.0f / 120.0f);
+
+    expectSimParticlesNear(cpuSim, gpuSim);
+    EXPECT_EQ(cpuSim.getStats().collisionsResolved, gpuSim.getStats().collisionsResolved);
+}
