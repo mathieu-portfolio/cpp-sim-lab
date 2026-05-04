@@ -55,6 +55,9 @@ public:
 
     const std::vector<float>& getTemperature() const { return m_temperature; }
 
+    void addHeatSource(std::size_t x, std::size_t y, float temperature);
+    void addHeatSink(std::size_t x, std::size_t y, float temperature);
+
 private:
     std::vector<float> m_temperature;
     std::vector<float> m_nextTemperature;
