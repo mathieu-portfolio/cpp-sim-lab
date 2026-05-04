@@ -1,5 +1,6 @@
 #include "Simulation.hpp"
 
+#include <AdaptiveBenchmark.hpp>
 #include <BenchTimer.hpp>
 #include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
