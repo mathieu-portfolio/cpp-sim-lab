@@ -70,7 +70,7 @@ int main() {
             else simConfig.boundaryMode = BoundaryMode::Clamp;
         }
 
-        if (IsKeyPressed(KEY_M)) {
+        if (IsKeyPressed(KEY_T)) {
             brushMode = (brushMode == BrushMode::Source) ? BrushMode::Noise : BrushMode::Source;
         }
 
@@ -157,7 +157,7 @@ int main() {
             simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter, DARKGRAY, BLACK);
             cursor.gap(8);
             cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
-            cursor.draw(TextFormat("Brush mode: %s (M to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
+            cursor.draw(TextFormat("Brush mode: %s (T to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 auto controlsCursor = simfw::ui::makeRightSideControlCursor(320, 10, 20);
@@ -172,7 +172,7 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "M: toggle brush mode",
+                        "T: toggle brush mode",
                         "Source mode: LMB=hot, RMB=cold",
                         "Noise mode: LMB/RMB add momentary heat",
                         "Ctrl + drag: erase source"
