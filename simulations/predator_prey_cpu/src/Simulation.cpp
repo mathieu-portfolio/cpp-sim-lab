@@ -6,9 +6,19 @@
 #include <simulation/SimulationUtils.hpp>
 
 #include <algorithm>
+#include <cmath>
 
 namespace predator_prey_cpu {
 namespace {
+Vec2 limitLength(Vec2 value, float maxLength) {
+    const float lengthSquared = value.lengthSquared();
+    if (lengthSquared <= 0.0001f || lengthSquared <= maxLength * maxLength) {
+        return value;
+    }
+
+    return value * (maxLength / std::sqrt(lengthSquared));
+}
+
 Vec2 steerTowards(const Vec2& desired, const Vec2& currentVelocity, float maxSpeed) {
     if (desired.lengthSquared() <= 0.0001f) {
         return {};
@@ -18,7 +28,12 @@ Vec2 steerTowards(const Vec2& desired, const Vec2& currentVelocity, float maxSpe
 }
 
 Vec2 wrap(const Vec2& p, const SimulationConfig& config) {
-    return simfw::simulation::wrapPosition(p, config.width, config.height);
+    Vec2 wrapped = p;
+    if (wrapped.x < 0.0f) wrapped.x += config.width;
+    if (wrapped.x >= config.width) wrapped.x -= config.width;
+    if (wrapped.y < 0.0f) wrapped.y += config.height;
+    if (wrapped.y >= config.height) wrapped.y -= config.height;
+    return wrapped;
 }
 }
 
@@ -126,7 +141,7 @@ void Simulation::update(float dt) {
     if (m_config.execution.useSpatialGrid) {
         m_grid.clear();
         for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            m_grid.insert(m_entities[i].position, i);
+            m_grid.insert(i, m_entities[i].position);
         }
     }
     updateStats();
