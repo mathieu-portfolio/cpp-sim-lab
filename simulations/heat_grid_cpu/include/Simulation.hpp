@@ -29,8 +29,11 @@ struct SimulationConfig {
     float cellSize = 6.0f;
 
     float diffusion = 0.2f;
+    float advectionX = 0.0f;
+    float advectionY = 0.0f;
     float ambientTemperature = 0.0f;
     BoundaryMode boundaryMode = BoundaryMode::Clamp;
+    float brushRadius = 2.0f;
 
     simfw::simulation::SimulationExecutionConfig execution{};
     std::size_t entityCount = 0;

@@ -36,6 +36,12 @@ float Simulation::sample(int x, int y) const {
         return m_temperature[idx(static_cast<std::size_t>(nx), static_cast<std::size_t>(ny))];
     }
 
+    if (m_config.boundaryMode == BoundaryMode::Insulated) {
+        const int nx = (x < 0) ? 0 : ((x >= w) ? (w - 1) : x);
+        const int ny = (y < 0) ? 0 : ((y >= h) ? (h - 1) : y);
+        return m_temperature[idx(static_cast<std::size_t>(nx), static_cast<std::size_t>(ny))];
+    }
+
     if (x < 0 || y < 0 || x >= w || y >= h) {
         return m_config.ambientTemperature;
     }
@@ -94,7 +100,27 @@ void Simulation::update(float) {
             const float u = sample(static_cast<int>(x), static_cast<int>(y) - 1);
             const float d = sample(static_cast<int>(x), static_cast<int>(y) + 1);
             const float laplacian = (l + r + u + d) - (4.0f * c);
-            m_nextTemperature[idx(x, y)] = c + (m_config.diffusion * laplacian);
+
+            const float sampleX = static_cast<float>(x) - m_config.advectionX;
+            const float sampleY = static_cast<float>(y) - m_config.advectionY;
+            const int x0 = static_cast<int>(std::floor(sampleX));
+            const int y0 = static_cast<int>(std::floor(sampleY));
+            const int x1 = x0 + 1;
+            const int y1 = y0 + 1;
+            const float tx = sampleX - static_cast<float>(x0);
+            const float ty = sampleY - static_cast<float>(y0);
+
+            const float t00 = sample(x0, y0);
+            const float t10 = sample(x1, y0);
+            const float t01 = sample(x0, y1);
+            const float t11 = sample(x1, y1);
+            const float advected =
+                (1.0f - tx) * (1.0f - ty) * t00 +
+                tx * (1.0f - ty) * t10 +
+                (1.0f - tx) * ty * t01 +
+                tx * ty * t11;
+
+            m_nextTemperature[idx(x, y)] = advected + (m_config.diffusion * laplacian);
         }
     }
 
