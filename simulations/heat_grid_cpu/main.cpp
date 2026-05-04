@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 
 namespace {
 using heat_grid_cpu::BoundaryMode;
@@ -68,18 +69,33 @@ int main() {
         if (IsKeyDown(KEY_RIGHT)) simfw::ui::adjustTunables(simConfig, controls.selectedParameter, 1.0f, dt, fastAdjust);
 
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
             const Vector2 mouse = GetMousePosition();
             const int gx = static_cast<int>(mouse.x / simConfig.cellSize);
             const int gy = static_cast<int>(mouse.y / simConfig.cellSize);
             if (gx >= 0 && gy >= 0
                 && gx < static_cast<int>(simConfig.gridWidth)
                 && gy < static_cast<int>(simConfig.gridHeight)) {
-                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                    sim.addHeatSource(static_cast<std::size_t>(gx), static_cast<std::size_t>(gy), 1.0f);
-                }
-                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-                    sim.addHeatSink(static_cast<std::size_t>(gx), static_cast<std::size_t>(gy), -1.0f);
+                const int radius = static_cast<int>(std::round(simConfig.brushRadius));
+                for (int by = -radius; by <= radius; ++by) {
+                    for (int bx = -radius; bx <= radius; ++bx) {
+                        if ((bx * bx) + (by * by) > (radius * radius)) {
+                            continue;
+                        }
+                        const int px = gx + bx;
+                        const int py = gy + by;
+                        if (px < 0 || py < 0
+                            || px >= static_cast<int>(simConfig.gridWidth)
+                            || py >= static_cast<int>(simConfig.gridHeight)) {
+                            continue;
+                        }
+                        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                            sim.addHeatSource(static_cast<std::size_t>(px), static_cast<std::size_t>(py), 1.0f);
+                        }
+                        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                            sim.addHeatSink(static_cast<std::size_t>(px), static_cast<std::size_t>(py), -1.0f);
+                        }
+                    }
                 }
             }
         }
@@ -129,8 +145,8 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "LMB: add heat source",
-                        "RMB: add heat sink"
+                        "LMB drag: paint heat source",
+                        "RMB drag: paint heat sink"
                     }
                 );
             }
