@@ -8,3 +8,5 @@ add_subdirectory(sand_cpu)
 add_subdirectory(traffic_flow_cpu)
 
 add_subdirectory(epidemic_cpu)
+
+add_subdirectory(heat_grid_cpu)

@@ -37,3 +37,10 @@ Each simulation is independent and demonstrates a different system.
 - SIR-style epidemic spread over moving agents
 - proximity/contact-time infection probability
 - recovery timer and epidemic metrics (R_t proxy, peak infection, extinction time)
+
+
+## heat_grid_cpu
+- double-buffered 2D heat diffusion grid
+- 5-point stencil update
+- fixed heat sources/sinks
+- boundary mode toggle (clamp/wrap/insulated)
