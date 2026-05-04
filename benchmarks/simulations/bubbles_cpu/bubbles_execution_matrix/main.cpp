@@ -1,5 +1,6 @@
 #include "Simulation.hpp"
 
+#include <AdaptiveBenchmark.hpp>
 #include <BenchTimer.hpp>
 #include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
@@ -58,6 +59,7 @@ BenchResult runBenchmark(SimulationConfig config, const ExecutionMode& mode, int
 int main() {
     constexpr int WarmupFrames = 30;
     constexpr int MeasuredFrames = 300;
+    constexpr double SlowFrameThresholdMs = 40.0;
 
     const std::vector<std::size_t> entityCounts{100, 250, 500, 750, 1000, 1200};
     const std::vector<ExecutionMode> modes{{"default", "single_thread", false}, {"default", "parallel", true}};
@@ -67,6 +69,8 @@ int main() {
 
     std::cout << "simulation,entity_count,backend,threading,frames,total_ms,avg_frame_ms,relative_to_single,bubble_count,interaction_checks,collisions_resolved\n";
 
+    std::vector<bool> skipMode(modes.size(), false);
+
     for (std::size_t entityCount : entityCounts) {
         SimulationConfig baseConfig;
         baseConfig.entityCount = entityCount;
@@ -75,10 +79,18 @@ int main() {
         const std::uint32_t seed = bench::seedFor(BaseSeed, entityCount);
         double baselineAvgFrameMs = 0.0;
 
-        for (const ExecutionMode& mode : modes) {
+        for (std::size_t modeIndex = 0; modeIndex < modes.size(); ++modeIndex) {
+            const ExecutionMode& mode = modes[modeIndex];
+            if (skipMode[modeIndex]) {
+                continue;
+            }
+
             const BenchResult result = runBenchmark(baseConfig, mode, WarmupFrames, MeasuredFrames, seed);
             if (baselineAvgFrameMs == 0.0) baselineAvgFrameMs = result.avgFrameMs;
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
+            if (bench::exceedsSlowThreshold({result.totalMs, result.avgFrameMs, static_cast<std::size_t>(MeasuredFrames)}, SlowFrameThresholdMs)) {
+                skipMode[modeIndex] = true;
+            }
 
             progress.advance();
             std::cout << "bubbles_cpu," << entityCount << "," << mode.backend << "," << mode.threading << "," << MeasuredFrames << "," << result.totalMs << "," << result.avgFrameMs << "," << relative << "," << result.bubbleCount << "," << result.interactionChecks << "," << result.collisionsResolved << "\n";
