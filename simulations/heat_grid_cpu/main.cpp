@@ -155,7 +155,9 @@ int main() {
                         "LMB drag: increase source",
                         "RMB drag: decrease source",
                         "Ctrl + drag: erase source"
-                    }
+                    },
+                    DARKGRAY,
+                    DARKGRAY
                 );
             }
         }

@@ -24,13 +24,15 @@ inline TextCursor makeRightSideControlCursor(
 
 inline void drawControlHints(
     TextCursor& cursor,
-    std::initializer_list<const char*> controls
+    std::initializer_list<const char*> controls,
+    Color headingColor = RAYWHITE,
+    Color controlColor = LIGHTGRAY
 ) {
-    cursor.draw("Controls", 18, RAYWHITE);
+    cursor.draw("Controls", 18, headingColor);
     cursor.gap(4);
 
     for (const char* control : controls) {
-        cursor.draw(control);
+        cursor.draw(control, 16, controlColor);
     }
 }
 
