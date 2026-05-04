@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 namespace {
 using heat_grid_cpu::BoundaryMode;
@@ -55,6 +56,8 @@ int main() {
     sim.reset();
     simfw::ui::SimulationControls controls;
     BrushMode brushMode = BrushMode::Source;
+    std::vector<unsigned char> noiseStrokeMask(sim.getConfig().gridWidth * sim.getConfig().gridHeight, 0u);
+    bool noiseStrokeActive = false;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -70,7 +73,7 @@ int main() {
             else simConfig.boundaryMode = BoundaryMode::Clamp;
         }
 
-        if (IsKeyPressed(KEY_M)) {
+        if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_T) || IsKeyPressedRepeat(KEY_M) || IsKeyPressedRepeat(KEY_T)) {
             brushMode = (brushMode == BrushMode::Source) ? BrushMode::Noise : BrushMode::Source;
         }
 
@@ -79,7 +82,18 @@ int main() {
         if (IsKeyDown(KEY_RIGHT)) simfw::ui::adjustTunables(simConfig, controls.selectedParameter, 1.0f, dt, fastAdjust);
 
 
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        const bool leftDown = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+        const bool rightDown = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+
+        const bool anyButtonDown = leftDown || rightDown;
+        if (!anyButtonDown) {
+            noiseStrokeActive = false;
+        } else if (brushMode == BrushMode::Noise && !noiseStrokeActive) {
+            std::fill(noiseStrokeMask.begin(), noiseStrokeMask.end(), 0u);
+            noiseStrokeActive = true;
+        }
+
+        if (anyButtonDown) {
             const Vector2 mouse = GetMousePosition();
             const bool eraseMode = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
             const int gx = static_cast<int>(mouse.x / simConfig.cellSize);
@@ -107,17 +121,22 @@ int main() {
                             continue;
                         }
                         if (brushMode == BrushMode::Source) {
-                            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                            if (leftDown) {
                                 sim.setHeatSource(ux, uy, 1.0f);
                             }
-                            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                            if (rightDown) {
                                 sim.setHeatSource(ux, uy, -1.0f);
                             }
                         } else {
-                            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                            const std::size_t cellIndex = uy * simConfig.gridWidth + ux;
+                            if (noiseStrokeMask[cellIndex] != 0u) {
+                                continue;
+                            }
+                            noiseStrokeMask[cellIndex] = 1u;
+                            if (leftDown) {
                                 sim.addTemperatureImpulse(ux, uy, 0.08f);
                             }
-                            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                            if (rightDown) {
                                 sim.addTemperatureImpulse(ux, uy, -0.08f);
                             }
                         }
@@ -157,7 +176,7 @@ int main() {
             simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter, DARKGRAY, BLACK);
             cursor.gap(8);
             cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
-            cursor.draw(TextFormat("Brush mode: %s (M to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
+            cursor.draw(TextFormat("Brush mode: %s (M/T to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
                 auto controlsCursor = simfw::ui::makeRightSideControlCursor(320, 10, 20);
@@ -172,7 +191,7 @@ int main() {
                         "Tab: select tunable",
                         "Left/Right: adjust",
                         "Shift: fast adjust",
-                        "M: toggle brush mode",
+                        "M/T: toggle brush mode",
                         "Source mode: LMB=hot, RMB=cold",
                         "Noise mode: LMB/RMB add momentary heat",
                         "Ctrl + drag: erase source"
