@@ -6,6 +6,7 @@
 #include <simulation/SpatialQuery.hpp>
 
 #include <algorithm>
+#include <cmath>
 
 namespace epidemic_cpu {
 namespace {
@@ -79,8 +80,21 @@ void Simulation::update(float dt) {
             agent.velocity = agent.velocity.normalized() * m_config.maxSpeed;
         }
         agent.position = prev.position + agent.velocity * dt;
-        agent.position.x = std::clamp(agent.position.x, 0.0f, m_config.width);
-        agent.position.y = std::clamp(agent.position.y, 0.0f, m_config.height);
+        if (agent.position.x < 0.0f) {
+            agent.position.x = 0.0f;
+            agent.velocity.x = std::abs(agent.velocity.x);
+        } else if (agent.position.x > m_config.width) {
+            agent.position.x = m_config.width;
+            agent.velocity.x = -std::abs(agent.velocity.x);
+        }
+
+        if (agent.position.y < 0.0f) {
+            agent.position.y = 0.0f;
+            agent.velocity.y = std::abs(agent.velocity.y);
+        } else if (agent.position.y > m_config.height) {
+            agent.position.y = m_config.height;
+            agent.velocity.y = -std::abs(agent.velocity.y);
+        }
         agent.infectedSeconds = prev.infectedSeconds;
         agent.exposureSeconds = prev.exposureSeconds;
 
