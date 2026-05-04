@@ -1,5 +1,6 @@
 #include "Simulation.hpp"
 
+#include <AdaptiveBenchmark.hpp>
 #include <BenchTimer.hpp>
 #include <ProgressBar.hpp>
 #include <BenchmarkRandom.hpp>
@@ -29,6 +30,7 @@ struct ExecutionMode {
 struct BenchResult {
     double totalMs = 0.0;
     double avgFrameMs = 0.0;
+    std::size_t frames = 0;
     std::size_t workChecks = 0;
     std::size_t workCandidates = 0;
     std::size_t occupiedGridCells = 0;
@@ -71,7 +73,7 @@ BenchResult runBenchmark(
     SimulationConfig config,
     const ExecutionMode& mode,
     int warmupFrames,
-    int measuredFrames,
+    const bench::AdaptiveFrameBudget& frameBudget,
     std::uint32_t seed
 ) {
     Random::seed(seed);
@@ -88,17 +90,16 @@ BenchResult runBenchmark(
         sim.update(Dt);
     }
 
-    const double totalMs = bench::measureMs([&]() {
-        for (int i = 0; i < measuredFrames; ++i) {
-            sim.update(Dt);
-        }
+    const bench::AdaptiveRunResult run = bench::runAdaptiveFrames(frameBudget, [&]() {
+        sim.update(Dt);
     });
 
     const SimulationStats stats = sim.getStats();
 
     return BenchResult{
-        totalMs,
-        totalMs / static_cast<double>(measuredFrames),
+        run.totalMs,
+        run.avgFrameMs,
+        run.frames,
         stats.neighborChecks + stats.obstacleChecks + stats.obstacleOverlapChecks,
         stats.neighborCandidates + stats.obstacleCandidates,
         stats.occupiedGridCells + stats.occupiedObstacleGridCells,
@@ -109,7 +110,8 @@ BenchResult runBenchmark(
 
 int main() {
     constexpr int WarmupFrames = 30;
-    constexpr int MeasuredFrames = 300;
+    constexpr bench::AdaptiveFrameBudget FrameBudget{1000.0, 30, 600};
+    constexpr double SlowFrameThresholdMs = 40.0;
 
     const std::vector<std::size_t> entityCounts{
         100,
@@ -149,6 +151,8 @@ int main() {
         << "occupied_grid_cells,"
         << "result_count\n";
 
+    std::vector<bool> skipMode(modes.size(), false);
+
     for (std::size_t entityCount : entityCounts) {
         SimulationConfig baseConfig;
         baseConfig.agentCount = entityCount;
@@ -157,7 +161,11 @@ int main() {
         const std::uint32_t seed = bench::seedFor(BaseSeed, entityCount);
         double baselineAvgFrameMs = 0.0;
 
-        for (const ExecutionMode& mode : modes) {
+        for (std::size_t modeIndex = 0; modeIndex < modes.size(); ++modeIndex) {
+            const ExecutionMode& mode = modes[modeIndex];
+            if (skipMode[modeIndex]) {
+                continue;
+            }
             if (!mode.useSpatialGrid && entityCount > MaxNaiveEntityCount) {
                 continue;
             }
@@ -166,7 +174,7 @@ int main() {
                 baseConfig,
                 mode,
                 WarmupFrames,
-                MeasuredFrames,
+                FrameBudget,
                 seed
             );
 
@@ -175,6 +183,9 @@ int main() {
             }
 
             const double relative = baselineAvgFrameMs / result.avgFrameMs;
+            if (bench::exceedsSlowThreshold({result.totalMs, result.avgFrameMs, result.frames}, SlowFrameThresholdMs)) {
+                skipMode[modeIndex] = true;
+            }
 
             progress.advance();
             std::cout
@@ -182,7 +193,7 @@ int main() {
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","
-                << MeasuredFrames << ","
+                << result.frames << ","
                 << result.totalMs << ","
                 << result.avgFrameMs << ","
                 << relative << ","
