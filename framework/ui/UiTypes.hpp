@@ -19,9 +19,10 @@ enum class GridDebugMode {
 struct TunableParameter {
     const char* name = "";
     float* value = nullptr;
+    float step = 1.0f;
     float minValue = 0.0f;
-    float normalStep = 1.0f;
-    float fastStep = 5.0f;
+    float maxValue = 1.0f;
+    float fastMultiplier = 5.0f;
 };
 
 struct TextCursor {
