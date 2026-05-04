@@ -10,3 +10,5 @@ add_subdirectory(simulations/sand_cpu)
 add_subdirectory(simulations/traffic_flow_cpu)
 
 write_sim_benchmark_registry()
+
+add_subdirectory(simulations/epidemic_cpu)
