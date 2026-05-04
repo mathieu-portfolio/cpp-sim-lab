@@ -12,7 +12,7 @@
 #include <memory>
 #include <random/Random.hpp>
 
-namespace particles_cpu {
+namespace particles {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
 
@@ -207,4 +207,4 @@ void Simulation::reset() {
     updateStatsCount();
 }
 
-} // namespace particles_cpu
+} // namespace particles

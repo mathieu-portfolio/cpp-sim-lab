@@ -1,4 +1,4 @@
-add_subdirectory(particles_cpu)
+add_subdirectory(particles)
 add_subdirectory(boids_cpu)
 add_subdirectory(predator_prey_cpu)
 add_subdirectory(agents_cpu)
