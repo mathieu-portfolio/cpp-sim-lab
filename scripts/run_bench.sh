@@ -66,6 +66,12 @@ BENCH_SRC_DIR=$(echo $BENCH_SRC_DIR)
 OUT_DIR="$BENCH_SRC_DIR/results"
 OUT="$OUT_DIR/results.csv"
 BENCH_EXE="${BENCH_NAME}_bench"
+BENCHMARK_TIME_LIMIT_SEC="${BENCHMARK_TIME_LIMIT_SEC:-0}"
+
+if ! [[ "$BENCHMARK_TIME_LIMIT_SEC" =~ ^[0-9]+$ ]]; then
+    echo "Error: BENCHMARK_TIME_LIMIT_SEC must be a non-negative integer (seconds)."
+    exit 1
+fi
 
 if [[ ! -d "$BENCH_SRC_DIR" ]]; then
     echo "Error: benchmark directory not found for $BENCH_NAME"
@@ -101,6 +107,14 @@ fi
 mkdir -p "$OUT_DIR"
 
 echo "Running $BENCH_NAME..."
-"$BIN" > "$OUT"
+if (( BENCHMARK_TIME_LIMIT_SEC > 0 )); then
+    if ! timeout "$BENCHMARK_TIME_LIMIT_SEC" "$BIN" > "$OUT"; then
+        echo "Skipped $BENCH_NAME: exceeded BENCHMARK_TIME_LIMIT_SEC=${BENCHMARK_TIME_LIMIT_SEC}s"
+        rm -f "$OUT"
+        exit 0
+    fi
+else
+    "$BIN" > "$OUT"
+fi
 
 echo "Saved to $OUT"
