@@ -2,6 +2,7 @@
 #include "SimulationUiTraits.hpp"
 
 #include <ui/SimulationControls.hpp>
+#include <ui/SimulationFrameHelpers.hpp>
 #include <ui/SimulationBackendControls.hpp>
 #include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationUiRenderer.hpp>
@@ -30,6 +31,7 @@ int main() {
         constexpr std::size_t paramCount = std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<SimulationConfig>::fields)>;
         simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
         simfw::ui::handleSimulationBackendControls(cfg, gridDebugMode);
+        simfw::ui::handleTunableAdjustment(cfg, controls, dt);
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) sim.spawn(Vec2{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())});
         if (simfw::ui::shouldAdvanceSimulation(controls)) { sim.update(dt); simfw::ui::finishSimulationStep(controls); }
