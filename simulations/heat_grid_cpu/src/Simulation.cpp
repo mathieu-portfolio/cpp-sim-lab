@@ -68,15 +68,26 @@ void Simulation::applyFixedPoints(std::vector<float>& field) {
 }
 
 
-void Simulation::adjustHeatSource(std::size_t x, std::size_t y, float delta) {
+void Simulation::setHeatSource(std::size_t x, std::size_t y, float temperature) {
     if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
         return;
     }
 
     const std::size_t sourceIndex = idx(x, y);
-    m_sourceTemperature[sourceIndex] = std::clamp(m_sourceTemperature[sourceIndex] + delta, -1.0f, 1.0f);
+    m_sourceTemperature[sourceIndex] = std::clamp(temperature, -1.0f, 1.0f);
     applyFixedPoints(m_temperature);
     applyFixedPoints(m_nextTemperature);
+    rebuildStats();
+}
+
+void Simulation::addTemperatureImpulse(std::size_t x, std::size_t y, float delta) {
+    if (x >= m_config.gridWidth || y >= m_config.gridHeight) {
+        return;
+    }
+
+    const std::size_t temperatureIndex = idx(x, y);
+    m_temperature[temperatureIndex] = std::clamp(m_temperature[temperatureIndex] + delta, -1.0f, 1.0f);
+    m_nextTemperature[temperatureIndex] = m_temperature[temperatureIndex];
     rebuildStats();
 }
 
