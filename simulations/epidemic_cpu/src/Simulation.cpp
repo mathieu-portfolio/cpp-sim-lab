@@ -45,7 +45,7 @@ void Simulation::reset() {
         a.position = randomPoint(m_config.width, m_config.height);
         a.velocity = randomVelocity(m_config.maxSpeed * 0.5f);
         a.radius = m_config.agentRadius;
-        a.infectionState = Random::next() < m_config.initialInfectedRatio ? InfectionState::Infected : InfectionState::Susceptible;
+        a.infectionState = Random::range(0.0f, 1.0f) < m_config.initialInfectedRatio ? InfectionState::Infected : InfectionState::Susceptible;
         m_entities.push_back(a);
     }
     updateStats();
@@ -116,7 +116,7 @@ void Simulation::update(float dt) {
             }
 
             agent.exposureSeconds = exposure;
-            if (exposure > 0.0f && Random::next() < infectionProbability(m_config.infectionRate, exposure, dt)) {
+            if (exposure > 0.0f && Random::range(0.0f, 1.0f) < infectionProbability(m_config.infectionRate, exposure, dt)) {
                 agent.infectionState = InfectionState::Infected;
                 agent.infectedSeconds = 0.0f;
                 ++m_newInfections;

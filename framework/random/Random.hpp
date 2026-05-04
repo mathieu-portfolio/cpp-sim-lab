@@ -18,6 +18,11 @@ public:
         return dist(engine());
     }
 
+    static int range(int min, int max) {
+        std::uniform_int_distribution<int> dist(min, max);
+        return dist(engine());
+    }
+
 private:
     static std::mt19937& engine() {
         static thread_local std::mt19937 gen{std::random_device{}()};
