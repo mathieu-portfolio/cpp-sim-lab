@@ -8,7 +8,9 @@
 #include <ui/SimulationUiRenderer.hpp>
 #include <ui/UiHelpers.hpp>
 #include <ui/SimulationControlHints.hpp>
+#include <ui/SimulationBackendControls.hpp>
 #include <ui/RaylibCamera.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
 
 #include <algorithm>
 #include <tuple>
@@ -28,6 +30,7 @@ int main() {
     Simulation sim;
     simfw::ui::SimulationControls controls;
     RoadBrush roadBrush;
+    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::Cells;
     Camera2D camera = simfw::ui::makeCenteredCamera(
         static_cast<float>(WindowWidth),
         static_cast<float>(WindowHeight)
@@ -68,7 +71,9 @@ int main() {
             );
         }
 
-        if (IsKeyPressed(KEY_G)) {
+        simfw::ui::handleSimulationBackendControls(config, gridDebugMode);
+
+        if (IsKeyPressed(KEY_T)) {
             sim.generateTraffic();
         }
 
@@ -135,6 +140,7 @@ int main() {
             simfw::ui::drawTunables(cursor, config, controls.selectedParameter);
             cursor.gap(8);
             cursor.draw(TextFormat("Zoom: %.2fx", camera.zoom), 18, GRAY);
+            simfw::ui::drawSimulationBackendStatus(cursor, config, gridDebugMode);
         }
 
         if (controls.uiMode == simfw::ui::UiMode::Full) {
@@ -147,7 +153,9 @@ int main() {
                     "Space: pause",
                     "N: step",
                     "R: reset",
-                    "G: generate traffic",
+                    "T: generate traffic",
+                    "B: compute backend (cpu/gpu)",
+                    "P: parallel update",
                     "Left mouse: paint road",
                     "F1: UI mode",
                     "Wheel: zoom",

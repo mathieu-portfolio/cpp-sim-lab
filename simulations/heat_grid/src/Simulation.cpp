@@ -1,12 +1,20 @@
 #include "Simulation.hpp"
+#include "thread_pool.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <simulation/ParallelUpdate.hpp>
+#include <simulation/SimulationUtils.hpp>
 
 namespace heat_grid {
+namespace {
+constexpr std::size_t MinItemsPerParallelTask = 256;
+}
 
-Simulation::Simulation(SimulationConfig config) : Base(config) {
+Simulation::Simulation(SimulationConfig config)
+    : Base(config),
+      m_threadPool(std::make_unique<ThreadPool>(simfw::simulation::hardwareWorkerCount())) {
     m_config.entityCount = m_config.gridWidth * m_config.gridHeight;
     m_temperature.assign(m_config.entityCount, m_config.ambientTemperature);
     m_nextTemperature = m_temperature;
@@ -104,14 +112,42 @@ void Simulation::clearHeatSource(std::size_t x, std::size_t y) {
 
 void Simulation::update(float dt) {
     const float frameScale = std::max(dt, 0.0f) * 60.0f;
+    const auto backend = m_config.execution.computeBackend;
+
+    if (backend == simfw::simulation::ComputeBackend::CpuScalar) {
+        updateRange(0, m_config.entityCount, frameScale);
+    } else {
+        const bool useParallel =
+            backend == simfw::simulation::ComputeBackend::GpuCompute
+                ? true
+                : m_config.execution.useParallelUpdate;
+
+        simfw::runParallelUpdate<ThreadPool, HeatUpdateScratch, HeatUpdateStats>(
+            m_threadPool.get(),
+            m_config.entityCount,
+            MinItemsPerParallelTask,
+            useParallel,
+            [this, frameScale](std::size_t beginIndex, std::size_t endIndex, HeatUpdateScratch&, HeatUpdateStats&) {
+                updateRange(beginIndex, endIndex, frameScale);
+            },
+            [](const HeatUpdateStats&) {});
+    }
+
+    applyFixedPoints(m_nextTemperature);
+    std::swap(m_temperature, m_nextTemperature);
+    rebuildStats();
+}
+
+void Simulation::updateRange(std::size_t beginIndex, std::size_t endIndex, float frameScale) {
     const float advectionX = std::clamp(m_config.advectionX, -2.0f, 2.0f);
     const float advectionY = std::clamp(m_config.advectionY, -2.0f, 2.0f);
     const float diffusion = std::clamp(m_config.diffusion, 0.0f, 0.25f);
     const float advectionScale = frameScale;
     const float diffusionStep = diffusion * frameScale;
 
-    for (std::size_t y = 0; y < m_config.gridHeight; ++y) {
-        for (std::size_t x = 0; x < m_config.gridWidth; ++x) {
+    for (std::size_t i = beginIndex; i < endIndex; ++i) {
+        const std::size_t x = i % m_config.gridWidth;
+        const std::size_t y = i / m_config.gridWidth;
             const float c = sample(static_cast<int>(x), static_cast<int>(y));
             const float l = sample(static_cast<int>(x) - 1, static_cast<int>(y));
             const float r = sample(static_cast<int>(x) + 1, static_cast<int>(y));
@@ -139,13 +175,8 @@ void Simulation::update(float dt) {
                 tx * ty * t11;
 
             const float nextTemperature = advected + (diffusionStep * laplacian);
-            m_nextTemperature[idx(x, y)] = std::clamp(nextTemperature, -1.0f, 1.0f);
-        }
+        m_nextTemperature[idx(x, y)] = std::clamp(nextTemperature, -1.0f, 1.0f);
     }
-
-    applyFixedPoints(m_nextTemperature);
-    std::swap(m_temperature, m_nextTemperature);
-    rebuildStats();
 }
 
 void Simulation::clear() {
