@@ -3,6 +3,8 @@ add_library(traffic_flow_core
     src/CrossroadPolicy.cpp
     src/TrafficPhysics.cpp
     src/VehicleBehavior.cpp
+    src/RoadTopologyServices.cpp
+    src/TrafficLifecycle.cpp
 )
 
 target_include_directories(traffic_flow_core
