@@ -245,11 +245,33 @@ void Simulation::updateBoids(float dt) {
     const float queryRadius =
         std::max(m_config.perceptionRadius, m_config.separationRadius);
 
+    const auto backend = m_config.execution.computeBackend;
+
+    if (backend == simfw::simulation::ComputeBackend::CpuScalar) {
+        BoidUpdateScratch scratch;
+        SimulationStats workerStats{};
+        updateBoidRange(
+            0,
+            m_entities.size(),
+            dt,
+            queryRadius,
+            scratch,
+            workerStats
+        );
+        mergeWorkerStats(workerStats);
+        return;
+    }
+
+    const bool useParallel =
+        backend == simfw::simulation::ComputeBackend::GpuCompute
+            ? true
+            : m_config.execution.useParallelUpdate;
+
     simfw::runParallelUpdate<ThreadPool, BoidUpdateScratch, SimulationStats>(
         m_threadPool.get(),
         m_entities.size(),
         MinItemsPerParallelTask,
-        m_config.execution.useParallelUpdate,
+        useParallel,
         [this, dt, queryRadius](
             std::size_t beginIndex,
             std::size_t endIndex,
