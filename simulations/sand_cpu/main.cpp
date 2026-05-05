@@ -44,6 +44,7 @@ int main() {
 
     simfw::ui::SimulationControls controls;
     SandMaterial brushMaterial = SandMaterial::Sand;
+    Vector2 previousBrushCell = {-1.0f, -1.0f};
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -59,9 +60,20 @@ int main() {
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const Vector2 mouse = GetMousePosition();
-            const int cellX = static_cast<int>(mouse.x / simConfig.cellSize);
-            const int cellY = static_cast<int>(mouse.y / simConfig.cellSize);
-            sim.spawnDisc(cellX, cellY, brushMaterial);
+            const Vector2 brushCell = {mouse.x / simConfig.cellSize, mouse.y / simConfig.cellSize};
+            const int cellX = static_cast<int>(brushCell.x);
+            const int cellY = static_cast<int>(brushCell.y);
+
+            float brushVx = 0.0f;
+            float brushVy = 0.0f;
+            if (previousBrushCell.x >= 0.0f && previousBrushCell.y >= 0.0f) {
+                brushVx = brushCell.x - previousBrushCell.x;
+                brushVy = brushCell.y - previousBrushCell.y;
+            }
+            sim.spawnDisc(cellX, cellY, brushMaterial, brushVx, brushVy);
+            previousBrushCell = brushCell;
+        } else {
+            previousBrushCell = {-1.0f, -1.0f};
         }
 
         if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {

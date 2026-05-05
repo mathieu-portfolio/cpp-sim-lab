@@ -91,6 +91,18 @@ void Simulation::update(float) {
 
             Cell& cell = m_cells[idx(x, y)];
 
+            if (cell.material != Material::Empty) {
+                const int inertialX = static_cast<int>(std::round(cell.vx));
+                const int inertialY = static_cast<int>(std::round(cell.vy));
+                if ((inertialX != 0 || inertialY != 0) && tryMove(x, y, x + inertialX, y + inertialY)) {
+                    ++m_stats.movedCells;
+                    Cell& movedCell = m_cells[idx(x + inertialX, y + inertialY)];
+                    movedCell.vx *= 0.9f;
+                    movedCell.vy *= 0.9f;
+                    continue;
+                }
+            }
+
             switch (cell.material) {
                 case Material::Sand: {
                     bool moved = tryMove(x, y, x, y + 1);
@@ -101,6 +113,9 @@ void Simulation::update(float) {
                     if (moved) {
                         ++m_stats.movedCells;
                     }
+                    cell.vy += 0.2f;
+                    cell.vx *= 0.9f;
+                    cell.vy *= 0.9f;
                     break;
                 }
                 case Material::Water: {
@@ -115,6 +130,9 @@ void Simulation::update(float) {
                     if (moved) {
                         ++m_stats.movedCells;
                     }
+                    cell.vy += 0.15f;
+                    cell.vx *= 0.85f;
+                    cell.vy *= 0.85f;
                     break;
                 }
                 case Material::Smoke: {
@@ -135,6 +153,9 @@ void Simulation::update(float) {
                             markNeighborsDirty(x, y);
                         }
                     }
+                    cell.vy -= 0.08f;
+                    cell.vx *= 0.85f;
+                    cell.vy *= 0.85f;
                     break;
                 }
                 case Material::Empty:
@@ -148,7 +169,7 @@ void Simulation::update(float) {
     rebuildStats();
 }
 
-void Simulation::spawnDisc(int centerX, int centerY, Material material) {
+void Simulation::spawnDisc(int centerX, int centerY, Material material, float brushVx, float brushVy) {
     for (int i = 0; i < m_config.spawnAmount; ++i) {
         const int ox = Random::range(-m_config.brushRadius, m_config.brushRadius + 1);
         const int oy = Random::range(-m_config.brushRadius, m_config.brushRadius + 1);
@@ -166,6 +187,8 @@ void Simulation::spawnDisc(int centerX, int centerY, Material material) {
         if (cell.material == Material::Empty) {
             cell.material = material;
             cell.life = material == Material::Smoke ? static_cast<std::uint8_t>(Random::range(40, 120)) : 0;
+            cell.vx = brushVx;
+            cell.vy = brushVy;
             markNeighborsDirty(x, y);
         }
     }

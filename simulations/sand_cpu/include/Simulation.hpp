@@ -45,7 +45,7 @@ public:
     void update(float dt);
     void reset();
     void clear();
-    void spawnDisc(int centerX, int centerY, Material material);
+    void spawnDisc(int centerX, int centerY, Material material, float brushVx = 0.0f, float brushVy = 0.0f);
 
     const std::vector<Cell>& getCells() const { return m_cells; }
 
