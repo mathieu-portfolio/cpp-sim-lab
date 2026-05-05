@@ -122,6 +122,24 @@ void Simulation::update(float) {
                 const auto [inertialX, inertialY] = inertialStep(cell);
                 if ((inertialX != 0 || inertialY != 0) && tryMove(x, y, x + inertialX, y + inertialY)) {
                     ++m_stats.movedCells;
+                    Cell& movedCell = m_cells[idx(x + inertialX, y + inertialY)];
+                    switch (movedCell.material) {
+                        case Material::Sand:
+                            movedCell.vy = clampVelocity(movedCell.vy + 0.18f, 1.6f);
+                            movedCell.vx = clampVelocity(movedCell.vx * 0.86f, 1.2f);
+                            break;
+                        case Material::Water:
+                            movedCell.vy = clampVelocity(movedCell.vy + 0.12f, 1.4f);
+                            movedCell.vx = clampVelocity(movedCell.vx * 0.9f, 1.4f);
+                            break;
+                        case Material::Smoke:
+                            movedCell.vy = clampVelocity(movedCell.vy - 0.08f, 1.0f);
+                            movedCell.vx = clampVelocity(movedCell.vx * 0.92f, 1.2f);
+                            break;
+                        case Material::Empty:
+                        default:
+                            break;
+                    }
                     continue;
                 }
             }
