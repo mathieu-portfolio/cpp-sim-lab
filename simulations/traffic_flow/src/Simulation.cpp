@@ -570,43 +570,59 @@ void Simulation::update(float dt) {
 
         v.speed = std::max(0.0f, v.speed + v.acceleration * dt);
 
-        const int dir = road.lanes[static_cast<std::size_t>(v.laneId)].direction;
-        v.s += static_cast<float>(dir) * v.speed * dt;
-        if (v.s >= road.length) {
-            if (road.endConnection.has_value()) {
-                const auto& c = *road.endConnection;
-                if (c.roadId < m_network.roads.size() && c.laneId >= 0 &&
-                    static_cast<std::size_t>(c.laneId) < m_network.roads[c.roadId].lanes.size() &&
-                    m_network.roads[c.roadId].length > 0.0f) {
-                    v.roadId = c.roadId;
-                    v.laneId = c.laneId;
-                    const float overflow = v.s - road.length;
-                    v.s = std::clamp(overflow, 0.0f, m_network.roads[c.roadId].length);
-                } else {
-                    v.s = wrapDistance(v.s, road.length);
-                }
-            } else {
-                v.s = wrapDistance(v.s, road.length);
+        float remainingDistance = v.speed * dt;
+
+        while (remainingDistance > 0.0f) {
+            if (v.roadId >= m_network.roads.size()) {
+                v.speed = 0.0f;
+                v.acceleration = 0.0f;
+                break;
             }
-            ++m_wrapCountAccumulator;
-        } else if (v.s < 0.0f) {
-            if (road.startConnection.has_value()) {
-                const auto& c = *road.startConnection;
-                if (c.roadId < m_network.roads.size() && c.laneId >= 0 &&
-                    static_cast<std::size_t>(c.laneId) < m_network.roads[c.roadId].lanes.size() &&
-                    m_network.roads[c.roadId].length > 0.0f) {
-                    v.roadId = c.roadId;
-                    v.laneId = c.laneId;
-                    v.s = std::clamp(
-                        m_network.roads[c.roadId].length + v.s,
-                        0.0f,
-                        m_network.roads[c.roadId].length);
-                } else {
-                    v.s = wrapDistance(v.s, road.length);
-                }
-            } else {
-                v.s = wrapDistance(v.s, road.length);
+
+            const RoadSegment& activeRoad = m_network.roads[v.roadId];
+            if (activeRoad.length <= 0.0f || v.laneId < 0 ||
+                static_cast<std::size_t>(v.laneId) >= activeRoad.lanes.size()) {
+                v.speed = 0.0f;
+                v.acceleration = 0.0f;
+                break;
             }
+
+            const int activeDir = activeRoad.lanes[static_cast<std::size_t>(v.laneId)].direction;
+            const float distanceToBoundary = activeDir >= 0
+                ? (activeRoad.length - v.s)
+                : v.s;
+
+            if (remainingDistance < distanceToBoundary) {
+                v.s += static_cast<float>(activeDir) * remainingDistance;
+                remainingDistance = 0.0f;
+                continue;
+            }
+
+            v.s = activeDir >= 0 ? activeRoad.length : 0.0f;
+            remainingDistance -= std::max(0.0f, distanceToBoundary);
+
+            const auto& connection = activeDir >= 0 ? activeRoad.endConnection : activeRoad.startConnection;
+            if (!connection.has_value()) {
+                v.speed = 0.0f;
+                v.acceleration = 0.0f;
+                break;
+            }
+
+            const auto& c = *connection;
+            if (c.roadId >= m_network.roads.size() || c.laneId < 0 ||
+                static_cast<std::size_t>(c.laneId) >= m_network.roads[c.roadId].lanes.size() ||
+                m_network.roads[c.roadId].length <= 0.0f) {
+                v.speed = 0.0f;
+                v.acceleration = 0.0f;
+                break;
+            }
+
+            v.roadId = c.roadId;
+            v.laneId = c.laneId;
+
+            const RoadSegment& nextRoad = m_network.roads[v.roadId];
+            const int nextDir = nextRoad.lanes[static_cast<std::size_t>(v.laneId)].direction;
+            v.s = nextDir >= 0 ? 0.0f : nextRoad.length;
             ++m_wrapCountAccumulator;
         }
     }
