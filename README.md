@@ -73,7 +73,7 @@ cmake --preset debug-ninja
   - agents_cpu
   - crowd
   - sand_cpu
-  - bubbles_cpu_gpu
+  - bubbles
 
 - benchmarks/
   Performance comparisons (grid vs naive, parallel vs single-thread)

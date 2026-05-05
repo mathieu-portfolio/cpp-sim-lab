@@ -34,7 +34,7 @@ Each simulation is independent and demonstrates a different system.
 - camera navigation
 - entity selection & debug UI
 
-## traffic_flow_cpu_gpu
+## traffic_flow
 - lane-based traffic flow
 - IDM longitudinal control
 - simple MOBIL-style lane changes
@@ -46,7 +46,7 @@ Each simulation is independent and demonstrates a different system.
 - recovery timer and epidemic metrics (R_t proxy, peak infection, extinction time)
 
 
-## heat_grid_cpu_gpu
+## heat_grid
 - double-buffered 2D heat diffusion grid
 - 5-point stencil update
 - fixed heat sources/sinks

@@ -43,10 +43,10 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
 - Cellular-style granular updates
 - Double-buffer style stepping and UI controls
 
-### bubbles_cpu_gpu
+### bubbles
 - Bubble interactions and boundary behavior
 
-### heat_grid_cpu_gpu
+### heat_grid
 - 2D diffusion / heat propagation over dense grids
 - boundary-condition handling and temperature-source injection
 
@@ -149,9 +149,9 @@ Current best candidates (ordered):
    - existing execution matrix benchmark
 
 Secondary candidates:
-- `bubbles_cpu_gpu` (similar interaction profile to particles, but less benchmark depth)
-- `traffic_flow_cpu_gpu` (has benchmark matrix, but lane-change logic is branchier)
-- `heat_grid_cpu_gpu` (dense grid stencils are very GPU-friendly, pending backend matrix benchmarks)
+- `bubbles` (similar interaction profile to particles, but less benchmark depth)
+- `traffic_flow` (has benchmark matrix, but lane-change logic is branchier)
+- `heat_grid` (dense grid stencils are very GPU-friendly, pending backend matrix benchmarks)
 
 Not yet ideal first GPU ports:
 - `agents_cpu` (behavior + intent transitions add control divergence)

@@ -5,9 +5,9 @@ add_subdirectory(simulations/boids)
 add_subdirectory(simulations/agents_cpu)
 add_subdirectory(simulations/crowd)
 
-add_subdirectory(simulations/bubbles_cpu_gpu)
+add_subdirectory(simulations/bubbles)
 add_subdirectory(simulations/sand_cpu)
-add_subdirectory(simulations/traffic_flow_cpu_gpu)
+add_subdirectory(simulations/traffic_flow)
 
 write_sim_benchmark_registry()
 
