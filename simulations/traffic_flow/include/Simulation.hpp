@@ -3,7 +3,6 @@
 #include "Vehicle.hpp"
 
 #include <math/Vec2.hpp>
-#include <simulation/SimulationBase.hpp>
 #include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
@@ -119,21 +118,20 @@ private:
     std::vector<Vehicle> m_vehicles;
     SimulationStats m_stats;
 
-    float m_throughputAccumulator = 0.0f;
-    std::size_t m_wrapCountAccumulator = 0;
-    float m_queueAccumulator = 0.0f;
-    float m_queueSamples = 0.0f;
-    float m_elapsedTime = 0.0f;
+    struct TrafficStateData;
+    TrafficStateData* m_stateData = nullptr;
 
     void resetDefaultRoad();
     void sanitizeConfig();
     void rebuildRoadCaches();
-    void rebuildRoadCache(RoadSegment& road);
-    void rebuildCrossroads();
-    void rebuildRoadConnections();
     bool isInsideCrossroadSpawnClearance(std::size_t roadId, float s) const;
     const Vehicle* findLeader(const Vehicle& vehicle, std::size_t vehicleIndex, float& outGap) const;
-    float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
+
+    void runIntentPhase(float dt, std::vector<Vehicle>& next);
+    void runIntegratePhase(float dt, std::vector<Vehicle>& next);
+    void runConnectionPhase(std::vector<Vehicle>& next);
+    void runPhysicsPhase(float dt, std::vector<Vehicle>& next, bool useGpuComputePath);
+    void runStatsPhase();
 };
 
 } // namespace traffic_flow
