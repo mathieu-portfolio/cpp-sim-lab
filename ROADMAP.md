@@ -35,7 +35,7 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
   - obstacle scaling
   - parallel compare
 
-### crowd_cpu
+### crowd
 - Crowd movement and obstacle interactions
 - Flow-field style local behavior
 
@@ -144,7 +144,7 @@ Current best candidates (ordered):
 2. `boids`
    - per-entity steering accumulation is GPU-friendly
    - existing execution matrix benchmark
-3. `crowd_cpu`
+3. `crowd`
    - many independent agent updates with shared spatial queries
    - existing execution matrix benchmark
 

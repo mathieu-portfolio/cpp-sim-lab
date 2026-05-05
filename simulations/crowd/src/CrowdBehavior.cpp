@@ -7,7 +7,7 @@
 #include <limits>
 #include <simulation/WeightedBehaviorPipeline.hpp>
 
-namespace crowd_cpu {
+namespace crowd {
 namespace {
 constexpr float Epsilon = 0.0001f;
 
@@ -148,4 +148,4 @@ Vec2 separate(std::size_t index, BehaviorContext& c) {
 }
 
 
-} // namespace crowd_cpu
+} // namespace crowd

@@ -39,13 +39,13 @@ cmake --build --preset debug-ninja
 Build and run a simulation:
 
 ```bash
-scripts/run_sim.sh crowd_cpu debug-ninja --build
+scripts/run_sim.sh crowd debug-ninja --build
 ```
 
 Or using default preset:
 
 ```bash
-scripts/run_sim.sh crowd_cpu --build
+scripts/run_sim.sh crowd --build
 ```
 
 If raylib is not found:
@@ -71,7 +71,7 @@ cmake --preset debug-ninja
   - particles
   - boids
   - agents_cpu
-  - crowd_cpu
+  - crowd
   - sand_cpu
   - bubbles_cpu
 

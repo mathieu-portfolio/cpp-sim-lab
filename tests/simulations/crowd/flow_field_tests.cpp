@@ -6,7 +6,7 @@
 #include <cmath>
 #include <limits>
 
-namespace crowd_cpu {
+namespace crowd {
 namespace {
 
 SimulationConfig baseConfig(std::size_t agentCount = 1) {
@@ -117,4 +117,4 @@ TEST(CrowdCpuFlowField, AgentCollidesWithObstacleMaskUsingRadius) {
 }
 
 } // namespace
-} // namespace crowd_cpu
+} // namespace crowd

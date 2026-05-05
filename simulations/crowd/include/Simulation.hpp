@@ -16,7 +16,7 @@
 
 class ThreadPool;
 
-namespace crowd_cpu {
+namespace crowd {
 
 struct SimulationConfig {
     static constexpr std::size_t DefaultAgentCount = 300;
@@ -102,4 +102,4 @@ private:
     Vec2 resolveObstacleCollision(Vec2 previousPos, Vec2 proposedPos, float radius) const;
 };
 
-} // namespace crowd_cpu
+} // namespace crowd

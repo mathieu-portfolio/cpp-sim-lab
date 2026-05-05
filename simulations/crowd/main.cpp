@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-using namespace crowd_cpu;
+using namespace crowd;
 
 namespace {
 constexpr int WindowWidth = 800;
@@ -58,7 +58,7 @@ void drawObstacleMask(const simfw::simulation::ObstacleMask &mask) {
 } // namespace
 
 int main() {
-  InitWindow(WindowWidth, WindowHeight, "crowd_cpu");
+  InitWindow(WindowWidth, WindowHeight, "crowd");
   SetTargetFPS(60);
 
   Simulation sim;
@@ -235,7 +235,7 @@ int main() {
     if (controls.uiMode != simfw::ui::UiMode::None) {
       simfw::ui::TextCursor cursor{10, 10, 20};
 
-      cursor.draw("crowd_cpu", 20, RAYWHITE);
+      cursor.draw("crowd", 20, RAYWHITE);
       cursor.draw(controls.paused ? "Paused" : "Running");
 
       simfw::ui::drawStats(cursor, sim.getStats());

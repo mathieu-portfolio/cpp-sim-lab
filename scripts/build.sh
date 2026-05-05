@@ -9,7 +9,7 @@ TARGET=""
 
 usage() {
     echo "Usage: ./scripts/build.sh [preset] [target]"
-    echo "Example: ./scripts/build.sh debug-ninja crowd_cpu"
+    echo "Example: ./scripts/build.sh debug-ninja crowd"
 }
 
 configure_preset_exists() {
