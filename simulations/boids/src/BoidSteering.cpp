@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace boids_cpu {
+namespace boids {
 namespace {
 constexpr float Epsilon = 0.0001f;
 constexpr float Pi = 3.14159265358979323846f;
@@ -173,4 +173,4 @@ Vec2 wrapPosition(Vec2 position, float width, float height) {
     return position;
 }
 
-} // namespace boids_cpu
+} // namespace boids

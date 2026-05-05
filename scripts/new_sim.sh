@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <simulation_name>"
-    echo "Example: $0 boids_cpu"
+    echo "Example: $0 boids"
     exit 1
 fi
 

@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-namespace boids_cpu {
+namespace boids {
 
 struct SimulationConfig;
 struct SimulationStats;
@@ -82,4 +82,4 @@ Vec2 computeCohesionBehavior(std::size_t boidIndex, BoidBehaviorContext& context
 Vec2 computeSeparationBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
 Vec2 computeWanderBehavior(std::size_t boidIndex, BoidBehaviorContext& context);
 
-} // namespace boids_cpu
+} // namespace boids

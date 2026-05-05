@@ -18,7 +18,7 @@ Focus: correctness first, measure before optimizing, minimal abstractions.
   - grid cell size sweep
   - unordered_map vs flat grid
 
-### boids_cpu
+### boids
 - Alignment, cohesion, separation
 - Naive O(n²) neighbor search
 - Spatial grid optimization
@@ -141,7 +141,7 @@ Current best candidates (ordered):
 1. `particles`
    - strongest data-parallel structure (integration + collision passes)
    - existing execution matrix benchmark
-2. `boids_cpu`
+2. `boids`
    - per-entity steering accumulation is GPU-friendly
    - existing execution matrix benchmark
 3. `crowd_cpu`

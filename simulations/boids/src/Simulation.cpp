@@ -13,7 +13,7 @@
 #include <memory>
 #include <random/Random.hpp>
 
-namespace boids_cpu {
+namespace boids {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
 
@@ -278,4 +278,4 @@ void Simulation::update(float dt) {
     updateBoids(dt);
 }
 
-} // namespace boids_cpu
+} // namespace boids

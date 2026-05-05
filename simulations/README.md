@@ -7,7 +7,7 @@ Each simulation is independent and demonstrates a different system.
 - spatial partitioning
 - pipeline-based update (passes, not behaviors)
 
-## boids_cpu
+## boids
 - flocking simulation
 - composable steering behaviors:
   - alignment
