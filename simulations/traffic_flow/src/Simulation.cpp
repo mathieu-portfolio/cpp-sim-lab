@@ -514,6 +514,9 @@ void Simulation::update(float dt) {
     std::vector<CrossroadReservation> crossroadReservations =
         crossroadPolicy.rebuildReservations(*this, m_vehicles);
 
+    const auto backend = m_config.execution.computeBackend;
+    const bool useGpuComputePath = backend == simfw::simulation::ComputeBackend::GpuCompute;
+
     std::vector<Vehicle> next = m_vehicles;
     for (std::size_t i = 0; i < m_vehicles.size(); ++i) {
         Vehicle& v = next[i];
@@ -524,6 +527,9 @@ void Simulation::update(float dt) {
             continue;
         }
 
+        // GPU path toggle point: crossroad policy evaluation is isolated here so
+        // a future compute kernel can replace this call without touching the
+        // surrounding state transitions.
         const CrossroadPolicyDecision crossroadDecision = crossroadPolicy.decide(
             *this,
             m_vehicles,
@@ -578,6 +584,7 @@ void Simulation::update(float dt) {
         float leaderGap = 999999.0f;
         const Vehicle* leader = findLeader(m_vehicles[i], i, leaderGap);
 
+        // GPU path toggle point: per-vehicle intent computation.
         const VehicleIntent intent = vehicleBehavior.computeIntent(
             *this,
             v,
@@ -631,12 +638,24 @@ void Simulation::update(float dt) {
         }
     }
 
-    TrafficPhysics::enforceNoOverlap(
-        *this,
-        m_vehicles,
-        next,
-        std::max(m_config.minimumGap, m_config.physicsMinimumGap),
-        dt);
+    // GPU path toggle point: footprint projection / overlap pass.
+    // Current behavior keeps CPU and GPU modes numerically consistent until a
+    // dedicated compute implementation is introduced.
+    if (useGpuComputePath) {
+        TrafficPhysics::enforceNoOverlap(
+            *this,
+            m_vehicles,
+            next,
+            std::max(m_config.minimumGap, m_config.physicsMinimumGap),
+            dt);
+    } else {
+        TrafficPhysics::enforceNoOverlap(
+            *this,
+            m_vehicles,
+            next,
+            std::max(m_config.minimumGap, m_config.physicsMinimumGap),
+            dt);
+    }
 
     m_vehicles = std::move(next);
 

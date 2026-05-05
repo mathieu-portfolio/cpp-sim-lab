@@ -3,7 +3,9 @@
 #include <ui/SimulationControlHints.hpp>
 #include <ui/SimulationControls.hpp>
 #include <ui/SimulationUiRenderer.hpp>
+#include <ui/SimulationBackendControls.hpp>
 #include <ui/UiHelpers.hpp>
+#include <ui/SpatialGridDebugDraw.hpp>
 #include "SimulationUiTraits.hpp"
 
 #include <raylib.h>
@@ -55,6 +57,7 @@ int main() {
     sim.reset();
     simfw::ui::SimulationControls controls;
     BrushMode brushMode = BrushMode::Source;
+    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::Cells;
 
     while (!WindowShouldClose()) {
         const float dt = GetFrameTime();
@@ -64,7 +67,9 @@ int main() {
             std::tuple_size_v<decltype(simfw::ui::ConfigUiTraits<heat_grid::SimulationConfig>::fields)>;
         simfw::ui::handleCommonSimulationControls(controls, sim, paramCount);
 
-        if (IsKeyPressed(KEY_B)) {
+        simfw::ui::handleSimulationBackendControls(simConfig, gridDebugMode);
+
+        if (IsKeyPressed(KEY_M)) {
             if (simConfig.boundaryMode == BoundaryMode::Clamp) simConfig.boundaryMode = BoundaryMode::Wrap;
             else if (simConfig.boundaryMode == BoundaryMode::Wrap) simConfig.boundaryMode = BoundaryMode::Insulated;
             else simConfig.boundaryMode = BoundaryMode::Clamp;
@@ -156,7 +161,8 @@ int main() {
             cursor.gap(6);
             simfw::ui::drawTunables(cursor, simConfig, controls.selectedParameter, DARKGRAY, BLACK);
             cursor.gap(8);
-            cursor.draw(TextFormat("Boundary mode: %s (B to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
+            cursor.draw(TextFormat("Boundary mode: %s (M to cycle)", boundaryModeName(simConfig.boundaryMode)), 16, DARKBROWN);
+            simfw::ui::drawSimulationBackendStatus(cursor, simConfig, gridDebugMode);
             cursor.draw(TextFormat("Brush mode: %s (T to toggle)", brushMode == BrushMode::Source ? "source" : "noise"), 16, DARKBROWN);
 
             if (controls.uiMode == simfw::ui::UiMode::Full) {
@@ -164,7 +170,9 @@ int main() {
                 simfw::ui::drawControlHints(
                     controlsCursor,
                     {
-                        "B: cycle boundary mode",
+                        "M: cycle boundary mode",
+                        "B: compute backend (cpu/gpu)",
+                        "P: parallel update",
                         "Space: pause",
                         "N: step",
                         "R: reset",

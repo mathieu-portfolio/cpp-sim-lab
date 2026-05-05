@@ -4,7 +4,10 @@
 #include <simulation/SimulationExecutionConfig.hpp>
 
 #include <cstddef>
+#include <memory>
 #include <vector>
+
+class ThreadPool;
 
 namespace heat_grid {
 
@@ -63,12 +66,17 @@ public:
     void clearHeatSource(std::size_t x, std::size_t y);
 
 private:
+    struct HeatUpdateScratch {};
+    struct HeatUpdateStats {};
+
     std::vector<float> m_temperature;
     std::vector<float> m_nextTemperature;
     std::vector<float> m_sourceTemperature;
+    std::unique_ptr<ThreadPool> m_threadPool;
 
     [[nodiscard]] std::size_t idx(std::size_t x, std::size_t y) const;
     [[nodiscard]] float sample(int x, int y) const;
+    void updateRange(std::size_t beginIndex, std::size_t endIndex, float frameScale);
     void seedFixedPoints();
     void applyFixedPoints(std::vector<float>& field);
     void rebuildStats();
