@@ -93,9 +93,11 @@ int main() {
                 const std::optional<RoadPick> pick = pickRoadSubsegment(sim.getRoadNetwork(), mouseWorld);
                 pendingRoadStart = pick.has_value() ? pick->point : mouseWorld;
             } else {
-                if ((mouseWorld - *pendingRoadStart).lengthSquared() > 64.0f) {
+                const std::optional<RoadPick> pick = pickRoadSubsegment(sim.getRoadNetwork(), mouseWorld);
+                const Vec2 snappedEnd = pick.has_value() ? pick->point : mouseWorld;
+                if ((snappedEnd - *pendingRoadStart).lengthSquared() > 64.0f) {
                     RoadSegment road;
-                    road.controlPoints = {*pendingRoadStart, mouseWorld};
+                    road.controlPoints = {*pendingRoadStart, snappedEnd};
                     road.lanes = {{1, -config.laneWidth * 0.5f}, {-1, config.laneWidth * 0.5f}};
                     sim.getRoadNetwork().roads.push_back(std::move(road));
                     sim.notifyRoadsEdited();
@@ -119,11 +121,16 @@ int main() {
         for (std::size_t roadId = 0; roadId < sim.getRoadNetwork().roads.size(); ++roadId) {
             const auto& road = sim.getRoadNetwork().roads[roadId];
             if (road.controlPoints.size() < 2) continue;
+            const auto& drawPoints = road.drivePoints.empty() ? road.controlPoints : road.drivePoints;
+            for (std::size_t i = 1; i < drawPoints.size(); ++i) {
+                const Vec2 a = drawPoints[i - 1];
+                const Vec2 b = drawPoints[i];
+                DrawLineEx({a.x, a.y}, {b.x, b.y}, config.laneWidth * 2.0f, DARKGRAY);
+                DrawLineEx({a.x, a.y}, {b.x, b.y}, 2.0f, YELLOW);
+            }
+
             const Vec2 a = road.controlPoints.front();
             const Vec2 b = road.controlPoints.back();
-            DrawLineEx({a.x, a.y}, {b.x, b.y}, config.laneWidth * 2.0f, DARKGRAY);
-            DrawLineEx({a.x, a.y}, {b.x, b.y}, 2.0f, YELLOW);
-
             const int subdivisions = std::max(1, static_cast<int>(std::round((b - a).length() / SubsegmentInterval)));
             for (int i = 0; i <= subdivisions; ++i) {
                 const float t = static_cast<float>(i) / static_cast<float>(subdivisions);

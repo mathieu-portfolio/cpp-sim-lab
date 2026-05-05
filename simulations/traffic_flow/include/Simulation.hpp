@@ -130,6 +130,7 @@ private:
     void rebuildRoadCaches();
     void rebuildRoadCache(RoadSegment& road);
     void rebuildCrossroads();
+    void rebuildRoadConnections();
     bool isInsideCrossroadSpawnClearance(std::size_t roadId, float s) const;
     const Vehicle* findLeader(const Vehicle& vehicle, std::size_t vehicleIndex, float& outGap) const;
     float idmAcceleration(const Vehicle& vehicle, const Vehicle* leader, float gap) const;
