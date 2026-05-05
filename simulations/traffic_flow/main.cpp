@@ -60,7 +60,7 @@ int main() {
 
     Simulation sim;
     simfw::ui::SimulationControls controls;
-    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::Cells;
+    simfw::ui::GridDebugMode gridDebugMode = simfw::ui::GridDebugMode::OccupiedCells;
     Camera2D camera = simfw::ui::makeCenteredCamera(static_cast<float>(WindowWidth), static_cast<float>(WindowHeight));
     std::optional<Vec2> pendingRoadStart;
 
