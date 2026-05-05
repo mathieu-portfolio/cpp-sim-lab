@@ -50,41 +50,21 @@ bool lineIntersection(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& d
     return outU > 0.02f && outU < 0.98f && outV > 0.02f && outV < 0.98f;
 }
 
-std::vector<Vec2> buildDrivePoints(const std::vector<Vec2>& rawPoints, float smoothingIterations, float minPointDistance) {
-    if (rawPoints.size() < 3) return rawPoints;
+std::vector<Vec2> buildDrivePoints(const std::vector<Vec2>& rawPoints, float /*smoothingIterations*/, float minPointDistance) {
+    if (rawPoints.size() < 2) return rawPoints;
 
-    std::vector<Vec2> cleaned;
-    cleaned.reserve(rawPoints.size());
-    const float minDistanceSq = minPointDistance * minPointDistance;
+    const Vec2 start = rawPoints.front();
+    const Vec2 end = rawPoints.back();
+    const float length = (end - start).length();
+    const float step = std::max(4.0f, minPointDistance);
+    const int subdivisions = std::max(1, static_cast<int>(std::round(length / step)));
 
-    for (const Vec2& point : rawPoints) {
-        if (cleaned.empty() || (point - cleaned.back()).lengthSquared() >= minDistanceSq) {
-            cleaned.push_back(point);
-        }
+    std::vector<Vec2> points;
+    points.reserve(static_cast<std::size_t>(subdivisions + 1));
+    for (int i = 0; i <= subdivisions; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(subdivisions);
+        points.push_back(start + (end - start) * t);
     }
-
-    if (cleaned.size() > 2 && (cleaned.front() - cleaned.back()).lengthSquared() < minDistanceSq) {
-        cleaned.pop_back();
-    }
-
-    if (cleaned.size() < 3) return cleaned;
-
-    // Chaikin corner cutting on a closed polyline. This removes brush-corner
-    // artifacts before the Catmull-Rom sampler/tangent code ever sees them.
-    std::vector<Vec2> points = cleaned;
-    const int iterations = static_cast<int>(std::round(std::clamp(smoothingIterations, 0.0f, 5.0f)));
-    for (int iteration = 0; iteration < iterations; ++iteration) {
-        std::vector<Vec2> next;
-        next.reserve(points.size() * 2);
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            const Vec2& a = points[i];
-            const Vec2& b = points[(i + 1) % points.size()];
-            next.push_back(a * 0.75f + b * 0.25f);
-            next.push_back(a * 0.25f + b * 0.75f);
-        }
-        points = std::move(next);
-    }
-
     return points;
 }
 
@@ -93,17 +73,13 @@ Vec2 sampleByT(const RoadSegment& road, float t) {
     if (points.empty()) return {};
     if (points.size() == 1) return points.front();
 
-    const int pointCount = static_cast<int>(points.size());
-    const int spans = pointCount;
-    const float wrappedT = t - std::floor(t);
-    const float scaled = wrappedT * static_cast<float>(spans);
-    const int seg = std::min(spans - 1, static_cast<int>(scaled));
-    const float lt = scaled - static_cast<float>(seg);
-    const int i0 = wrapIndex(seg - 1, pointCount);
-    const int i1 = wrapIndex(seg, pointCount);
-    const int i2 = wrapIndex(seg + 1, pointCount);
-    const int i3 = wrapIndex(seg + 2, pointCount);
-    return catmullRom(points[i0], points[i1], points[i2], points[i3], lt);
+    const float clampedT = std::clamp(t, 0.0f, 1.0f);
+    const float scaled = clampedT * static_cast<float>(points.size() - 1);
+    const int lo = static_cast<int>(std::floor(scaled));
+    const int hi = std::min(static_cast<int>(points.size() - 1), lo + 1);
+    const float alpha = scaled - static_cast<float>(lo);
+    return points[static_cast<std::size_t>(lo)] +
+           (points[static_cast<std::size_t>(hi)] - points[static_cast<std::size_t>(lo)]) * alpha;
 }
 
 } // namespace
@@ -141,7 +117,7 @@ void Simulation::sanitizeConfig() {
 void Simulation::resetDefaultRoad() {
     sanitizeConfig();
     RoadSegment road;
-    road.controlPoints = {{80.0f, 350.0f}, {300.0f, 280.0f}, {600.0f, 420.0f}, {1000.0f, 350.0f}};
+    road.controlPoints = {{120.0f, 350.0f}, {980.0f, 350.0f}};
     road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
     rebuildRoadCache(road);
     m_network.roads = {road};
