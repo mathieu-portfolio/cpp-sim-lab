@@ -13,6 +13,14 @@ namespace traffic_flow
 {
     namespace
     {
+        void normalizeLaneDirections(RoadSegment& road)
+        {
+            for (auto& lane : road.lanes)
+            {
+                lane.direction = lane.lateralOffset <= 0.0f ? 1 : -1;
+            }
+        }
+
         float wrapDistance(float s, float length)
         {
             if (length <= 0.0f)
@@ -67,6 +75,7 @@ namespace traffic_flow
         RoadSegment road;
         road.controlPoints = {{120, 350}, {980, 350}};
         road.lanes = {{1, -m_config.laneWidth * 0.5f}, {-1, m_config.laneWidth * 0.5f}};
+        normalizeLaneDirections(road);
         RoadGeometryCacheBuilder::rebuild(m_config, road);
         m_network.roads = {road};
         CrossroadDetector::rebuild(m_config, *this, m_network);
@@ -74,6 +83,8 @@ namespace traffic_flow
 
     void Simulation::rebuildRoadCaches()
     {
+        for (RoadSegment& road : m_network.roads)
+            normalizeLaneDirections(road);
         RoadGeometryCacheBuilder::rebuildAll(m_config, m_network);
         CrossroadDetector::rebuildRoadConnections(m_network);
         CrossroadDetector::rebuild(m_config, *this, m_network);
