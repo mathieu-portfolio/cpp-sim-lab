@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-using namespace boids_cpu;
+using namespace boids;
 
 namespace {
 constexpr std::uint32_t BaseSeed = 2020u;
@@ -149,7 +149,7 @@ int main() {
 
             progress.advance();
             std::cout
-                << "boids_cpu," 
+                << "boids," 
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","

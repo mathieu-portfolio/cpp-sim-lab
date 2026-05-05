@@ -1,6 +1,6 @@
 add_subdirectory(framework)
 add_subdirectory(simulations/particles)
-add_subdirectory(simulations/boids_cpu)
+add_subdirectory(simulations/boids)
 add_subdirectory(simulations/agents_cpu)
 add_subdirectory(simulations/bubbles_cpu)
 add_subdirectory(simulations/crowd_cpu)

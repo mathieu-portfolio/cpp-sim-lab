@@ -15,7 +15,7 @@
 
 class ThreadPool;
 
-namespace boids_cpu {
+namespace boids {
 
 struct SimulationConfig {
     static constexpr std::size_t DefaultBoidCount = 200;
@@ -115,4 +115,4 @@ private:
     void mergeWorkerStats(const SimulationStats& workerStats);
 };
 
-} // namespace boids_cpu
+} // namespace boids

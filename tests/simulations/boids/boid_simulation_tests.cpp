@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-using namespace boids_cpu;
+using namespace boids;
 
 namespace {
 constexpr float Epsilon = 0.001f;

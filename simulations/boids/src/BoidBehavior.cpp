@@ -5,7 +5,7 @@
 
 #include <array>
 
-namespace boids_cpu {
+namespace boids {
 namespace {
 float behaviorWeight(
     const SimulationConfig& config,
@@ -205,4 +205,4 @@ Vec2 computeWanderBehavior(std::size_t boidIndex, BoidBehaviorContext& context) 
     );
 }
 
-} // namespace boids_cpu
+} // namespace boids

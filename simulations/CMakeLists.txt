@@ -1,5 +1,5 @@
 add_subdirectory(particles)
-add_subdirectory(boids_cpu)
+add_subdirectory(boids)
 add_subdirectory(predator_prey_cpu)
 add_subdirectory(agents_cpu)
 add_subdirectory(bubbles_cpu)

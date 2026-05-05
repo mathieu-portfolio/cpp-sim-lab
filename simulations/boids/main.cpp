@@ -15,7 +15,7 @@
 
 #include <optional>
 
-using namespace boids_cpu;
+using namespace boids;
 
 namespace {
 constexpr int WindowWidth = 800;
@@ -53,7 +53,7 @@ bool isSelectionModifierDown() {
 } // namespace
 
 int main() {
-  InitWindow(WindowWidth, WindowHeight, "boids_cpu");
+  InitWindow(WindowWidth, WindowHeight, "boids");
   SetTargetFPS(60);
 
   Simulation sim;
@@ -127,7 +127,7 @@ int main() {
     if (controls.uiMode != simfw::ui::UiMode::None) {
       simfw::ui::TextCursor cursor{10, 10, 20};
 
-      cursor.draw("boids_cpu", 20, RAYWHITE);
+      cursor.draw("boids", 20, RAYWHITE);
       cursor.draw(controls.paused ? "Paused" : "Running");
 
       simfw::ui::drawStats(cursor, sim.getStats());

@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-namespace boids_cpu {
+namespace boids {
 
 Vec2 computeAlignment(
     std::size_t boidIndex,
@@ -39,4 +39,4 @@ Vec2 computeWander(
 Vec2 limitLength(Vec2 value, float maxLength);
 Vec2 wrapPosition(Vec2 position, float width, float height);
 
-} // namespace boids_cpu
+} // namespace boids
