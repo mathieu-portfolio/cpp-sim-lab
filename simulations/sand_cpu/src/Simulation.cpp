@@ -2,9 +2,36 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <random/Random.hpp>
 
 namespace sand_cpu {
+
+namespace {
+constexpr float kMaxSpawnSpeed = 1.5f;
+
+float clampVelocity(float v, float limit) {
+    return std::clamp(v, -limit, limit);
+}
+
+std::pair<int, int> inertialStep(const Cell& cell) {
+    auto axisStep = [](float v) -> int {
+        const float absV = std::fabs(v);
+        if (absV < 0.05f) {
+            return 0;
+        }
+        int step = 0;
+        if (absV >= 1.0f) {
+            step = 1;
+        } else if (Random::range(0.0f, 1.0f) < absV) {
+            step = 1;
+        }
+        return v < 0.0f ? -step : step;
+    };
+
+    return {axisStep(cell.vx), axisStep(cell.vy)};
+}
+}
 
 Simulation::Simulation(SimulationConfig config) : Base(config) {
     m_config.entityCount = m_config.maxParticleCount;
@@ -92,13 +119,9 @@ void Simulation::update(float) {
             Cell& cell = m_cells[idx(x, y)];
 
             if (cell.material != Material::Empty) {
-                const int inertialX = static_cast<int>(std::round(cell.vx));
-                const int inertialY = static_cast<int>(std::round(cell.vy));
+                const auto [inertialX, inertialY] = inertialStep(cell);
                 if ((inertialX != 0 || inertialY != 0) && tryMove(x, y, x + inertialX, y + inertialY)) {
                     ++m_stats.movedCells;
-                    Cell& movedCell = m_cells[idx(x + inertialX, y + inertialY)];
-                    movedCell.vx *= 0.9f;
-                    movedCell.vy *= 0.9f;
                     continue;
                 }
             }
@@ -113,9 +136,8 @@ void Simulation::update(float) {
                     if (moved) {
                         ++m_stats.movedCells;
                     }
-                    cell.vy += 0.2f;
-                    cell.vx *= 0.9f;
-                    cell.vy *= 0.9f;
+                    cell.vy = clampVelocity(cell.vy + 0.18f, 1.6f);
+                    cell.vx = clampVelocity(cell.vx * 0.86f, 1.2f);
                     break;
                 }
                 case Material::Water: {
@@ -130,9 +152,8 @@ void Simulation::update(float) {
                     if (moved) {
                         ++m_stats.movedCells;
                     }
-                    cell.vy += 0.15f;
-                    cell.vx *= 0.85f;
-                    cell.vy *= 0.85f;
+                    cell.vy = clampVelocity(cell.vy + 0.12f, 1.4f);
+                    cell.vx = clampVelocity(cell.vx * 0.9f, 1.4f);
                     break;
                 }
                 case Material::Smoke: {
@@ -153,9 +174,8 @@ void Simulation::update(float) {
                             markNeighborsDirty(x, y);
                         }
                     }
-                    cell.vy -= 0.08f;
-                    cell.vx *= 0.85f;
-                    cell.vy *= 0.85f;
+                    cell.vy = clampVelocity(cell.vy - 0.08f, 1.0f);
+                    cell.vx = clampVelocity(cell.vx * 0.92f, 1.2f);
                     break;
                 }
                 case Material::Empty:
@@ -187,8 +207,10 @@ void Simulation::spawnDisc(int centerX, int centerY, Material material, float br
         if (cell.material == Material::Empty) {
             cell.material = material;
             cell.life = material == Material::Smoke ? static_cast<std::uint8_t>(Random::range(40, 120)) : 0;
-            cell.vx = brushVx;
-            cell.vy = brushVy;
+            const float jitterX = Random::range(-0.25f, 0.25f);
+            const float jitterY = Random::range(-0.25f, 0.25f);
+            cell.vx = clampVelocity(brushVx * 0.65f + jitterX, kMaxSpawnSpeed);
+            cell.vy = clampVelocity(brushVy * 0.65f + jitterY, kMaxSpawnSpeed);
             markNeighborsDirty(x, y);
         }
     }
