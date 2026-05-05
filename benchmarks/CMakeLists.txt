@@ -7,7 +7,6 @@ add_subdirectory(simulations/crowd)
 
 add_subdirectory(simulations/bubbles)
 add_subdirectory(simulations/sand_cpu)
-add_subdirectory(simulations/traffic_flow)
 
 write_sim_benchmark_registry()
 

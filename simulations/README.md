@@ -34,12 +34,6 @@ Each simulation is independent and demonstrates a different system.
 - camera navigation
 - entity selection & debug UI
 
-## traffic_flow
-- lane-based traffic flow
-- IDM longitudinal control
-- simple MOBIL-style lane changes
-- throughput / speed / queue metrics
-
 ## epidemic_cpu
 - SIR-style epidemic spread over moving agents
 - proximity/contact-time infection probability

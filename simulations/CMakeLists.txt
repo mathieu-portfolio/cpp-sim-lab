@@ -6,7 +6,6 @@ add_subdirectory(bubbles)
 add_subdirectory(crowd)
 
 add_subdirectory(sand_cpu)
-add_subdirectory(traffic_flow)
 
 add_subdirectory(epidemic_cpu)
 
