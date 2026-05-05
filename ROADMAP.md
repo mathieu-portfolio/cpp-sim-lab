@@ -150,7 +150,6 @@ Current best candidates (ordered):
 
 Secondary candidates:
 - `bubbles` (similar interaction profile to particles, but less benchmark depth)
-- `traffic_flow` (has benchmark matrix, but lane-change logic is branchier)
 - `heat_grid` (dense grid stencils are very GPU-friendly, pending backend matrix benchmarks)
 
 Not yet ideal first GPU ports:
