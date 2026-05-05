@@ -38,6 +38,11 @@ float dot(const Vec2& a, const Vec2& b) {
     return a.x * b.x + a.y * b.y;
 }
 
+
+bool pointsClose(const Vec2& a, const Vec2& b, float radius) {
+    return (a - b).lengthSquared() <= radius * radius;
+}
+
 bool lineIntersection(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& d, float& outU, float& outV) {
     const Vec2 r = b - a;
     const Vec2 s = d - c;
@@ -128,6 +133,7 @@ void Simulation::rebuildRoadCaches() {
     for (RoadSegment& road : m_network.roads) {
         rebuildRoadCache(road);
     }
+    rebuildRoadConnections();
     rebuildCrossroads();
 }
 
@@ -151,6 +157,37 @@ void Simulation::rebuildRoadCache(RoadSegment& road) {
         prev = p;
     }
     road.length = len;
+}
+
+void Simulation::rebuildRoadConnections() {
+    constexpr float connectionSnapRadius = 20.0f;
+
+    for (RoadSegment& road : m_network.roads) {
+        road.startConnection.reset();
+        road.endConnection.reset();
+    }
+
+    for (std::size_t a = 0; a < m_network.roads.size(); ++a) {
+        RoadSegment& roadA = m_network.roads[a];
+        if (roadA.controlPoints.size() < 2 || roadA.lanes.empty()) continue;
+        const Vec2 aStart = roadA.controlPoints.front();
+        const Vec2 aEnd = roadA.controlPoints.back();
+
+        for (std::size_t b = 0; b < m_network.roads.size(); ++b) {
+            if (a == b) continue;
+            const RoadSegment& roadB = m_network.roads[b];
+            if (roadB.controlPoints.size() < 2 || roadB.lanes.empty()) continue;
+            const Vec2 bStart = roadB.controlPoints.front();
+            const Vec2 bEnd = roadB.controlPoints.back();
+
+            if (!roadA.endConnection.has_value() && pointsClose(aEnd, bStart, connectionSnapRadius)) {
+                roadA.endConnection = RoadConnection{b, roadA.lanes.front().direction >= 0 ? 0 : 1};
+            }
+            if (!roadA.startConnection.has_value() && pointsClose(aStart, bEnd, connectionSnapRadius)) {
+                roadA.startConnection = RoadConnection{b, roadA.lanes.front().direction >= 0 ? 0 : 1};
+            }
+        }
+    }
 }
 
 void Simulation::rebuildCrossroads() {
@@ -294,82 +331,43 @@ void Simulation::generateTraffic() {
     sanitizeConfig();
     clearTraffic();
 
-    std::vector<std::pair<std::size_t, int>> spawnLanes;
+    std::vector<std::size_t> spawnRoads;
     for (std::size_t roadId = 0; roadId < m_network.roads.size(); ++roadId) {
         const RoadSegment& road = m_network.roads[roadId];
-        if (road.length <= 1.0f || road.lanes.empty()) continue;
-        for (std::size_t laneId = 0; laneId < road.lanes.size(); ++laneId) {
-            spawnLanes.emplace_back(roadId, static_cast<int>(laneId));
-        }
+        if (road.length > 1.0f && !road.lanes.empty()) spawnRoads.push_back(roadId);
     }
+    if (spawnRoads.empty()) return;
 
-    if (spawnLanes.empty()) return;
+    std::vector<std::size_t> perRoadTarget(spawnRoads.size(), 0);
+    for (std::size_t i = 0; i < m_config.vehicleCount; ++i) ++perRoadTarget[i % spawnRoads.size()];
 
-    const std::size_t laneCount = spawnLanes.size();
-    std::vector<std::size_t> perLaneTarget(laneCount, 0);
-    for (std::size_t i = 0; i < m_config.vehicleCount; ++i) {
-        ++perLaneTarget[i % laneCount];
-    }
+    for (std::size_t slot = 0; slot < spawnRoads.size(); ++slot) {
+        const std::size_t roadId = spawnRoads[slot];
+        const RoadSegment& road = m_network.roads[roadId];
+        const std::size_t roadTarget = perRoadTarget[slot];
+        if (roadTarget == 0) continue;
 
-    for (std::size_t laneSlot = 0; laneSlot < laneCount; ++laneSlot) {
-        const auto& laneRef = spawnLanes[laneSlot];
-        const RoadSegment& road = m_network.roads[laneRef.first];
-        const std::size_t targetCount = perLaneTarget[laneSlot];
-        if (targetCount == 0 || road.length <= 1.0f) continue;
+        std::vector<std::size_t> perLaneTarget(road.lanes.size(), 0);
+        for (std::size_t i = 0; i < roadTarget; ++i) ++perLaneTarget[i % road.lanes.size()];
 
-        const float spacing = std::max(m_config.spawnMinimumGap, m_config.minimumGap + 4.5f);
-        const std::size_t maxByLength = static_cast<std::size_t>(std::max(1.0f, std::floor(road.length / spacing)));
-        const std::size_t count = std::min(targetCount, maxByLength);
-
-        std::vector<float> placedS;
-        placedS.reserve(count);
-
-        // Walk the whole lane at the requested spacing and skip only the
-        // forbidden crossroad ranges. Do not stop generation when a crossroad
-        // is met: traffic resumes automatically on the next regular-road
-        // portion.
-        auto tryPlace = [&](float s) {
-            if (isInsideCrossroadSpawnClearance(laneRef.first, s)) return;
-
-            Vehicle candidate;
-            candidate.roadId = laneRef.first;
-            candidate.laneId = laneRef.second;
-            candidate.s = s;
-            candidate.length = 4.5f;
-
-            std::vector<Vehicle> alreadyPlaced = m_vehicles;
-            alreadyPlaced.reserve(m_vehicles.size() + placedS.size());
-            for (float existingS : placedS) {
-                Vehicle placed;
-                placed.roadId = laneRef.first;
-                placed.laneId = laneRef.second;
-                placed.s = existingS;
-                placed.length = candidate.length;
-                alreadyPlaced.push_back(placed);
-            }
-
-            if (TrafficPhysics::canSpawnVehicleAt(*this, alreadyPlaced, candidate, spacing)) {
-                placedS.push_back(s);
-            }
-        };
-
-        for (float s = spacing * 0.5f; s < road.length && placedS.size() < count; s += spacing) {
-            tryPlace(s);
-        }
-
-        // Second pass with a different phase to fill valid road portions that
-        // were skipped because the first phase landed inside crossroad zones.
-        for (float s = spacing; s < road.length && placedS.size() < count; s += spacing) {
-            tryPlace(s);
-        }
-
-        for (float s : placedS) {
-            Vehicle v;
-            v.roadId = laneRef.first;
-            v.laneId = laneRef.second;
-            v.s = s;
-            v.speed = Random::range(m_config.spawnSpeedMin, m_config.spawnSpeedMax);
-            m_vehicles.push_back(v);
+        for (std::size_t laneIx = 0; laneIx < road.lanes.size(); ++laneIx) {
+            const std::size_t targetCount = perLaneTarget[laneIx];
+            if (targetCount == 0) continue;
+            const float spacing = std::max(m_config.spawnMinimumGap, m_config.minimumGap + 4.5f);
+            const std::size_t maxByLength = static_cast<std::size_t>(std::max(1.0f, std::floor(road.length / spacing)));
+            const std::size_t count = std::min(targetCount, maxByLength);
+            std::vector<float> placedS;
+            placedS.reserve(count);
+            auto tryPlace = [&](float s) {
+                if (isInsideCrossroadSpawnClearance(roadId, s)) return;
+                Vehicle candidate; candidate.roadId = roadId; candidate.laneId = static_cast<int>(laneIx); candidate.s = s; candidate.length = 4.5f;
+                std::vector<Vehicle> alreadyPlaced = m_vehicles;
+                for (float existingS : placedS) { Vehicle placed; placed.roadId=roadId; placed.laneId=static_cast<int>(laneIx); placed.s=existingS; placed.length=4.5f; alreadyPlaced.push_back(placed);}                
+                if (TrafficPhysics::canSpawnVehicleAt(*this, alreadyPlaced, candidate, spacing)) placedS.push_back(s);
+            };
+            for (float s = spacing * 0.5f; s < road.length && placedS.size() < count; s += spacing) tryPlace(s);
+            for (float s = spacing; s < road.length && placedS.size() < count; s += spacing) tryPlace(s);
+            for (float s : placedS) { Vehicle v; v.roadId=roadId; v.laneId=static_cast<int>(laneIx); v.s=s; v.speed=Random::range(m_config.spawnSpeedMin,m_config.spawnSpeedMax); m_vehicles.push_back(v);}            
         }
     }
 }
@@ -582,10 +580,8 @@ void Simulation::update(float dt) {
                     m_network.roads[c.roadId].length > 0.0f) {
                     v.roadId = c.roadId;
                     v.laneId = c.laneId;
-                    // Crossing an explicit road connection resets the lane-progress
-                    // to the start of the destination lane instead of carrying
-                    // residual distance from the source road.
-                    v.s = 0.0f;
+                    const float overflow = v.s - road.length;
+                    v.s = std::clamp(overflow, 0.0f, m_network.roads[c.roadId].length);
                 } else {
                     v.s = wrapDistance(v.s, road.length);
                 }
@@ -601,9 +597,10 @@ void Simulation::update(float dt) {
                     m_network.roads[c.roadId].length > 0.0f) {
                     v.roadId = c.roadId;
                     v.laneId = c.laneId;
-                    // Same behavior for start-connection transfers: enter the
-                    // destination lane at its canonical start.
-                    v.s = 0.0f;
+                    v.s = std::clamp(
+                        m_network.roads[c.roadId].length + v.s,
+                        0.0f,
+                        m_network.roads[c.roadId].length);
                 } else {
                     v.s = wrapDistance(v.s, road.length);
                 }
