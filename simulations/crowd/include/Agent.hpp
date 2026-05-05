@@ -2,7 +2,7 @@
 
 #include <math/Vec2.hpp>
 
-namespace crowd_cpu {
+namespace crowd {
 
 struct Agent {
     Vec2 position;
@@ -10,4 +10,4 @@ struct Agent {
     float radius = 4.0f;
 };
 
-} // namespace crowd_cpu
+} // namespace crowd

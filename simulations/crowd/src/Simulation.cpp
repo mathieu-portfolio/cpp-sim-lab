@@ -15,7 +15,7 @@
 #include <simulation/SpatialQuery.hpp>
 #include <simulation/StatsReduction.hpp>
 
-namespace crowd_cpu {
+namespace crowd {
 namespace {
 constexpr std::size_t MinItemsPerParallelTask = 256;
 Vec2 agentPosition(const Agent &a) { return a.position; }
@@ -367,4 +367,4 @@ void Simulation::update(float dt) {
   updateAgents(dt);
 }
 
-} // namespace crowd_cpu
+} // namespace crowd

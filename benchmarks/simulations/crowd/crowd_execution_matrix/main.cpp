@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-using namespace crowd_cpu;
+using namespace crowd;
 
 namespace {
 constexpr std::uint32_t BaseSeed = 6060u;
@@ -151,7 +151,7 @@ int main() {
 
             progress.advance();
             std::cout
-                << "crowd_cpu,"
+                << "crowd,"
                 << entityCount << ","
                 << mode.backend << ","
                 << mode.threading << ","

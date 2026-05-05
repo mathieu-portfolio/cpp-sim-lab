@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-namespace crowd_cpu {
+namespace crowd {
 
 struct SimulationConfig;
 struct SimulationStats;
@@ -53,4 +53,4 @@ Vec2 limitLength(Vec2 value, float maxLen);
 Vec2 followFlow(std::size_t index, BehaviorContext& context);
 Vec2 separate(std::size_t index, BehaviorContext& context);
 
-} // namespace crowd_cpu
+} // namespace crowd
