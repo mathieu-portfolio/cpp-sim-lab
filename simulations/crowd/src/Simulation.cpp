@@ -349,9 +349,26 @@ void Simulation::updateAgents(float dt) {
         ++st.reachedGoalCount;
     }
   };
+  const auto backend = m_config.execution.computeBackend;
+
+  if (backend == simfw::simulation::ComputeBackend::CpuScalar) {
+    Scratch scratch;
+    SimulationStats workerStats{};
+    worker(0, m_entities.size(), scratch, workerStats);
+    simfw::sumStatsMembers(m_stats, workerStats, &SimulationStats::neighborCandidates,
+                           &SimulationStats::neighborChecks,
+                           &SimulationStats::reachedGoalCount);
+    return;
+  }
+
+  const bool useParallel =
+      backend == simfw::simulation::ComputeBackend::GpuCompute
+          ? true
+          : m_config.execution.useParallelUpdate;
+
   simfw::runParallelUpdate<ThreadPool, Scratch, SimulationStats>(
       m_threadPool.get(), m_entities.size(), MinItemsPerParallelTask,
-      m_config.execution.useParallelUpdate, worker,
+      useParallel, worker,
       [this](const SimulationStats &s) {
         simfw::sumStatsMembers(m_stats, s, &SimulationStats::neighborCandidates,
                                &SimulationStats::neighborChecks,
